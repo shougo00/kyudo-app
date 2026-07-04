@@ -1,0 +1,134 @@
+.video-container {
+    position: relative;
+    max-width: 600px;
+    margin: auto;
+    background: #000;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+video, canvas {
+    width: 100%;
+    border-radius: 10px;
+}
+
+canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+
+#phase {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    font-size: 18px;
+    color: yellow;
+    background: rgba(0,0,0,0.6);
+    padding: 10px;
+    border-radius: 10px;
+    z-index: 3;
+}
+
+#metrics {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    color: white;
+    background: rgba(0,0,0,0.6);
+    padding: 10px;
+    border-radius: 10px;
+    font-size: 12px;
+    z-index: 3;
+}
+
+#checkpoints {
+    max-width: 600px;
+    margin: 10px auto;
+    padding: 10px;
+    background: #111;
+    color: white;
+    border-radius: 10px;
+    font-size: 14px;
+    text-align: center;
+}
+
+.kyudo-btn {
+    display: block;
+    width: 100%;
+    max-width: 600px;
+    margin: 10px auto;
+    padding: 12px;
+    font-size: 16px;
+    border-radius: 8px;
+    border: none;
+    text-align: center;       
+    text-decoration: none;  
+}
+
+.btn-main {
+    background: #0d6efd;
+    color: white;
+}
+
+.btn-sub {
+    background: #6c757d;
+    color: white;
+}
+
+.btn-danger {
+    background: #dc3545;
+    color: white;
+}
+
+#cameraInfo {
+    max-width: 600px;
+    margin: 8px auto;
+    font-size: 13px;
+    color: #555;
+    text-align: center;
+}
+#overlayCheckpoints {
+    position: absolute;
+    left: 8px;
+    right: 8px;
+    bottom: 8px;
+    z-index: 5;
+    background: rgba(0,0,0,0.7);
+    color: white;
+    padding: 8px;
+    border-radius: 10px;
+    font-size: 12px;
+    text-align: center;
+    line-height: 1.6;
+}
+
+#overlayResetBtn {
+    position: absolute;
+    right: 8px;
+    bottom: 58px;
+    z-index: 6;
+    width: auto;
+    max-width: none;
+    margin: 0;
+    padding: 8px 12px;
+    font-size: 13px;
+    border-radius: 8px;
+    background: #dc3545;
+    color: white;
+}
+.btn-green {
+    background: #28a745 !important;
+    color: white !important;
+}
+@media (max-width: 1024px) {
+    .video-container {
+        height: 70vh;
+    }
+
+    #camera,
+    #canvas {
+        height: 100%;
+        object-fit: cover;
+    }
+}

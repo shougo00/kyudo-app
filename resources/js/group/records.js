@@ -1,0 +1,610 @@
+function reloadAndPrint() {
+    const url = new URL(window.location.href);
+    url.searchParams.set('print', '1');
+    window.location.href = url.toString();
+}
+
+window.addEventListener('load', () => {
+    const url = new URL(window.location.href);
+
+    if (url.searchParams.get('print') === '1') {
+        url.searchParams.delete('print');
+        history.replaceState(null, '', url.toString());
+
+        setTimeout(() => {
+            window.print();
+        }, 500);
+    }
+});
+    
+function updateShot(el){
+
+    const id = el.dataset.id;
+    if(!id){
+        alert('先に立を追加してください');
+        return;
+    }
+
+    const userId = el.dataset.user;
+    const recordId = el.dataset.recordId;
+    const tateCounterKey = el.dataset.tateCounter;
+    const current = el.dataset.result;
+
+    const next =
+        current==='hit' ? 'miss' :
+        current==='miss' ? '' :
+        'hit';
+
+    el.dataset.result = next;
+
+    el.innerHTML =
+        next==='hit'
+        ? '<i class="fa-regular fa-circle"></i>'
+        : next==='miss'
+        ? '<i class="fas fa-xmark"></i>'
+        : '＋';
+
+    el.classList.remove('shot-hit','shot-miss','shot-none');
+
+    if(next==='hit') el.classList.add('shot-hit');
+    else if(next==='miss') el.classList.add('shot-miss');
+    else el.classList.add('shot-none');
+
+    const scoreEl = document.querySelector(`.score[data-user-id="${userId}"]`);
+
+    if(scoreEl){
+        let count = parseInt(scoreEl.innerText) || 0;
+
+        if(current !== 'hit' && next === 'hit') count++;
+        if(current === 'hit' && next !== 'hit') count--;
+
+        if(count < 0) count = 0;
+
+        scoreEl.innerText = count + '中';
+    }
+
+    if(recordId){
+        const counterEl = document.querySelector(`[data-shot-counter="${recordId}"]`);
+
+        if(counterEl){
+            let count = parseInt(counterEl.innerText) || 0;
+
+            if(current !== 'hit' && next === 'hit') count++;
+            if(current === 'hit' && next !== 'hit') count--;
+            if(count < 0) count = 0;
+
+            counterEl.innerText = count + '中';
+        }
+    }
+
+    if(tateCounterKey){
+        const tateCounterEl = document.querySelector(`[data-tate-hit-counter="${tateCounterKey}"]`);
+
+        if(tateCounterEl){
+            let count = parseInt(tateCounterEl.innerText) || 0;
+
+            if(current !== 'hit' && next === 'hit') count++;
+            if(current === 'hit' && next !== 'hit') count--;
+            if(count < 0) count = 0;
+
+            tateCounterEl.innerText = count + '中';
+        }
+    }
+
+    fetch(`/group/shot/${id}`,{
+        method:'POST',
+        headers:{
+            'Content-Type':'application/json',
+            'X-CSRF-TOKEN':document.querySelector('meta[name="csrf-token"]').content
+        },
+        body: JSON.stringify({ result: next })
+    });
+}
+function scrollRight() {
+    const el = document.querySelector('.score-scroll');
+    if (el) el.scrollLeft = el.scrollWidth;
+}
+
+window.addEventListener('load', () => {
+    setTimeout(scrollRight, 50);
+});
+
+function toggleCalendar(event) {
+    event.stopPropagation();
+
+    const box = document.getElementById('calendarBox');
+
+    if (!box) return;
+
+    box.style.display = box.style.display === 'block' ? 'none' : 'block';
+}
+window.updateShot = updateShot;
+window.toggleCalendar = toggleCalendar;
+window.reloadAndPrint = reloadAndPrint;
+window.scrollRight = scrollRight;
+
+let inlineDragged = null;
+let inlineSelected = null;
+let inlineSaveTimer = null;
+let inlineLongPressTimer = null;
+let inlineLongPressed = false;
+
+function initInlineMatchLineup() {
+    const data = window.inlineMatchLineupData;
+    const grid = document.getElementById('inlineMatchGrid');
+    let pool = document.getElementById('inlineMatchPool');
+    const source = data
+        ? document.querySelector(`.lineup-source[data-team-id="${data.teamId}"][data-tate-no="${data.tateNo}"]`)
+        : null;
+    const status = document.getElementById('matchLineupSaveStatus');
+
+    if (!data || !grid || !pool || !source) return;
+
+    const freshPool = pool.cloneNode(false);
+    pool.parentNode.replaceChild(freshPool, pool);
+    pool = freshPool;
+
+    function clearTargets() {
+        document.querySelectorAll('.inline-drag-over').forEach(el => {
+            el.classList.remove('inline-drag-over');
+        });
+    }
+
+    function selectMember(member) {
+        document.querySelectorAll('.inline-member.selected').forEach(el => {
+            el.classList.remove('selected');
+        });
+
+        inlineSelected = member;
+
+        document.querySelectorAll('.inline-match-cell, .inline-match-pool').forEach(el => {
+            el.classList.remove('tap-target');
+        });
+
+        if (member) {
+            member.classList.add('selected');
+            document.querySelectorAll('.inline-match-cell').forEach(el => el.classList.add('tap-target'));
+            pool.classList.add('tap-target');
+        }
+    }
+
+    function swapMembers(a, b) {
+        const aParent = a.parentElement;
+        const bParent = b.parentElement;
+        const aNext = a.nextSibling;
+        const bNext = b.nextSibling;
+
+        if (aParent === bParent) {
+            bParent.insertBefore(a, bNext);
+            aParent.insertBefore(b, aNext);
+        } else {
+            aParent.insertBefore(b, aNext);
+            bParent.insertBefore(a, bNext);
+        }
+    }
+
+    function moveSelectedTo(target) {
+        if (!inlineSelected) return;
+
+        if (target.classList.contains('inline-match-cell')) {
+            const existing = target.querySelector('.inline-member');
+
+            if (existing && existing !== inlineSelected) {
+                swapMembers(inlineSelected, existing);
+            } else {
+                target.appendChild(inlineSelected);
+            }
+        }
+
+        if (target.id === 'inlineMatchPool') {
+            pool.appendChild(inlineSelected);
+            sortInlinePoolMembers();
+        }
+
+        selectMember(null);
+        autoSaveInlineLineup();
+    }
+
+    function sortInlinePoolMembers() {
+        Array.from(pool.querySelectorAll('.inline-member'))
+            .sort((a, b) => {
+                const aUnavailable = a.classList.contains('absent') || a.classList.contains('late');
+                const bUnavailable = b.classList.contains('absent') || b.classList.contains('late');
+
+                return Number(aUnavailable) - Number(bUnavailable);
+            })
+            .forEach(member => pool.appendChild(member));
+    }
+
+    function makeMember(sourceEl) {
+        const member = document.createElement('div');
+        member.className = 'inline-member';
+        member.draggable = true;
+        member.dataset.userId = sourceEl.dataset.userId;
+        member.textContent = sourceEl.textContent.trim();
+
+        if (sourceEl.dataset.gender === 'male') member.classList.add('male');
+        if (sourceEl.dataset.gender === 'female') member.classList.add('female');
+        if (sourceEl.dataset.gradeColor) {
+            member.classList.add('grade-colored');
+            member.style.backgroundColor = sourceEl.dataset.gradeColor;
+            member.style.borderColor = sourceEl.dataset.gradeColor;
+            member.style.color = sourceEl.dataset.gradeTextColor || '#222';
+        }
+        if (sourceEl.dataset.late === '1' || sourceEl.classList.contains('late')) member.classList.add('late');
+        if (sourceEl.dataset.absent === '1' || sourceEl.classList.contains('absent')) member.classList.add('absent');
+        if (member.textContent.length >= 5) member.classList.add('long-name');
+
+        function cycleInlineAttendance() {
+            if (!member.classList.contains('late') && !member.classList.contains('absent')) {
+                member.classList.add('late');
+                pool.appendChild(member);
+                sortInlinePoolMembers();
+                return;
+            }
+
+            if (member.classList.contains('late')) {
+                member.classList.remove('late');
+                member.classList.add('absent');
+                pool.appendChild(member);
+                sortInlinePoolMembers();
+                return;
+            }
+
+            member.classList.remove('absent');
+            sortInlinePoolMembers();
+        }
+
+        member.addEventListener('dragstart', () => {
+            inlineDragged = member;
+            setTimeout(() => member.style.opacity = '0.5', 0);
+        });
+
+        member.addEventListener('dragend', () => {
+            member.style.opacity = '1';
+            inlineDragged = null;
+            clearTargets();
+        });
+
+        member.addEventListener('touchstart', () => {
+            inlineLongPressed = false;
+            inlineLongPressTimer = setTimeout(() => {
+                inlineLongPressed = true;
+                cycleInlineAttendance();
+                selectMember(null);
+                autoSaveInlineLineup();
+            }, 600);
+        }, { passive: true });
+
+        member.addEventListener('touchend', () => {
+            clearTimeout(inlineLongPressTimer);
+        });
+
+        member.addEventListener('touchmove', () => {
+            clearTimeout(inlineLongPressTimer);
+        });
+
+        member.addEventListener('dblclick', event => {
+            event.stopPropagation();
+            cycleInlineAttendance();
+            selectMember(null);
+            autoSaveInlineLineup();
+        });
+
+        member.addEventListener('click', event => {
+            event.stopPropagation();
+
+            if (inlineLongPressed) {
+                inlineLongPressed = false;
+                return;
+            }
+
+            if (inlineSelected && inlineSelected !== member) {
+                swapMembers(inlineSelected, member);
+                selectMember(null);
+                autoSaveInlineLineup();
+                return;
+            }
+
+            selectMember(inlineSelected === member ? null : member);
+        });
+
+        return member;
+    }
+
+    function saveInlineLineup() {
+        const members = [];
+
+        document.querySelectorAll('.inline-match-cell').forEach(cell => {
+            const member = cell.querySelector('.inline-member');
+
+            if (member) {
+                members.push({
+                    user_id: member.dataset.userId,
+                    position: cell.dataset.position,
+                    absent: member.classList.contains('absent'),
+                    late: member.classList.contains('late'),
+                });
+            }
+        });
+
+        pool.querySelectorAll('.inline-member').forEach(member => {
+            members.push({
+                user_id: member.dataset.userId,
+                position: null,
+                absent: member.classList.contains('absent'),
+                late: member.classList.contains('late'),
+            });
+        });
+
+        fetch(`/match-teams/${data.teamId}/tate`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+            },
+            body: JSON.stringify({
+                date: data.date,
+                tate_no: data.tateNo,
+                members,
+            })
+        })
+            .then(res => res.json())
+            .then(() => {
+                if (status) status.innerText = '立順保存済み';
+                const modal = document.getElementById('matchLineupModal');
+                if (modal) modal.dataset.dirty = '1';
+            })
+            .catch(() => {
+                if (status) status.innerText = '立順保存失敗';
+            });
+    }
+
+    function autoSaveInlineLineup() {
+        if (status) status.innerText = '立順保存中...';
+        clearTimeout(inlineSaveTimer);
+        inlineSaveTimer = setTimeout(saveInlineLineup, 250);
+    }
+
+    grid.innerHTML = '';
+    pool.innerHTML = '';
+    grid.style.gridTemplateColumns = `repeat(${data.tateSize}, 1fr)`;
+    grid.style.direction = 'rtl';
+
+    for (let i = 1; i <= data.tateSize; i++) {
+        const cell = document.createElement('div');
+        cell.className = 'inline-match-cell';
+        cell.dataset.position = i;
+        cell.style.direction = 'ltr';
+        cell.innerHTML = `<span class="inline-cell-number">${i}</span>`;
+
+        cell.addEventListener('click', () => moveSelectedTo(cell));
+        cell.addEventListener('dragover', event => {
+            event.preventDefault();
+            clearTargets();
+            cell.classList.add('inline-drag-over');
+        });
+        cell.addEventListener('drop', event => {
+            event.preventDefault();
+            if (!inlineDragged) return;
+
+            const existing = cell.querySelector('.inline-member');
+
+            if (existing && existing !== inlineDragged) {
+                swapMembers(inlineDragged, existing);
+            } else {
+                cell.appendChild(inlineDragged);
+            }
+
+            clearTargets();
+            autoSaveInlineLineup();
+        });
+
+        grid.appendChild(cell);
+    }
+
+    const cells = Array.from(document.querySelectorAll('.inline-match-cell'));
+
+    source.querySelectorAll('.source-member').forEach(sourceEl => {
+        const member = makeMember(sourceEl);
+        const position = parseInt(sourceEl.dataset.position);
+
+        if (!member.classList.contains('absent') && !member.classList.contains('late') && position && cells[position - 1]) {
+            cells[position - 1].appendChild(member);
+        } else {
+            pool.appendChild(member);
+        }
+    });
+
+    sortInlinePoolMembers();
+
+    pool.addEventListener('click', () => moveSelectedTo(pool));
+    pool.addEventListener('dragover', event => {
+        event.preventDefault();
+        clearTargets();
+        pool.classList.add('inline-drag-over');
+    });
+    pool.addEventListener('drop', event => {
+        event.preventDefault();
+        if (inlineDragged) {
+            pool.appendChild(inlineDragged);
+            sortInlinePoolMembers();
+        }
+        clearTargets();
+        autoSaveInlineLineup();
+    });
+}
+
+function openMatchLineupModal(teamId, tateNo) {
+    const source = document.querySelector(`.lineup-source[data-team-id="${teamId}"][data-tate-no="${tateNo}"]`);
+    const modal = document.getElementById('matchLineupModal');
+    const title = document.getElementById('matchLineupModalTitle');
+    const status = document.getElementById('matchLineupSaveStatus');
+
+    if (!source || !modal) return;
+
+    window.inlineMatchLineupData = {
+        teamId,
+        date: source.dataset.date,
+        tateNo,
+        tateSize: parseInt(source.dataset.tateSize),
+    };
+
+    modal.hidden = false;
+    modal.dataset.dirty = '';
+    document.body.classList.add('modal-open');
+
+    if (title) title.innerText = `${source.dataset.teamName} ${tateNo}立目`;
+    if (status) status.innerText = '保存済み';
+
+    initInlineMatchLineup();
+}
+
+function closeMatchLineupModal() {
+    const modal = document.getElementById('matchLineupModal');
+    if (!modal) return;
+
+    const shouldReload = modal.dataset.dirty === '1';
+    modal.hidden = true;
+    document.body.classList.remove('modal-open');
+
+    if (shouldReload) window.location.reload();
+}
+
+window.openMatchLineupModal = openMatchLineupModal;
+window.closeMatchLineupModal = closeMatchLineupModal;
+
+function openMatchTeamCreateModal() {
+    const modal = document.getElementById('matchTeamCreateModal');
+    if (!modal) return;
+
+    modal.hidden = false;
+    document.body.classList.add('modal-open');
+
+    const nameInput = modal.querySelector('input[name="name"]');
+    if (nameInput) {
+        setTimeout(() => nameInput.focus(), 50);
+    }
+}
+
+function closeMatchTeamCreateModal() {
+    const modal = document.getElementById('matchTeamCreateModal');
+    if (!modal) return;
+
+    modal.hidden = true;
+    document.body.classList.remove('modal-open');
+}
+
+window.openMatchTeamCreateModal = openMatchTeamCreateModal;
+window.closeMatchTeamCreateModal = closeMatchTeamCreateModal;
+
+function initMatchTeamBoardScroll() {
+    const scrollArea = document.querySelector('.match-score-scroll');
+    const board = document.querySelector('.match-team-board');
+    const target = scrollArea || board;
+    if (!target || !board) return;
+
+    target.addEventListener('wheel', event => {
+        if (window.matchMedia('(pointer: coarse)').matches) return;
+
+        const isMostlyHorizontal = Math.abs(event.deltaX) > Math.abs(event.deltaY);
+        const canScrollX = target.scrollWidth > target.clientWidth;
+
+        if (canScrollX && event.shiftKey && !isMostlyHorizontal) {
+            target.scrollLeft += event.deltaY;
+            event.preventDefault();
+            return;
+        }
+
+        if (canScrollX && isMostlyHorizontal) {
+            target.scrollLeft += event.deltaX;
+            event.preventDefault();
+        }
+    }, { passive: false });
+}
+
+window.addEventListener('load', initMatchTeamBoardScroll);
+
+const matchTimerIntervals = new Map();
+
+function formatMatchTime(seconds) {
+    const mins = Math.floor(seconds / 60).toString().padStart(2, '0');
+    const secs = Math.floor(seconds % 60).toString().padStart(2, '0');
+    return `${mins}:${secs}`;
+}
+
+function getTimerBox(button) {
+    return button.closest('.match-timer');
+}
+
+function saveMatchTimer(box) {
+    if (!box) return;
+
+    fetch(`/match-teams/${box.dataset.teamId}/tate-timer`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+        },
+        body: JSON.stringify({
+            date: box.dataset.date,
+            tate_no: box.dataset.tateNo,
+            elapsed_seconds: parseInt(box.dataset.elapsed || '0'),
+        })
+    });
+}
+
+function toggleMatchTimer(button) {
+    const box = getTimerBox(button);
+    if (!box) return;
+
+    const key = `${box.dataset.teamId}-${box.dataset.date}-${box.dataset.tateNo}`;
+
+    if (matchTimerIntervals.has(key)) {
+        clearInterval(matchTimerIntervals.get(key));
+        matchTimerIntervals.delete(key);
+        button.innerText = '開始';
+        button.classList.remove('btn-outline-danger');
+        button.classList.add('btn-outline-success');
+        saveMatchTimer(box);
+        return;
+    }
+
+    button.innerText = '停止';
+    button.classList.remove('btn-outline-success');
+    button.classList.add('btn-outline-danger');
+
+    matchTimerIntervals.set(key, setInterval(() => {
+        const elapsed = parseInt(box.dataset.elapsed || '0') + 1;
+        box.dataset.elapsed = elapsed;
+        const display = box.querySelector('.match-timer-display');
+        if (display) display.innerText = formatMatchTime(elapsed);
+    }, 1000));
+}
+
+function resetMatchTimer(button) {
+    const box = getTimerBox(button);
+    if (!box) return;
+
+    const key = `${box.dataset.teamId}-${box.dataset.date}-${box.dataset.tateNo}`;
+    if (matchTimerIntervals.has(key)) {
+        clearInterval(matchTimerIntervals.get(key));
+        matchTimerIntervals.delete(key);
+    }
+
+    box.dataset.elapsed = 0;
+    const display = box.querySelector('.match-timer-display');
+    const startButton = box.querySelector('.btn-outline-danger, .btn-outline-success');
+
+    if (display) display.innerText = '00:00';
+    if (startButton) {
+        startButton.innerText = '開始';
+        startButton.classList.remove('btn-outline-danger');
+        startButton.classList.add('btn-outline-success');
+    }
+
+    saveMatchTimer(box);
+}
+
+window.toggleMatchTimer = toggleMatchTimer;
+window.resetMatchTimer = resetMatchTimer;

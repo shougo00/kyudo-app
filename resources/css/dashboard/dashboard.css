@@ -1,0 +1,95 @@
+/* ===== 今日・月間・年間 ===== */
+.summary-wrapper { display: flex; justify-content: space-between; margin-bottom: 10px; flex-wrap: wrap; }
+.summary-box { font-size: 13px; }
+.summary-box .summary-title { color: #888; font-size: 11px; margin-bottom: 2px; }
+.summary-box .summary-value { font-weight: 500; line-height: 1.4; white-space: pre-line; }
+
+/* ===== 月ナビ ===== */
+.month-nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+
+/* ===== タイプ切替 ===== */
+.type-switch { display: flex; gap: 4px; justify-content: flex-end; margin-bottom: 6px; }
+.type-switch button { flex: 0 0 auto; }
+
+/* ===== カレンダー ===== */
+.calendar-wrapper { position: relative; overflow-x: auto; }
+.calendar {
+    display: grid;
+    grid-template-columns: repeat(7,1fr);
+    gap: 0;
+    border: 1px solid #ccc;
+    background: #fff8dc;
+}
+.day, .day-header {
+    border: 1px solid #ccc;
+    padding: 6px 2px;
+    font-size: 11px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-height: 60px;
+}
+.day-header {
+    font-weight: bold;
+    background-color: #f0f0f0;
+}
+.day.sunday .date { color: red; }
+.day.saturday .date { color: blue; }
+
+/* カレンダー全体背景 */
+.bg-official { background-color: #ffe6e6; }
+.bg-self     { background-color: #e6f2ff; }
+.bg-match    { background-color: #fff3bf; }
+.bg-all      { background-color: #e0e0e0; }
+
+/* スマホ対応 */
+@media (max-width: 600px) {
+    .summary-title{  font-size: 20px !important; }
+    .summary-wrapper { flex-direction: column; gap: 15px; }
+    .summary-box { text-align: center !important; font-size: 20px; }
+    .month-nav strong { font-size: 20px; }
+    .type-switch { overflow-x: auto; }
+    .type-switch button { font-size: 20px; padding: 4px 6px; }
+    .calendar .day, .calendar .day-header { min-height: 50px; font-size: 10px; padding: 4px 2px; }
+}
+/* ===== 総合的中率グラフ ===== */
+.rate-chart-card {
+    margin-top: 18px;
+    padding: 14px;
+    border-radius: 14px;
+    background: #fff;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.08);
+}
+
+.rate-chart-title {
+    font-weight: bold;
+    font-size: 15px;
+    margin-bottom: 10px;
+    text-align: center;
+}
+
+.chart-wrap {
+    position: relative;
+    height: 260px;
+    width: 100%;
+}
+
+#overallRateChart {
+    width: 100%;
+    max-height: 260px;
+}
+
+@media (max-width: 600px) {
+    .rate-chart-title {
+        font-size: 18px;
+    }
+
+    .rate-chart-card {
+        padding: 10px;
+    }
+
+    #overallRateChart {
+        max-height: 240px;
+    }
+}

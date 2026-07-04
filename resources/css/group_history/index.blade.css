@@ -1,0 +1,308 @@
+.history-page {
+    max-width: 900px;
+    margin: 16px auto;
+    padding: 10px;
+}
+
+.filter-box,
+.rank-card {
+    background: #fff;
+    border-radius: 12px;
+    padding: 12px;
+    margin-bottom: 10px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+}
+
+.filter-box {
+    margin-bottom: 16px;
+    background: #fff;
+    border: 1px solid #eee;
+}
+
+.score-checks {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.score-check {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 38px;
+    padding: 8px 12px;
+    border: 1px solid #d9d9d9;
+    border-radius: 8px;
+    background: #fff;
+    color: #333;
+    font-weight: 700;
+    cursor: pointer;
+    user-select: none;
+}
+
+.score-check input {
+    accent-color: #c48a00;
+}
+
+.score-check.active {
+    background: #fff0b8;
+    border-color: #d19a16;
+    color: #533a00;
+}
+
+.filter-actions {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.section-title {
+    background: #111;
+    color: white;
+    padding: 10px;
+    border-radius: 10px;
+    margin: 20px 0 10px;
+    font-weight: bold;
+}
+
+.rank-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.rank-no {
+    font-size: 20px;
+    font-weight: bold;
+    width: 36px;
+    text-align: center;
+}
+
+.avatar-area {
+    width: 52px;
+    height: 62px;
+    position: relative;
+    flex-shrink: 0;
+}
+
+.avatar-layer {
+    position: absolute;
+    object-fit: contain;
+}
+
+.avatar-layer.hair {
+    top: 0;
+    left: 0;
+    width: 52px;
+    height: 24px;
+    z-index: 6;
+}
+
+.avatar-layer.face {
+    top: 13px;
+    left: 13px;
+    width: 26px;
+    height: 26px;
+    z-index: 5;
+}
+
+.avatar-layer.top {
+    top: 32px;
+    left: 0;
+    width: 52px;
+    height: 18px;
+    z-index: 4;
+}
+
+.avatar-layer.bottom {
+    top: 45px;
+    left: 0;
+    width: 52px;
+    height: 12px;
+    z-index: 3;
+}
+
+.avatar-layer.shoes {
+    top: 56px;
+    left: 8px;
+    width: 36px;
+    height: 6px;
+    z-index: 2;
+}
+
+.avatar-layer.accessory {
+    top: 0;
+    left: 8px;
+    width: 36px;
+    height: 12px;
+    z-index: 7;
+}
+
+.rank-info {
+    flex: 1;
+}
+
+.user-name {
+    font-weight: bold;
+    margin-bottom: 6px;
+}
+
+.score-line {
+    display: flex;
+    justify-content: space-between;
+    border-bottom: 1px solid #eee;
+    padding: 3px 0;
+    font-size: 14px;
+}
+
+.score-line:last-child {
+    border-bottom: none;
+}
+
+.active-score-subtle {
+    background: #fff9e6;
+    border-radius: 6px;
+    padding-left: 6px;
+    padding-right: 6px;
+}
+
+.page-tabs {
+    display: flex;
+    gap: 8px;
+    margin: 12px 0 16px;
+    background: #eee;
+    padding: 6px;
+    border-radius: 12px;
+}
+
+.page-tab {
+    flex: 1;
+    text-align: center;
+    padding: 10px;
+    border-radius: 10px;
+    text-decoration: none;
+    color: #333;
+    font-weight: bold;
+    background: transparent;
+}
+
+.page-tab.active {
+    background: #111;
+    color: #fff;
+}
+
+.month-nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.month-title {
+    font-size: 18px;
+    font-weight: bold;
+}
+
+.monthly-card {
+    align-items: stretch;
+}
+
+.monthly-card .user-name {
+    font-size: 16px;
+}
+
+.title-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+/* 通常画面では印刷用表は非表示 */
+.print-area {
+    display: none;
+}
+
+@media (max-width: 600px) {
+    .rank-card {
+        gap: 8px;
+        padding: 10px;
+    }
+
+    .score-line {
+        font-size: 13px;
+    }
+
+    .filter-actions {
+        justify-content: stretch;
+    }
+
+    .filter-actions .btn {
+        width: 100%;
+    }
+}
+
+/* 印刷時だけ表を出す */
+@media print {
+    nav,
+    header,
+    footer,
+    .navbar,
+    .page-tabs,
+    .filter-box,
+    .month-nav,
+    .rank-card,
+    .title-bar button {
+        display: none !important;
+    }
+
+    .history-page {
+        max-width: none !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
+    .title-bar {
+        display: block !important;
+        text-align: center;
+        margin-bottom: 8px;
+    }
+
+    .title-bar h3 {
+        font-size: 18px;
+        margin: 0 0 8px;
+    }
+
+    .print-area {
+        display: block !important;
+    }
+
+    @page {
+        size: A4 landscape;
+        margin: 8mm;
+    }
+
+    table.print-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 11px;
+    }
+
+    .print-table th,
+    .print-table td {
+        border: 1px solid #000;
+        padding: 5px;
+        text-align: center;
+    }
+
+    .print-table th {
+        background: #eee !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    .print-table .name-col {
+        text-align: left;
+        white-space: nowrap;
+    }
+}

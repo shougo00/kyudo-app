@@ -1,0 +1,94 @@
+/* ===== 全体 ===== */
+.my-container {
+    width: 100%;
+    max-width: 700px;
+    margin: 0 auto;
+    transition: background 0.3s;
+}
+
+
+.shot-btn {
+    width: 65px;
+    height: 65px;
+    border-radius: 50%;
+    border: 2px solid #ccc;
+    background: white;
+    cursor: pointer;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* アイコンサイズ */
+.shot-btn i {
+    font-size: 40px;
+}
+
+/* 状態カラー */
+.shot-hit i {
+    color: #ff3b30;
+}
+
+.shot-miss i {
+    font-size: 50px;  /* ←ここだけ大きく */
+    color: #007aff;
+}
+.shot-none {
+    color: #bbb;
+    border: 2px dashed #ccc;
+}
+.shot-none {
+    color: #bbb;
+    border: 2px dashed #ccc;
+}
+.fa-circle {
+    font-weight: 400 !important; 
+}
+
+
+.summary-text {
+    font-size: 13px;
+    color: #555;
+    letter-spacing: 0.5px;
+}
+
+/* 的中だけほんの少し強調 */
+.summary-text .hits {
+    color: #555;
+}
+
+/* 的中率は少しだけ目立たせる */
+.summary-text .rate {
+    color: #555;
+    font-weight: 500;
+}
+
+.shot-none { color: #bbb; border: 2px dashed #ccc; }
+.shot-none:hover { border-color: #666; background: #f8f9fa; }
+
+.container.self-bg { background-color: #e6f2ff; }
+.container.official-bg { background-color: #ffe6e6; }
+
+/* ボタンタイプ */
+.practice-type-buttons .btn { padding: 0.25rem 0.5rem; font-size: 0.85rem; }
+.btn-official { background-color: #ff4d4d; color: white; border-color: #ff4d4d; }
+.btn-outline-official { background-color: white; color: #ff4d4d; border-color: #ff4d4d; }
+.btn-self { background-color: #4da6ff; color: white; border-color: #4da6ff; }
+.btn-outline-self { background-color: white; color: #4da6ff; border-color: #4da6ff; }
+.btn-official:hover, .btn-outline-official:hover { background-color: #e60000; color: white; }
+.btn-self:hover, .btn-outline-self:hover { background-color: #0066cc; color: white; }
+
+.delete-record {
+    padding: 2px 6px;
+    font-size: 16px;
+    color: #7b7b7b;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    transition: color 0.2s, transform 0.1s;
+    outline: none;
+    box-shadow: none;
+}
+.delete-record:hover { color: #434242; }
+.delete-record:active { transform: scale(0.95); color: #434242; background: transparent; }

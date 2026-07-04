@@ -1,0 +1,659 @@
+const grid = document.getElementById('grid');
+const pool = document.getElementById('pool');
+const tateSelect = document.getElementById('tateSize');
+const source = document.getElementById('membersSource');
+const saveStatus = document.getElementById('saveStatus');
+const memberSearch = document.getElementById('memberSearch');
+const lineupSummary = document.getElementById('lineupSummary');
+const selectedMemberLabel = document.getElementById('selectedMemberLabel');
+const poolCount = document.getElementById('poolCount');
+const poolTools = document.getElementById('poolTools');
+
+let dragged = null;
+let selectedMember = null;
+let saveTimer = null;
+let longPressTimer = null;
+let longPressed = false;
+let extraRows = 0;
+let currentTateSize = parseInt(tateSelect.value);
+let currentPoolFilter = 'all';
+
+function makeMember(sourceEl) {
+    const div = document.createElement('div');
+    div.className = 'member';
+
+    if (sourceEl.dataset.gender === 'male') {
+        div.classList.add('male');
+    }
+
+    if (sourceEl.dataset.gender === 'female') {
+        div.classList.add('female');
+    }
+
+    if (sourceEl.dataset.gradeColor) {
+        div.classList.add('grade-colored');
+        div.style.backgroundColor = sourceEl.dataset.gradeColor;
+        div.style.borderColor = sourceEl.dataset.gradeColor;
+        div.style.color = sourceEl.dataset.gradeTextColor || '#222';
+    }
+
+    if (sourceEl.classList.contains('absent')) {
+        div.classList.add('absent');
+    }
+
+    if (sourceEl.classList.contains('late')) {
+        div.classList.add('late');
+    }
+
+    div.draggable = true;
+    div.dataset.id = sourceEl.dataset.id;
+    div.dataset.gender = sourceEl.dataset.gender || '';
+    div.dataset.name = sourceEl.textContent.trim().toLowerCase();
+    div.textContent = sourceEl.textContent.trim();
+    if (div.textContent.length >= 5) {
+        div.classList.add('long-name');
+    }
+    // ===== PCドラッグ =====
+    div.addEventListener('dragstart', () => {
+        dragged = div;
+        setTimeout(() => div.style.opacity = '0.5', 0);
+    });
+
+    div.addEventListener('dragend', () => {
+        div.style.opacity = '1';
+        dragged = null;
+        clearDragOver();
+    });
+
+    // ===== スマホ長押し（欠席） =====
+    div.addEventListener('touchstart', () => {
+        longPressed = false;
+        longPressTimer = setTimeout(() => {
+            longPressed = true;
+            cycleAttendance(div);
+            selectMember(null);
+            updatePoolView();
+            autoSave();
+        }, 600);
+    }, { passive: true });
+
+    div.addEventListener('touchend', () => {
+        clearTimeout(longPressTimer);
+    });
+
+    div.addEventListener('touchmove', () => {
+        clearTimeout(longPressTimer);
+    });
+
+    // ===== PCダブルクリック（欠席）←これ追加 =====
+    div.addEventListener('dblclick', (e) => {
+        e.stopPropagation();
+        cycleAttendance(div);
+        selectMember(null);
+        updatePoolView();
+        autoSave();
+    });
+
+    // ===== タップ（選択・入れ替え） =====
+    div.addEventListener('click', (e) => {
+        e.stopPropagation();
+
+        if (longPressed) {
+            longPressed = false;
+            return;
+        }
+
+        // 入れ替え
+        if (selectedMember && selectedMember !== div) {
+            swapMembers(selectedMember, div);
+            selectMember(null);
+            updatePoolView();
+            autoSave();
+            return;
+        }
+
+        // 選択ON/OFF
+        if (selectedMember === div) {
+            selectMember(null);
+        } else {
+            selectMember(div);
+        }
+    });
+
+    return div;
+}
+
+function swapMembers(a, b) {
+    const aParent = a.parentElement;
+    const bParent = b.parentElement;
+
+    const aNext = a.nextSibling;
+    const bNext = b.nextSibling;
+
+    if (aParent === bParent) {
+        bParent.insertBefore(a, bNext);
+        aParent.insertBefore(b, aNext);
+    } else {
+        aParent.insertBefore(b, aNext);
+        bParent.insertBefore(a, bNext);
+    }
+}
+
+function selectMember(member) {
+    document.querySelectorAll('.member.selected').forEach(el => {
+        el.classList.remove('selected');
+    });
+
+    selectedMember = member;
+
+    document.querySelectorAll('.cell, .pool').forEach(el => {
+        el.classList.remove('tap-target');
+    });
+
+    if (member) {
+        member.classList.add('selected');
+        document.querySelectorAll('.cell').forEach(el => el.classList.add('tap-target'));
+        pool.classList.add('tap-target');
+        if (selectedMemberLabel) {
+            selectedMemberLabel.innerText = `選択中: ${member.textContent.trim()}`;
+        }
+    } else if (selectedMemberLabel) {
+        selectedMemberLabel.innerText = '選択なし';
+    }
+}
+
+function moveSelectedTo(target) {
+    if (!selectedMember) return;
+
+    if (target.classList.contains('cell')) {
+        const existing = target.querySelector('.member');
+
+        if (existing && existing !== selectedMember) {
+            // 空いてないマスなら入れ替え
+            swapMembers(selectedMember, existing);
+        } else {
+            target.appendChild(selectedMember);
+        }
+    }
+
+    if (target.id === 'pool') {
+        pool.appendChild(selectedMember);
+        sortPoolMembers();
+    }
+
+    selectMember(null);
+    updatePoolView();
+    autoSave();
+}
+
+function getCellsRightToLeft() {
+    const size = parseInt(tateSelect.value);
+    const cells = Array.from(document.querySelectorAll('#grid .cell'));
+    let ordered = [];
+
+    for (let i = 0; i < cells.length; i += size) {
+        const row = cells.slice(i, i + size);
+        ordered = ordered.concat(row.reverse());
+    }
+
+    return ordered;
+}
+
+function getRealMembers() {
+    return Array.from(document.querySelectorAll('#grid .member, #pool .member'));
+}
+
+function clearDragOver() {
+    document.querySelectorAll('.drag-over').forEach(el => {
+        el.classList.remove('drag-over');
+    });
+}
+
+function getMaxSavedPosition() {
+    let max = 0;
+
+    source.querySelectorAll('.source-member').forEach(el => {
+        const pos = parseInt(el.dataset.position);
+        if (!isNaN(pos)) {
+            max = Math.max(max, pos);
+        }
+    });
+
+    return max;
+}
+function renderGrid(minRows = 0) {
+    const size = parseInt(tateSelect.value);
+    const total = source.querySelectorAll('.source-member').length;
+
+    const baseRows = Math.max(1, Math.ceil(total / size));
+    const savedRows = Math.ceil(getMaxSavedPosition() / size);
+
+    const rows = Math.max(baseRows, savedRows, minRows) + extraRows;
+
+    grid.innerHTML = '';
+    grid.style.gridTemplateColumns = `repeat(${size}, 1fr)`;
+
+    for (let i = 0; i < rows * size; i++) {
+        const cell = document.createElement('div');
+        cell.className = 'cell';
+
+        const num = document.createElement('span');
+        num.className = 'cell-number';
+        cell.appendChild(num);
+
+        cell.addEventListener('click', () => {
+            moveSelectedTo(cell);
+        });
+
+        cell.addEventListener('dragover', e => {
+            e.preventDefault();
+            clearDragOver();
+            cell.classList.add('drag-over');
+        });
+
+        cell.addEventListener('drop', e => {
+            e.preventDefault();
+
+            if (!dragged) return;
+
+            const existing = cell.querySelector('.member');
+
+            if (existing && existing !== dragged) {
+                swapMembers(dragged, existing);
+            } else {
+                cell.appendChild(dragged);
+            }
+
+            clearDragOver();
+            updatePoolView();
+            autoSave();
+        });
+
+        grid.appendChild(cell);
+    }
+
+    setCellNumbers();
+}
+function getCellsRightToLeftBySize(size) {
+    const cells = Array.from(document.querySelectorAll('#grid .cell'));
+    let ordered = [];
+
+    for (let i = 0; i < cells.length; i += size) {
+        const row = cells.slice(i, i + size);
+        ordered = ordered.concat(row.reverse());
+    }
+
+    return ordered;
+}
+
+function rerenderKeepingMembers(oldSize, newSize) {
+    const items = [];
+    let maxNewPosition = 0;
+
+    getCellsRightToLeftBySize(oldSize).forEach((cell, index) => {
+        const member = cell.querySelector('.member');
+
+        if (member) {
+            const oldPosition = index + 1;
+            const oldTateNo = Math.ceil(oldPosition / oldSize);
+            const indexInTate = ((oldPosition - 1) % oldSize) + 1;
+
+            let newPosition = ((oldTateNo - 1) * newSize) + indexInTate;
+
+            if (newSize < oldSize && indexInTate > newSize) {
+                newPosition = null;
+            }
+
+            if (newPosition) {
+                maxNewPosition = Math.max(maxNewPosition, newPosition);
+            }
+
+            items.push({
+                member: member,
+                position: newPosition
+            });
+        }
+    });
+
+    pool.querySelectorAll('.member').forEach(member => {
+        items.push({
+            member: member,
+            position: null
+        });
+    });
+
+    const requiredRows = Math.ceil(maxNewPosition / newSize);
+
+    renderGrid(requiredRows);
+
+    const cells = getCellsRightToLeft();
+
+    items.forEach(item => {
+        if (item.position && cells[item.position - 1]) {
+            cells[item.position - 1].appendChild(item.member);
+        } else {
+            pool.appendChild(item.member);
+        }
+    });
+}
+
+function addLineupRow() {
+    extraRows++;
+    rerenderKeepingMembers(currentTateSize, currentTateSize);
+    autoSave();
+}
+
+function setCellNumbers() {
+    const cells = getCellsRightToLeft();
+
+    cells.forEach((cell, index) => {
+        const num = cell.querySelector('.cell-number');
+        if (num) num.textContent = index + 1;
+    });
+}
+
+function initMembers(reset = false) {
+    pool.innerHTML = '';
+    renderGrid();
+
+    Array.from(source.querySelectorAll('.source-member')).forEach(sourceEl => {
+        const member = makeMember(sourceEl);
+        const position = reset ? null : sourceEl.dataset.position;
+
+        if (position) {
+            const cells = getCellsRightToLeft();
+            const cell = cells[parseInt(position) - 1];
+
+            if (cell) cell.appendChild(member);
+            else pool.appendChild(member);
+        } else {
+            pool.appendChild(member);
+        }
+    });
+
+    updatePoolView();
+}
+
+function sortPoolMembers() {
+    const members = Array.from(pool.querySelectorAll('.member'));
+
+    members
+        .sort((a, b) => {
+            const aUnavailable = a.classList.contains('absent') || a.classList.contains('late');
+            const bUnavailable = b.classList.contains('absent') || b.classList.contains('late');
+
+            return Number(aUnavailable) - Number(bUnavailable);
+        })
+        .forEach(member => pool.appendChild(member));
+}
+
+pool.addEventListener('click', () => {
+    moveSelectedTo(pool);
+});
+
+pool.addEventListener('dragover', e => {
+    e.preventDefault();
+    clearDragOver();
+    pool.classList.add('drag-over');
+});
+
+pool.addEventListener('drop', e => {
+    e.preventDefault();
+
+    if (dragged) {
+        pool.appendChild(dragged);
+    }
+
+    clearDragOver();
+    updatePoolView();
+    autoSave();
+});
+
+tateSelect.addEventListener('change', () => {
+    const newSize = parseInt(tateSelect.value);
+
+    rerenderKeepingMembers(currentTateSize, newSize);
+
+    currentTateSize = newSize;
+
+    autoSave();
+});
+
+function randomize() {
+    // 未配置にいる人だけ対象
+    const members = Array.from(pool.querySelectorAll('.member'))
+        .filter(member =>
+            !member.classList.contains('absent') &&
+            !member.classList.contains('late')
+        );
+
+    const absentMembers = Array.from(pool.querySelectorAll('.member'))
+    .filter(member =>
+        member.classList.contains('absent') ||
+        member.classList.contains('late')
+    );
+
+    for (let i = members.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [members[i], members[j]] = [members[j], members[i]];
+    }
+
+    // 空いているマスだけ取得
+    const emptyCells = getCellsRightToLeft()
+        .filter(cell => !cell.querySelector('.member'));
+
+    members.forEach((member, index) => {
+        if (emptyCells[index]) {
+            emptyCells[index].appendChild(member);
+        }
+    });
+
+    absentMembers.forEach(member => {
+        pool.appendChild(member);
+    });
+
+    updatePoolView();
+    autoSave();
+}
+
+function autoSave() {
+    saveStatus.innerText = '保存中...';
+
+    clearTimeout(saveTimer);
+
+    saveTimer = setTimeout(() => {
+        save(false);
+    }, 150);
+}
+
+function save(showAlert = false) {
+    let list = [];
+    const cells = getCellsRightToLeft();
+
+    cells.forEach((cell, index) => {
+        const member = cell.querySelector('.member');
+
+        if (member) {
+            list.push({
+                id: member.dataset.id,
+                position: index + 1,
+                absent: member.classList.contains('absent'),
+                late: member.classList.contains('late')
+            });
+        }
+    });
+
+    document.querySelectorAll('#pool .member').forEach(member => {
+       list.push({
+            id: member.dataset.id,
+            position: null,
+            absent: member.classList.contains('absent'),
+            late: member.classList.contains('late')
+        });
+    });
+
+    fetch(`/lineup/${window.lineupData.lineupId}/save`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+        },
+        body: JSON.stringify({
+            members: list,
+            tate_size: tateSelect.value
+        })
+    })
+    .then(res => res.json())
+    .then(() => {
+        saveStatus.innerText = '保存済み';
+        if (showAlert) alert('保存OK');
+    })
+    .catch(() => {
+        saveStatus.innerText = '保存失敗';
+        if (showAlert) alert('保存に失敗しました');
+    });
+}
+function clearAll() {
+    if (!confirm('本当に全員を未配置にしますか？\nページを切り替えていない場合、現在の立順が保存されません。')) {
+        return;
+    }
+
+    document.querySelectorAll('#grid .member').forEach(member => {
+        pool.appendChild(member);
+    });
+
+    selectMember(null);
+    updatePoolView();
+    autoSave();
+}
+document.addEventListener('DOMContentLoaded', function () {
+    const flashes = document.querySelectorAll('.flash-message');
+
+    flashes.forEach(flash => {
+        setTimeout(() => {
+            flash.style.transition = 'opacity 0.5s, transform 0.5s';
+            flash.style.opacity = '0';
+            flash.style.transform = 'translateY(-10px)';
+
+            setTimeout(() => {
+                flash.remove();
+            }, 500);
+        }, 2000);
+    });
+});
+
+
+
+document.addEventListener('DOMContentLoaded', () => {
+    initMembers(false);
+
+    const flashes = document.querySelectorAll('.flash-message');
+
+    flashes.forEach(flash => {
+        setTimeout(() => {
+            flash.style.transition = 'opacity 0.5s, transform 0.5s';
+            flash.style.opacity = '0';
+            flash.style.transform = 'translateY(-10px)';
+
+            setTimeout(() => {
+                flash.remove();
+            }, 500);
+        }, 2000);
+    });
+});
+function cycleAttendance(div) {
+
+    // 出席 → 遅刻
+    if (!div.classList.contains('late') &&
+        !div.classList.contains('absent')) {
+
+        div.classList.add('late');
+        pool.appendChild(div);
+        sortPoolMembers();
+        return;
+    }
+
+    // 遅刻 → 欠席
+    if (div.classList.contains('late')) {
+        div.classList.remove('late');
+        div.classList.add('absent');
+        pool.appendChild(div);
+        sortPoolMembers();
+        return;
+    }
+
+    // 欠席 → 出席
+    if (div.classList.contains('absent')) {
+        div.classList.remove('absent');
+        sortPoolMembers();
+    }
+
+    updatePoolView();
+}
+
+function memberMatchesFilter(member) {
+    const keyword = (memberSearch?.value || '').trim().toLowerCase();
+    const name = member.dataset.name || member.textContent.trim().toLowerCase();
+
+    if (keyword && !name.includes(keyword)) {
+        return false;
+    }
+
+    if (currentPoolFilter === 'male') return member.dataset.gender === 'male';
+    if (currentPoolFilter === 'female') return member.dataset.gender === 'female';
+    if (currentPoolFilter === 'active') {
+        return !member.classList.contains('absent') && !member.classList.contains('late');
+    }
+    if (currentPoolFilter === 'unavailable') {
+        return member.classList.contains('absent') || member.classList.contains('late');
+    }
+
+    return true;
+}
+
+function updatePoolView() {
+    sortPoolMembers();
+
+    const placed = document.querySelectorAll('#grid .member').length;
+    const unplaced = document.querySelectorAll('#pool .member').length;
+    const total = placed + unplaced;
+
+    if (lineupSummary) {
+        lineupSummary.innerText = `配置 ${placed} / 未配置 ${unplaced} / 合計 ${total}`;
+    }
+
+    if (poolCount) {
+        poolCount.innerText = `${unplaced}人`;
+    }
+
+    document.querySelectorAll('#pool .member').forEach(member => {
+        member.classList.toggle('hidden-by-filter', !memberMatchesFilter(member));
+    });
+}
+
+function setPoolFilter(filter) {
+    currentPoolFilter = filter;
+
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.filter === filter);
+    });
+
+    updatePoolView();
+}
+
+function togglePoolPanel() {
+    if (!pool || !poolTools) return;
+
+    pool.classList.toggle('pool-collapsed');
+    poolTools.classList.toggle('pool-collapsed');
+}
+
+if (memberSearch) {
+    memberSearch.addEventListener('input', updatePoolView);
+}
+
+window.addLineupRow = addLineupRow;
+window.randomize = randomize;
+window.clearAll = clearAll;
+window.setPoolFilter = setPoolFilter;
+window.togglePoolPanel = togglePoolPanel;
