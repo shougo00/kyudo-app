@@ -35,6 +35,8 @@ document.addEventListener('DOMContentLoaded', () => {
         let next = current === 'hit' ? 'miss' : current === 'miss' ? '' : 'hit';
 
         btn.dataset.result = next;
+        btn.dataset.numericScore = '';
+        btn.removeAttribute('style');
 
         btn.innerHTML =
             next === 'hit'
@@ -43,18 +45,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 ? '<i class="fas fa-xmark"></i>'
                 : '＋';
 
-        btn.classList.remove('shot-hit','shot-miss','shot-none');
+        btn.classList.remove('shot-hit','shot-miss','shot-none','shot-numeric');
         btn.classList.add(next === 'hit' ? 'shot-hit' : next === 'miss' ? 'shot-miss' : 'shot-none');
 
         let recordId = btn.dataset.record;
-        let parent = document.querySelectorAll(`[data-record='${recordId}']`);
-        let hits = 0;
-
-        parent.forEach(b => {
-            if (b.dataset.result === 'hit') hits++;
-        });
-
-        document.getElementById(`result-${recordId}`).innerText = hits + '/4';
+        updateRecordResult(recordId);
 
         fetch(`/shots/${btn.dataset.id}`, {
             method: 'POST',
@@ -68,6 +63,34 @@ document.addEventListener('DOMContentLoaded', () => {
         }).catch(err => console.error(err));
 
         updateSummary();
+    }
+
+    function updateRecordResult(recordId) {
+        let buttons = document.querySelectorAll(`[data-record='${recordId}']`);
+        let hits = 0;
+        let numericTotal = 0;
+
+        buttons.forEach(b => {
+            if (b.dataset.result === 'hit') hits++;
+
+            let numericScore = parseInt(b.dataset.numericScore || '0', 10);
+            if (!Number.isNaN(numericScore)) {
+                numericTotal += numericScore;
+            }
+        });
+
+        let result = document.getElementById(`result-${recordId}`);
+        let hitCount = result?.querySelector('.hit-count');
+        let numericTotalEl = result?.querySelector('.numeric-total');
+
+        if (hitCount) {
+            hitCount.innerText = hits + '/4';
+        }
+
+        if (numericTotalEl) {
+            numericTotalEl.innerText = numericTotal + '点';
+            numericTotalEl.classList.toggle('d-none', numericTotal <= 0);
+        }
     }
 
     function deleteClickHandler() {

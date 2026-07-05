@@ -47,6 +47,7 @@ function makeMember(sourceEl) {
 
     div.draggable = true;
     div.dataset.id = sourceEl.dataset.id;
+    div.dataset.hasRecord = sourceEl.dataset.hasRecord || '0';
     div.dataset.gender = sourceEl.dataset.gender || '';
     div.dataset.name = sourceEl.textContent.trim().toLowerCase();
     div.textContent = sourceEl.textContent.trim();
@@ -70,7 +71,8 @@ function makeMember(sourceEl) {
         longPressed = false;
         longPressTimer = setTimeout(() => {
             longPressed = true;
-            cycleAttendance(div);
+            if (!cycleAttendance(div)) return;
+
             selectMember(null);
             updatePoolView();
             autoSave();
@@ -88,7 +90,8 @@ function makeMember(sourceEl) {
     // ===== PCダブルクリック（欠席）←これ追加 =====
     div.addEventListener('dblclick', (e) => {
         e.stopPropagation();
-        cycleAttendance(div);
+        if (!cycleAttendance(div)) return;
+
         selectMember(null);
         updatePoolView();
         autoSave();
@@ -105,7 +108,8 @@ function makeMember(sourceEl) {
 
         // 入れ替え
         if (selectedMember && selectedMember !== div) {
-            swapMembers(selectedMember, div);
+            if (!swapMembers(selectedMember, div)) return;
+
             selectMember(null);
             updatePoolView();
             autoSave();
@@ -130,6 +134,11 @@ function swapMembers(a, b) {
     const aNext = a.nextSibling;
     const bNext = b.nextSibling;
 
+    if ((isPoolElement(bParent) && !confirmRemoveRecordedMember(a))
+        || (isPoolElement(aParent) && !confirmRemoveRecordedMember(b))) {
+        return false;
+    }
+
     if (aParent === bParent) {
         bParent.insertBefore(a, bNext);
         aParent.insertBefore(b, aNext);
@@ -137,6 +146,28 @@ function swapMembers(a, b) {
         aParent.insertBefore(b, aNext);
         bParent.insertBefore(a, bNext);
     }
+
+    return true;
+}
+
+function isPlacedMember(member) {
+    return member?.parentElement?.classList.contains('cell');
+}
+
+function isPoolElement(element) {
+    return element?.id === 'pool' || element?.classList.contains('pool');
+}
+
+function hasEnteredRecord(member) {
+    return member?.dataset.hasRecord === '1';
+}
+
+function confirmRemoveRecordedMember(member) {
+    if (!isPlacedMember(member) || !hasEnteredRecord(member)) {
+        return true;
+    }
+
+    return window.confirm('記録が入っている人を選択外に移動すると、記録が一覧に残らなくなります。よろしいですか？');
 }
 
 function selectMember(member) {
@@ -170,13 +201,15 @@ function moveSelectedTo(target) {
 
         if (existing && existing !== selectedMember) {
             // 空いてないマスなら入れ替え
-            swapMembers(selectedMember, existing);
+            if (!swapMembers(selectedMember, existing)) return;
         } else {
             target.appendChild(selectedMember);
         }
     }
 
     if (target.id === 'pool') {
+        if (!confirmRemoveRecordedMember(selectedMember)) return;
+
         pool.appendChild(selectedMember);
         sortPoolMembers();
     }
@@ -259,7 +292,10 @@ function renderGrid(minRows = 0) {
             const existing = cell.querySelector('.member');
 
             if (existing && existing !== dragged) {
-                swapMembers(dragged, existing);
+                if (!swapMembers(dragged, existing)) {
+                    clearDragOver();
+                    return;
+                }
             } else {
                 cell.appendChild(dragged);
             }
@@ -401,6 +437,11 @@ pool.addEventListener('drop', e => {
     e.preventDefault();
 
     if (dragged) {
+        if (!confirmRemoveRecordedMember(dragged)) {
+            clearDragOver();
+            return;
+        }
+
         pool.appendChild(dragged);
     }
 
@@ -518,6 +559,14 @@ function clearAll() {
         return;
     }
 
+    const recordedMembers = Array.from(document.querySelectorAll('#grid .member'))
+        .filter(hasEnteredRecord);
+
+    if (recordedMembers.length > 0
+        && !confirm('記録が入っている人を選択外に移動すると、記録が一覧に残らなくなります。よろしいですか？')) {
+        return;
+    }
+
     document.querySelectorAll('#grid .member').forEach(member => {
         pool.appendChild(member);
     });
@@ -567,10 +616,14 @@ function cycleAttendance(div) {
     if (!div.classList.contains('late') &&
         !div.classList.contains('absent')) {
 
+        if (!confirmRemoveRecordedMember(div)) {
+            return false;
+        }
+
         div.classList.add('late');
         pool.appendChild(div);
         sortPoolMembers();
-        return;
+        return true;
     }
 
     // 遅刻 → 欠席
@@ -579,7 +632,7 @@ function cycleAttendance(div) {
         div.classList.add('absent');
         pool.appendChild(div);
         sortPoolMembers();
-        return;
+        return true;
     }
 
     // 欠席 → 出席
@@ -589,6 +642,7 @@ function cycleAttendance(div) {
     }
 
     updatePoolView();
+    return true;
 }
 
 function memberMatchesFilter(member) {

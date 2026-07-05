@@ -13,6 +13,20 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
+@php
+    $numericScoreOptions = collect($numericScoreOptions ?? [])->values();
+    $numericScoreColorMap = $numericScoreOptions->mapWithKeys(fn($option) => [(int) ($option['value'] ?? 0) => $option['color'] ?? '#dbeafe']);
+    $numericShotStyle = function ($shot) use ($numericScoreColorMap) {
+        if (is_null($shot?->numeric_score)) {
+            return '';
+        }
+
+        $color = $numericScoreColorMap->get((int) $shot->numeric_score, '#dbeafe');
+
+        return 'background:' . $color . '; border-color:' . $color . '; color:#111;';
+    };
+@endphp
+
 <div class="container py-3 {{ $type=='self' ? 'self-bg' : 'official-bg' }}" id="records-container" data-type="{{ $type }}">
 
     <div class="d-flex justify-content-between align-items-center mb-3">
@@ -63,6 +77,9 @@
 
     <!-- 一覧 -->
     @foreach($records as $record)
+        @php
+            $recordNumericTotal = $record->shots->sum(fn($shot) => (int) ($shot->numeric_score ?? 0));
+        @endphp
         <div class="card mb-3 p-2" data-record-id="{{ $record->id }}">
             <div class="d-flex align-items-center justify-content-between">
                 <div class="d-flex align-items-center">
@@ -71,17 +88,24 @@
                         <i class="fas fa-trash-alt"></i>
                     </button>
                 </div>
-                <span id="result-{{ $record->id }}">{{ $record->shots->where('result', 'hit')->count() }}/4</span>
+                <span id="result-{{ $record->id }}" class="record-result">
+                    <span class="hit-count">{{ $record->shots->where('result', 'hit')->count() }}/4</span>
+                    <span class="numeric-total {{ $recordNumericTotal > 0 ? '' : 'd-none' }}">{{ $recordNumericTotal }}点</span>
+                </span>
             </div>
             <div class="d-flex justify-content-around mt-2">
                 @foreach($record->shots as $shot)
-                    <button class="shot-btn {{ $shot->result == 'hit' ? 'shot-hit' : '' }} {{ $shot->result == 'miss' ? 'shot-miss' : '' }} {{ $shot->result == null ? 'shot-none' : '' }}"
+                    <button class="shot-btn {{ $shot->result == 'hit' ? 'shot-hit' : '' }} {{ $shot->result == 'miss' ? 'shot-miss' : '' }} {{ $shot->result == null && is_null($shot->numeric_score) ? 'shot-none' : '' }} {{ !is_null($shot->numeric_score) ? 'shot-numeric' : '' }}"
                             data-id="{{ $shot->id }}"
                             data-record="{{ $record->id }}"
                             data-result="{{ $shot->result }}"
+                            data-numeric-score="{{ $shot->numeric_score }}"
+                            style="{{ $numericShotStyle($shot) }}"
                             title="クリックで入力">
 
-                        @if($shot->result == 'hit')
+                        @if(!is_null($shot->numeric_score))
+                            {{ $shot->numeric_score }}
+                        @elseif($shot->result == 'hit')
                         <i class="fa-regular fa-circle"></i>
                         @elseif($shot->result == 'miss')
                             <i class="fas fa-xmark"></i>

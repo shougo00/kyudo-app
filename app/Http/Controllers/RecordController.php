@@ -44,6 +44,13 @@ class RecordController extends Controller
         });
 
         $hitRate = $totalShots > 0 ? round(($totalHits / $totalShots) * 100, 3) : 0;
+        $numericScoreOptions = collect(auth()->user()?->groups()->first()?->numeric_score_options ?? [])
+            ->filter(fn ($option) => isset($option['value'], $option['color']))
+            ->map(fn ($option) => [
+                'value' => (int) $option['value'],
+                'color' => $option['color'],
+            ])
+            ->values();
 
         // 通常リクエストはフルビューを返す
         return view('home', compact(
@@ -54,7 +61,8 @@ class RecordController extends Controller
             'nextDate',
             'totalShots',
             'totalHits',
-            'hitRate'
+            'hitRate',
+            'numericScoreOptions'
         ));
     }
     // 立追加
@@ -94,6 +102,11 @@ class RecordController extends Controller
         $shot = Shot::findOrFail($id);
 
         $shot->result = $request->result;
+        if ($request->has('numeric_score')) {
+            $shot->numeric_score = $request->numeric_score;
+        } else {
+            $shot->numeric_score = null;
+        }
         $shot->save();
 
         return response()->json(['success' => true]);

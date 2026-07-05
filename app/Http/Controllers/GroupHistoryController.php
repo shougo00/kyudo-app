@@ -109,41 +109,7 @@ class GroupHistoryController extends Controller
             $ranking->filter(fn($row) => $row['user']->gender === 'female')
         );
 
-        // ===== 月間記録用 =====
-        // records に group_id が無いので、メンバーの user_id で絞る
-       // ===== 月間記録用 =====
-        $monthlyMembersQuery = $group->users()
-            ->where('is_admin', false)
-            ->with('avatar');
-
-        if ($keyword !== '') {
-            $monthlyMembersQuery->where('users.name', 'like', '%' . $keyword . '%');
-        }
-
-        $monthlyMembers = $monthlyMembersQuery->get();
-
-        $memberIds = $monthlyMembers->pluck('id');
-
-        $monthlySourceRecords = Record::with('shots')
-            ->whereIn('user_id', $memberIds)
-            ->whereYear('date', $currentMonth->year)
-            ->whereMonth('date', $currentMonth->month)
-            ->get();
-
-        $monthlyRecords = $monthlyMembers
-            ->sortBy('name')
-            ->map(function ($user) use ($monthlySourceRecords) {
-                $records = $monthlySourceRecords->where('user_id', $user->id);
-
-                return [
-                    'user' => $user,
-                    'all' => $this->calc($records),
-                    'official' => $this->calc($records->where('practice_type', 'official')),
-                    'self' => $this->calc($records->where('practice_type', 'self')),
-                    'match' => $this->calc($records->where('practice_type', 'match')),
-                ];
-            })
-            ->values();
+        $monthlyRecords = $this->monthlyRows($group, $currentMonth, $keyword);
 
         return view('group_history.index', compact(
             'group',
@@ -180,6 +146,42 @@ class GroupHistoryController extends Controller
             'hits' => $hits,
             'rate' => $rate,
         ];
+    }
+
+    private function monthlyRows(Group $group, Carbon $currentMonth, string $keyword = '')
+    {
+        $monthlyMembersQuery = $group->users()
+            ->where('is_admin', false)
+            ->with('avatar');
+
+        if ($keyword !== '') {
+            $monthlyMembersQuery->where('users.name', 'like', '%' . $keyword . '%');
+        }
+
+        $monthlyMembers = $monthlyMembersQuery->get();
+
+        $memberIds = $monthlyMembers->pluck('id');
+
+        $monthlySourceRecords = Record::with('shots')
+            ->whereIn('user_id', $memberIds)
+            ->whereYear('date', $currentMonth->year)
+            ->whereMonth('date', $currentMonth->month)
+            ->get();
+
+        return $monthlyMembers
+            ->sortBy('name')
+            ->map(function ($user) use ($monthlySourceRecords) {
+                $records = $monthlySourceRecords->where('user_id', $user->id);
+
+                return [
+                    'user' => $user,
+                    'all' => $this->calc($records),
+                    'official' => $this->calc($records->where('practice_type', 'official')),
+                    'self' => $this->calc($records->where('practice_type', 'self')),
+                    'match' => $this->calc($records->where('practice_type', 'match')),
+                ];
+            })
+            ->values();
     }
 
     private function periodRange($period)
@@ -220,36 +222,84 @@ class GroupHistoryController extends Controller
         $month = $request->month ?? now()->format('Y-m');
         $currentMonth = Carbon::createFromFormat('Y-m', $month)->startOfMonth();
 
-        $members = $group->users()
-            ->where('is_admin', false)
-            ->get()
-            ->sortBy('name');
-
-        $memberIds = $members->pluck('id');
-
-        $records = Record::with('shots')
-            ->whereIn('user_id', $memberIds)
-            ->whereYear('date', $currentMonth->year)
-            ->whereMonth('date', $currentMonth->month)
-            ->get();
-
-        $rows = $members->map(function ($user) use ($records) {
-
-            $userRecords = $records->where('user_id', $user->id);
-
-            return [
-                'name' => $user->name,
-                'official' => $this->calc($userRecords->where('practice_type', 'official')),
-                'self' => $this->calc($userRecords->where('practice_type', 'self')),
-                'match' => $this->calc($userRecords->where('practice_type', 'match')),
-                'all' => $this->calc($userRecords),
-            ];
-        });
+        $rows = $this->monthlyRows($group, $currentMonth)
+            ->map(fn ($row) => [
+                'name' => $row['user']->name,
+                'grade' => $row['user']->grade_level ? $row['user']->grade_level . '学年' : '',
+                'official' => $row['official'],
+                'self' => $row['self'],
+                'match' => $row['match'],
+                'all' => $row['all'],
+            ]);
 
         return view('group_history.monthly_print', compact(
             'group',
             'currentMonth',
             'rows'
         ));
+    }
+
+    public function monthlyCsv(Request $request, Group $group)
+    {
+        if (!$group->users()->where('users.id', auth()->id())->exists()) {
+            abort(403);
+        }
+
+        $month = $request->month ?? now()->format('Y-m');
+        $keyword = trim((string) $request->input('keyword', ''));
+        $currentMonth = Carbon::createFromFormat('Y-m', $month)->startOfMonth();
+        $rows = $this->monthlyRows($group, $currentMonth, $keyword);
+        $filename = "group_{$group->id}_monthly_records_{$currentMonth->format('Y-m')}.csv";
+
+        return response()->streamDownload(function () use ($rows, $group, $currentMonth) {
+            echo "\xEF\xBB\xBF";
+
+            $handle = fopen('php://output', 'w');
+
+            fputcsv($handle, [
+                $group->name . ' 月間記録',
+                $currentMonth->format('Y年n月'),
+            ]);
+            fputcsv($handle, []);
+            fputcsv($handle, [
+                '名前',
+                '学年',
+                '正規練 射数',
+                '正規練 的中数',
+                '正規練 的中率',
+                '自主練 射数',
+                '自主練 的中数',
+                '自主練 的中率',
+                '試合 射数',
+                '試合 的中数',
+                '試合 的中率',
+                '総合 射数',
+                '総合 的中数',
+                '総合 的中率',
+            ]);
+
+            foreach ($rows as $row) {
+                fputcsv($handle, [
+                    $row['user']->name,
+                    $row['user']->grade_level ? $row['user']->grade_level . '学年' : '',
+                    $row['official']['shots'],
+                    $row['official']['hits'],
+                    $row['official']['rate'] . '%',
+                    $row['self']['shots'],
+                    $row['self']['hits'],
+                    $row['self']['rate'] . '%',
+                    $row['match']['shots'],
+                    $row['match']['hits'],
+                    $row['match']['rate'] . '%',
+                    $row['all']['shots'],
+                    $row['all']['hits'],
+                    $row['all']['rate'] . '%',
+                ]);
+            }
+
+            fclose($handle);
+        }, $filename, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+        ]);
     }
 }

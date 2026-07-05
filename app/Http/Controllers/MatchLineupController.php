@@ -173,6 +173,30 @@ class MatchLineupController extends Controller
         return response()->json(['ok' => true]);
     }
 
+    public function saveTateScoringMode(Request $request, MatchTeam $team)
+    {
+        $this->checkGroupAccess($team->group_id);
+
+        $validated = $request->validate([
+            'date' => ['required', 'date'],
+            'tate_no' => ['required', 'integer', 'min:1'],
+            'scoring_mode' => ['required', 'in:hit_miss,numeric'],
+        ]);
+
+        MatchTateMeta::updateOrCreate(
+            [
+                'match_team_id' => $team->id,
+                'date' => $validated['date'],
+                'tate_no' => $validated['tate_no'],
+            ],
+            [
+                'scoring_mode' => $validated['scoring_mode'],
+            ]
+        );
+
+        return response()->json(['ok' => true]);
+    }
+
     private function checkGroupAccess($groupId): void
     {
         $user = auth()->user();
@@ -202,7 +226,7 @@ class MatchLineupController extends Controller
                     'lineup_id' => $lineup->id,
                     'user_id' => $user->id,
                     'position' => null,
-                    'is_absent' => $user->all_absent,
+                    'is_absent' => $user->isDefaultAbsentForDate($date),
                     'is_late' => false,
                 ]);
             }

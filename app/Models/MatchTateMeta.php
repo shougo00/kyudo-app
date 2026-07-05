@@ -11,6 +11,7 @@ class MatchTateMeta extends Model
         'date',
         'tate_no',
         'elapsed_seconds',
+        'scoring_mode',
     ];
 
     public function team()

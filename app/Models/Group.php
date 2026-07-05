@@ -13,6 +13,7 @@ class Group extends Model
         'uses_grades',
         'grade_count',
         'grade_colors',
+        'numeric_score_options',
         'last_grade_promoted_year',
     ];
 
@@ -20,6 +21,7 @@ class Group extends Model
         'uses_grades' => 'boolean',
         'grade_count' => 'integer',
         'grade_colors' => 'array',
+        'numeric_score_options' => 'array',
         'last_grade_promoted_year' => 'integer',
     ];
 

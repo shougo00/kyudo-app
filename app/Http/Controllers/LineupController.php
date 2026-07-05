@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\Group;
 use App\Models\Lineup;
 use App\Models\LineupMember;
+use App\Models\Record;
 
 class LineupController extends Controller
 {
@@ -38,7 +39,17 @@ class LineupController extends Controller
         ->orderByRaw('position IS NULL, position ASC')
         ->get();
 
-        return view('lineup.index', compact('group', 'lineup', 'members', 'date'));
+        $recordedUserIds = Record::whereIn('user_id', $members->pluck('user_id'))
+            ->where('date', $date)
+            ->where('practice_type', 'official')
+            ->whereHas('shots', function ($q) {
+                $q->whereNotNull('result');
+            })
+            ->pluck('user_id')
+            ->unique()
+            ->values();
+
+        return view('lineup.index', compact('group', 'lineup', 'members', 'date', 'recordedUserIds'));
     }
 
     public function save(Request $request, $lineupId)
@@ -108,7 +119,7 @@ class LineupController extends Controller
                     'lineup_id' => $lineup->id,
                     'user_id' => $user->id,
                     'position' => null,
-                    'is_absent' => $user->all_absent,
+                    'is_absent' => $user->isDefaultAbsentForDate($lineup->date),
                 ]);
             }
         }

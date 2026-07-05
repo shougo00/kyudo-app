@@ -49,7 +49,7 @@ class AttendanceController extends Controller
         ],
         [
             'position' => null,
-            'is_absent' => $user->all_absent,
+            'is_absent' => $user->isDefaultAbsentForDate($date),
             'is_late' => false,
         ]
     );
@@ -94,7 +94,7 @@ class AttendanceController extends Controller
             ],
             [
                 'position' => null,
-                'is_absent' => false,
+                'is_absent' => $user->isDefaultAbsentForDate($date),
                 'is_late' => false,
             ]
         );
@@ -111,6 +111,7 @@ class AttendanceController extends Controller
     {
         $request->validate([
             'all_absent' => 'required|boolean',
+            'date' => 'nullable|date',
         ]);
 
         $user = auth()->user();
@@ -121,8 +122,130 @@ class AttendanceController extends Controller
 
         $user->update([
             'all_absent' => $request->all_absent,
+            'attendance_weekdays' => null,
         ]);
 
-        return response()->json(['ok' => true]);
+        LineupMember::where('user_id', $user->id)
+            ->whereHas('lineup', fn($query) => $query->where('group_id', $groupId))
+            ->update([
+                'is_absent' => $request->boolean('all_absent'),
+                'is_late' => false,
+            ]);
+
+        $status = null;
+
+        if ($request->filled('date')) {
+            $lineup = Lineup::firstOrCreate(
+                [
+                    'group_id' => $groupId,
+                    'date' => $request->date,
+                ],
+                [
+                    'tate_size' => 3,
+                ]
+            );
+
+            $member = LineupMember::firstOrCreate(
+                [
+                    'lineup_id' => $lineup->id,
+                    'user_id' => $user->id,
+                ],
+                [
+                    'position' => null,
+                    'is_absent' => $user->isDefaultAbsentForDate($request->date),
+                    'is_late' => false,
+                ]
+            );
+
+            $member->update([
+                'is_absent' => $request->boolean('all_absent'),
+                'is_late' => false,
+            ]);
+
+            $status = $member->is_absent ? 'absent' : 'present';
+        }
+
+        return response()->json([
+            'ok' => true,
+            'status' => $status,
+        ]);
+    }
+
+    public function weeklySettings(Request $request, $groupId)
+    {
+        $validated = $request->validate([
+            'attendance_weekdays' => ['nullable', 'array'],
+            'attendance_weekdays.*' => ['integer', 'between:0,6'],
+            'date' => ['nullable', 'date'],
+        ]);
+
+        $user = auth()->user();
+
+        if (!$user->groups()->where('groups.id', $groupId)->exists()) {
+            abort(403, 'このグループにはアクセスできません');
+        }
+
+        $weekdays = collect($validated['attendance_weekdays'] ?? [])
+            ->map(fn($day) => (int) $day)
+            ->unique()
+            ->sort()
+            ->values()
+            ->all();
+
+        $hasWeekdaySetting = count($weekdays) > 0;
+
+        $user->update([
+            'attendance_weekdays' => $hasWeekdaySetting ? $weekdays : null,
+            'all_absent' => $hasWeekdaySetting ? $user->all_absent : false,
+        ]);
+
+        if (!$hasWeekdaySetting) {
+            LineupMember::where('user_id', $user->id)
+                ->whereHas('lineup', fn($query) => $query->where('group_id', $groupId))
+                ->update([
+                    'is_absent' => false,
+                    'is_late' => false,
+                ]);
+        }
+
+        $date = $validated['date'] ?? null;
+        $status = null;
+
+        if ($date) {
+            $lineup = Lineup::firstOrCreate(
+                [
+                    'group_id' => $groupId,
+                    'date' => $date,
+                ],
+                [
+                    'tate_size' => 3,
+                ]
+            );
+
+            $member = LineupMember::firstOrCreate(
+                [
+                    'lineup_id' => $lineup->id,
+                    'user_id' => $user->id,
+                ],
+                [
+                    'position' => null,
+                    'is_absent' => $user->isDefaultAbsentForDate($date),
+                    'is_late' => false,
+                ]
+            );
+
+            $member->update([
+                'is_absent' => $user->isDefaultAbsentForDate($date),
+                'is_late' => false,
+            ]);
+
+            $status = $member->is_absent ? 'absent' : 'present';
+        }
+
+        return response()->json([
+            'ok' => true,
+            'status' => $status,
+            'all_absent' => (bool) $user->all_absent,
+        ]);
     }
 }

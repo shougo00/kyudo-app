@@ -42,6 +42,10 @@
     color: #bbb;
     border: 2px dashed #ccc;
 }
+.shot-numeric {
+    font-weight: 700;
+    font-size: 24px;
+}
 .fa-circle {
     font-weight: 400 !important; 
 }
@@ -62,6 +66,18 @@
 .summary-text .rate {
     color: #555;
     font-weight: 500;
+}
+
+.record-result {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 8px;
+}
+
+.numeric-total {
+    font-size: 12px;
+    color: #444;
+    font-weight: 600;
 }
 
 .shot-none { color: #bbb; border: 2px dashed #ccc; }

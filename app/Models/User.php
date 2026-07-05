@@ -31,6 +31,7 @@ class User extends Authenticatable
         'gender',
         'grade_level',
         'all_absent',
+        'attendance_weekdays',
         'official_record_height_extra',
         'match_record_height_extra',
         'line_user_id',
@@ -60,7 +61,26 @@ class User extends Authenticatable
             'password' => 'hashed',
             'is_admin' => 'boolean',
             'grade_level' => 'integer',
+            'all_absent' => 'boolean',
+            'attendance_weekdays' => 'array',
         ];
+    }
+
+    public function isDefaultAbsentForDate(string $date): bool
+    {
+        if ($this->all_absent) {
+            return true;
+        }
+
+        $weekdays = $this->attendance_weekdays;
+
+        if (!is_array($weekdays) || count($weekdays) === 0) {
+            return false;
+        }
+
+        $dayOfWeek = (int) \Carbon\Carbon::parse($date)->dayOfWeek;
+
+        return !in_array($dayOfWeek, array_map('intval', $weekdays), true);
     }
         // app/Models/User.php
     public function avatar()

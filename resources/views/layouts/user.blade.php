@@ -182,7 +182,7 @@
                 {{-- 全員共通 --}}
                 <li class="nav-item">
                     <a class="nav-link active" href="#"
-                    onclick="goGroupRecord()">グループ 的中記録ooo</a>
+                    onclick="goGroupRecord()">グループ 的中記録</a>
                 </li>
 
                 <li class="nav-item">
@@ -283,7 +283,7 @@
                 {{-- 全員共通 --}}
                 <li class="nav-item mb-2">
                     <a class="nav-link" href="#" onclick="goGroupRecord()">
-                        グループ 的中記録kai
+                        グループ 的中記録
                     </a>
                 </li>
 

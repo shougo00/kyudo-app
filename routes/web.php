@@ -78,6 +78,7 @@ Route::middleware([ 'verified'])->group(function () {
     Route::get('/group/{groupId}/records', [GroupRecordController::class, 'index'])->name('group.records');
     Route::post('/group/{groupId}/add-tate', [GroupRecordController::class, 'addTate']);
     Route::post('/group/{groupId}/records/switch-sheet', [GroupRecordController::class, 'switchOfficialSheet']);
+    Route::post('/group/{groupId}/records/scoring-mode', [GroupRecordController::class, 'updateOfficialScoringMode']);
     Route::get('/group/{groupId}/match-records', [GroupRecordController::class, 'matchIndex'])->name('group.match-records');
     Route::post('/group/{groupId}/match-add-tate', [GroupRecordController::class, 'addMatchTate']);
     Route::post('/group/shot/{id}', [GroupRecordController::class, 'updateShot']);
@@ -87,15 +88,17 @@ Route::middleware([ 'verified'])->group(function () {
     Route::delete('/match-teams/{team}', [MatchLineupController::class, 'destroy']);
     Route::post('/match-teams/{team}/tate', [MatchLineupController::class, 'saveTate']);
     Route::post('/match-teams/{team}/tate-timer', [MatchLineupController::class, 'saveTateTimer']);
+    Route::post('/match-teams/{team}/tate-scoring-mode', [MatchLineupController::class, 'saveTateScoringMode']);
     //　立順作成ページ
     Route::get('/group/{id}/lineup',[LineupController::class,'index']); 
     Route::post('/lineup/{id}/save',[LineupController::class,'save']); 
     Route::post('/lineup/{id}/random',[LineupController::class,'random']);
     Route::post('/lineup/{lineup}/copy-previous', [LineupController::class, 'copyPrevious']);
     // 出欠ページ
-   Route::get('/group/{groupId}/attendance', [AttendanceController::class, 'index']);
+    Route::get('/group/{groupId}/attendance', [AttendanceController::class, 'index']);
     Route::post('/group/{groupId}/attendance', [AttendanceController::class, 'save']);
     Route::post('/group/{groupId}/attendance/all-absent', [AttendanceController::class, 'allAbsent']);
+    Route::post('/group/{groupId}/attendance/weekly', [AttendanceController::class, 'weeklySettings']);
     Route::post('/kyudo-results', [KyudoResultController::class, 'store'])
         ->middleware('auth');
 
@@ -115,6 +118,9 @@ Route::middleware([ 'verified'])->group(function () {
     
     Route::get('/group/{group}/monthly-print', [GroupHistoryController::class, 'monthlyPrint'])
     ->name('group.monthlyPrint');
+    Route::get('/group/{group}/monthly-csv', [GroupHistoryController::class, 'monthlyCsv'])
+    ->name('group.monthlyCsv')
+    ->middleware('auth');
     
     
     //ライン用

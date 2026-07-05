@@ -59,6 +59,9 @@ class SettingController extends Controller
             'grade_count' => ['required', 'integer', 'min:1', 'max:12'],
             'grade_colors' => ['array'],
             'grade_colors.*' => ['nullable', 'regex:/^#[0-9A-Fa-f]{6}$/'],
+            'numeric_scores' => ['array'],
+            'numeric_scores.*.value' => ['nullable', 'integer', 'min:0', 'max:999'],
+            'numeric_scores.*.color' => ['nullable', 'regex:/^#[0-9A-Fa-f]{6}$/'],
         ]);
 
         $gradeCount = (int) $validated['grade_count'];
@@ -68,11 +71,28 @@ class SettingController extends Controller
             $gradeColors[$grade] = $validated['grade_colors'][$grade] ?? $this->defaultGradeColor($grade);
         }
 
+        $numericScoreOptions = collect($validated['numeric_scores'] ?? [])
+            ->map(function ($option) {
+                if (($option['value'] ?? '') === '' || empty($option['color'])) {
+                    return null;
+                }
+
+                return [
+                    'value' => (int) $option['value'],
+                    'color' => $option['color'],
+                ];
+            })
+            ->filter()
+            ->unique('value')
+            ->values()
+            ->all();
+
         $group->update([
             'official_tates_per_page' => $validated['official_tates_per_page'],
             'uses_grades' => $request->boolean('uses_grades'),
             'grade_count' => $gradeCount,
             'grade_colors' => $gradeColors,
+            'numeric_score_options' => count($numericScoreOptions) > 0 ? $numericScoreOptions : $this->defaultNumericScoreOptions(),
         ]);
 
         $request->user()->update([
@@ -149,5 +169,14 @@ class SettingController extends Controller
         ];
 
         return $colors[($grade - 1) % count($colors)];
+    }
+
+    private function defaultNumericScoreOptions(): array
+    {
+        return [
+            ['value' => 1, 'color' => '#dbeafe'],
+            ['value' => 2, 'color' => '#dcfce7'],
+            ['value' => 3, 'color' => '#fef3c7'],
+        ];
     }
 }

@@ -29,6 +29,12 @@ function updateShot(el){
     const recordId = el.dataset.recordId;
     const tateCounterKey = el.dataset.tateCounter;
     const current = el.dataset.result;
+    const scoringMode = el.dataset.scoringMode || 'hit_miss';
+
+    if (scoringMode === 'numeric') {
+        updateNumericShot(el, id, userId, recordId, tateCounterKey);
+        return;
+    }
 
     const next =
         current==='hit' ? 'miss' :
@@ -100,6 +106,82 @@ function updateShot(el){
         body: JSON.stringify({ result: next })
     });
 }
+
+function updateNumericShot(el, id, userId, recordId, tateCounterKey) {
+    const options = Array.isArray(window.numericScoreOptions) ? window.numericScoreOptions : [];
+    if (options.length === 0) return;
+
+    const currentScore = el.dataset.numericScore === '' || el.dataset.numericScore == null
+        ? null
+        : parseInt(el.dataset.numericScore, 10);
+    const currentIndex = options.findIndex(option => parseInt(option.value, 10) === currentScore);
+    const nextOption = currentIndex === -1
+        ? options[0]
+        : (options[currentIndex + 1] || null);
+    const previousScore = currentScore || 0;
+    const nextScore = nextOption ? parseInt(nextOption.value, 10) : null;
+
+    el.dataset.numericScore = nextScore == null ? '' : String(nextScore);
+    el.dataset.result = '';
+    el.classList.remove('shot-hit', 'shot-miss', 'shot-none');
+    el.classList.add('shot-numeric');
+
+    if (nextOption) {
+        el.innerText = nextScore;
+        el.style.backgroundColor = nextOption.color;
+        el.style.borderColor = nextOption.color;
+        el.style.color = '#111';
+    } else {
+        el.innerText = '＋';
+        el.classList.add('shot-none');
+        el.classList.remove('shot-numeric');
+        el.style.backgroundColor = '';
+        el.style.borderColor = '';
+        el.style.color = '';
+    }
+
+    const delta = (nextScore || 0) - previousScore;
+
+    const scoreEl = document.querySelector(`.score[data-user-id="${userId}"]`);
+    if (scoreEl) {
+        let count = parseInt(scoreEl.innerText) || 0;
+        count += delta;
+        if (count < 0) count = 0;
+        scoreEl.innerText = count + '点';
+    }
+
+    if (recordId) {
+        const counterEl = document.querySelector(`[data-shot-counter="${recordId}"]`);
+        if (counterEl) {
+            let count = parseInt(counterEl.innerText) || 0;
+            count += delta;
+            if (count < 0) count = 0;
+            counterEl.innerText = count + '点';
+        }
+    }
+
+    if (tateCounterKey) {
+        const tateCounterEl = document.querySelector(`[data-tate-hit-counter="${tateCounterKey}"]`);
+        if (tateCounterEl) {
+            let count = parseInt(tateCounterEl.innerText) || 0;
+            count += delta;
+            if (count < 0) count = 0;
+            tateCounterEl.innerText = count + '点';
+        }
+    }
+
+    fetch(`/group/shot/${id}`,{
+        method:'POST',
+        headers:{
+            'Content-Type':'application/json',
+            'X-CSRF-TOKEN':document.querySelector('meta[name="csrf-token"]').content
+        },
+        body: JSON.stringify({
+            result: null,
+            numeric_score: nextScore
+        })
+    });
+}
 function scrollRight() {
     const el = document.querySelector('.score-scroll');
     if (el) el.scrollLeft = el.scrollWidth;
@@ -122,6 +204,42 @@ window.updateShot = updateShot;
 window.toggleCalendar = toggleCalendar;
 window.reloadAndPrint = reloadAndPrint;
 window.scrollRight = scrollRight;
+
+function toggleScoringMode(input) {
+    const mode = input.checked ? 'numeric' : 'hit_miss';
+    const isOfficial = input.dataset.modeToggle === 'official';
+    const url = isOfficial
+        ? `/group/${window.groupRecordData.groupId}/records/scoring-mode`
+        : `/match-teams/${input.dataset.teamId}/tate-scoring-mode`;
+    const body = isOfficial
+        ? {
+            date: input.dataset.date,
+            sheet_no: input.dataset.sheetNo,
+            scoring_mode: mode,
+        }
+        : {
+            date: input.dataset.date,
+            tate_no: input.dataset.tateNo,
+            scoring_mode: mode,
+        };
+
+    fetch(url, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+        },
+        body: JSON.stringify(body)
+    })
+        .then(res => res.json())
+        .then(() => window.location.reload())
+        .catch(() => {
+            input.checked = !input.checked;
+            alert('モードの保存に失敗しました');
+        });
+}
+
+window.toggleScoringMode = toggleScoringMode;
 
 let inlineDragged = null;
 let inlineSelected = null;
@@ -168,11 +286,36 @@ function initInlineMatchLineup() {
         }
     }
 
+    function isPlacedMember(member) {
+        return member?.parentElement?.classList.contains('inline-match-cell');
+    }
+
+    function isPoolElement(element) {
+        return element?.id === 'inlineMatchPool' || element?.classList.contains('inline-match-pool');
+    }
+
+    function hasEnteredRecord(member) {
+        return member?.dataset.hasRecord === '1';
+    }
+
+    function confirmRemoveRecordedMember(member) {
+        if (!isPlacedMember(member) || !hasEnteredRecord(member)) {
+            return true;
+        }
+
+        return window.confirm('記録が入っている人を選択外に移動すると、記録が一覧に残らなくなります。よろしいですか？');
+    }
+
     function swapMembers(a, b) {
         const aParent = a.parentElement;
         const bParent = b.parentElement;
         const aNext = a.nextSibling;
         const bNext = b.nextSibling;
+
+        if ((isPoolElement(bParent) && !confirmRemoveRecordedMember(a))
+            || (isPoolElement(aParent) && !confirmRemoveRecordedMember(b))) {
+            return false;
+        }
 
         if (aParent === bParent) {
             bParent.insertBefore(a, bNext);
@@ -181,6 +324,8 @@ function initInlineMatchLineup() {
             aParent.insertBefore(b, aNext);
             bParent.insertBefore(a, bNext);
         }
+
+        return true;
     }
 
     function moveSelectedTo(target) {
@@ -190,13 +335,15 @@ function initInlineMatchLineup() {
             const existing = target.querySelector('.inline-member');
 
             if (existing && existing !== inlineSelected) {
-                swapMembers(inlineSelected, existing);
+                if (!swapMembers(inlineSelected, existing)) return;
             } else {
                 target.appendChild(inlineSelected);
             }
         }
 
         if (target.id === 'inlineMatchPool') {
+            if (!confirmRemoveRecordedMember(inlineSelected)) return;
+
             pool.appendChild(inlineSelected);
             sortInlinePoolMembers();
         }
@@ -221,6 +368,7 @@ function initInlineMatchLineup() {
         member.className = 'inline-member';
         member.draggable = true;
         member.dataset.userId = sourceEl.dataset.userId;
+        member.dataset.hasRecord = sourceEl.dataset.hasRecord || '0';
         member.textContent = sourceEl.textContent.trim();
 
         if (sourceEl.dataset.gender === 'male') member.classList.add('male');
@@ -237,10 +385,14 @@ function initInlineMatchLineup() {
 
         function cycleInlineAttendance() {
             if (!member.classList.contains('late') && !member.classList.contains('absent')) {
+                if (!confirmRemoveRecordedMember(member)) {
+                    return false;
+                }
+
                 member.classList.add('late');
                 pool.appendChild(member);
                 sortInlinePoolMembers();
-                return;
+                return true;
             }
 
             if (member.classList.contains('late')) {
@@ -248,11 +400,12 @@ function initInlineMatchLineup() {
                 member.classList.add('absent');
                 pool.appendChild(member);
                 sortInlinePoolMembers();
-                return;
+                return true;
             }
 
             member.classList.remove('absent');
             sortInlinePoolMembers();
+            return true;
         }
 
         member.addEventListener('dragstart', () => {
@@ -270,7 +423,8 @@ function initInlineMatchLineup() {
             inlineLongPressed = false;
             inlineLongPressTimer = setTimeout(() => {
                 inlineLongPressed = true;
-                cycleInlineAttendance();
+                if (!cycleInlineAttendance()) return;
+
                 selectMember(null);
                 autoSaveInlineLineup();
             }, 600);
@@ -286,7 +440,8 @@ function initInlineMatchLineup() {
 
         member.addEventListener('dblclick', event => {
             event.stopPropagation();
-            cycleInlineAttendance();
+            if (!cycleInlineAttendance()) return;
+
             selectMember(null);
             autoSaveInlineLineup();
         });
@@ -300,7 +455,8 @@ function initInlineMatchLineup() {
             }
 
             if (inlineSelected && inlineSelected !== member) {
-                swapMembers(inlineSelected, member);
+                if (!swapMembers(inlineSelected, member)) return;
+
                 selectMember(null);
                 autoSaveInlineLineup();
                 return;
@@ -391,7 +547,10 @@ function initInlineMatchLineup() {
             const existing = cell.querySelector('.inline-member');
 
             if (existing && existing !== inlineDragged) {
-                swapMembers(inlineDragged, existing);
+                if (!swapMembers(inlineDragged, existing)) {
+                    clearTargets();
+                    return;
+                }
             } else {
                 cell.appendChild(inlineDragged);
             }
@@ -427,6 +586,11 @@ function initInlineMatchLineup() {
     pool.addEventListener('drop', event => {
         event.preventDefault();
         if (inlineDragged) {
+            if (!confirmRemoveRecordedMember(inlineDragged)) {
+                clearTargets();
+                return;
+            }
+
             pool.appendChild(inlineDragged);
             sortInlinePoolMembers();
         }

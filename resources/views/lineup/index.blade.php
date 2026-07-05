@@ -142,6 +142,7 @@
     {{ $m->is_late ? 'late' : '' }}"
          data-id="{{ $m->id }}"
          data-position="{{ $m->position }}"
+         data-has-record="{{ ($recordedUserIds ?? collect())->contains($m->user_id) ? 1 : 0 }}"
          data-gender="{{ $m->user->gender }}"
          data-grade-level="{{ $m->user->grade_level }}"
          data-grade-color="{{ $gradeColorFor($m->user) }}"

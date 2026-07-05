@@ -9,7 +9,8 @@ class Shot extends Model
     protected $fillable = [
         'record_id',
         'shot_no',
-        'result'
+        'result',
+        'numeric_score',
     ];
 
     public function record()

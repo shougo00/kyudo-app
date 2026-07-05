@@ -18,11 +18,21 @@
         <h3>{{ $group->name }} 記録</h3>
 
         @if ($view === 'monthly')
-            <button type="button"
-                    class="btn btn-outline-primary btn-sm"
-                    onclick="window.print()">
-                印刷
-            </button>
+            <div class="d-flex gap-2">
+                <a href="{{ route('group.monthlyCsv', [
+                        'group' => $group->id,
+                        'month' => $month,
+                    ] + $monthlyQuery) }}"
+                   class="btn btn-outline-success btn-sm">
+                    CSV出力
+                </a>
+
+                <button type="button"
+                        class="btn btn-outline-primary btn-sm"
+                        onclick="window.print()">
+                    印刷
+                </button>
+            </div>
         @endif
     </div>
 
@@ -232,6 +242,7 @@
                 <thead>
                     <tr>
                         <th rowspan="2">名前</th>
+                        <th rowspan="2">学年</th>
                         <th colspan="3">正規練</th>
                         <th colspan="3">自主練</th>
                         <th colspan="3">試合</th>
@@ -260,6 +271,7 @@
                     @foreach ($monthlyRecords as $row)
                         <tr>
                             <td class="name-col">{{ $row['user']->name }}</td>
+                            <td>{{ $row['user']->grade_level ? $row['user']->grade_level . '学年' : '' }}</td>
 
                             <td>{{ $row['official']['shots'] }}</td>
                             <td>{{ $row['official']['hits'] }}</td>

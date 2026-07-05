@@ -139,6 +139,11 @@
                             '#fae8ff',
                             '#e0f2fe',
                         ];
+                        $numericScoreOptions = old('numeric_scores', $group->numeric_score_options ?? [
+                            ['value' => 1, 'color' => '#dbeafe'],
+                            ['value' => 2, 'color' => '#dcfce7'],
+                            ['value' => 3, 'color' => '#fef3c7'],
+                        ]);
                     @endphp
 
                     <hr>
@@ -203,6 +208,45 @@
                                 </div>
                             @endfor
                         </div>
+                    </div>
+
+                    <hr>
+
+                    <div class="mb-3">
+                        <label class="form-label">数字モード設定（グループ設定）</label>
+                        <div class="text-muted small mb-2">
+                            的中記録の数字モードで切り替える数字と背景色です。
+                        </div>
+
+                        <div id="numericScoreSettings" class="vstack gap-2">
+                            @foreach($numericScoreOptions as $index => $option)
+                                <div class="row g-2 align-items-end numeric-score-row">
+                                    <div class="col-5">
+                                        <label class="form-label small mb-1">数字</label>
+                                        <input type="number"
+                                               name="numeric_scores[{{ $index }}][value]"
+                                               value="{{ $option['value'] ?? '' }}"
+                                               min="0"
+                                               max="999"
+                                               class="form-control">
+                                    </div>
+                                    <div class="col-5">
+                                        <label class="form-label small mb-1">色</label>
+                                        <input type="color"
+                                               name="numeric_scores[{{ $index }}][color]"
+                                               value="{{ $option['color'] ?? '#dbeafe' }}"
+                                               class="form-control form-control-color">
+                                    </div>
+                                    <div class="col-2">
+                                        <button type="button" class="btn btn-outline-danger w-100" onclick="removeNumericScoreRow(this)">×</button>
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+
+                        <button type="button" class="btn btn-outline-primary btn-sm mt-2" onclick="addNumericScoreRow()">
+                            枠を追加
+                        </button>
                     </div>
 
                     <button class="btn btn-primary">保存</button>
@@ -272,5 +316,33 @@ document.addEventListener('DOMContentLoaded', () => {
 
     refreshGradeSettings();
 });
+
+function addNumericScoreRow() {
+    const wrap = document.getElementById('numericScoreSettings');
+    if (!wrap) return;
+
+    const index = wrap.querySelectorAll('.numeric-score-row').length;
+    const row = document.createElement('div');
+    row.className = 'row g-2 align-items-end numeric-score-row';
+    row.innerHTML = `
+        <div class="col-5">
+            <label class="form-label small mb-1">数字</label>
+            <input type="number" name="numeric_scores[${index}][value]" min="0" max="999" class="form-control">
+        </div>
+        <div class="col-5">
+            <label class="form-label small mb-1">色</label>
+            <input type="color" name="numeric_scores[${index}][color]" value="#dbeafe" class="form-control form-control-color">
+        </div>
+        <div class="col-2">
+            <button type="button" class="btn btn-outline-danger w-100" onclick="removeNumericScoreRow(this)">×</button>
+        </div>
+    `;
+    wrap.appendChild(row);
+}
+
+function removeNumericScoreRow(button) {
+    const row = button.closest('.numeric-score-row');
+    if (row) row.remove();
+}
 </script>
 @endsection

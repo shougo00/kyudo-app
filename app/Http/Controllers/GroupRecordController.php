@@ -54,9 +54,8 @@ class GroupRecordController extends Controller
             $lineup = Lineup::with('members.user')->findOrFail($lineup->id);
             $tateSize = $lineup->tate_size;
 
-           $placedMembers = $lineup->members
+            $placedMembers = $lineup->members
                 ->where('is_absent', false)
-                ->where('is_late', false)
                 ->filter(fn($m) => !is_null($m->position))
                 ->sortBy('position')
                 ->values();
@@ -114,6 +113,11 @@ class GroupRecordController extends Controller
 
         $isCurrentSheet = $activeSheetNo === (int) ($sheetNos->max() ?? 1);
         $tateDisplayOffset = $this->officialTateDisplayOffset($groupUserIds, $date, $activeSheetNo, $tates);
+        $activeSheetScoringMode = DB::table('official_record_sheets')
+            ->where('group_id', $groupId)
+            ->where('date', $date)
+            ->where('sheet_no', $activeSheetNo)
+            ->value('scoring_mode') ?? 'hit_miss';
 
         if ($isCurrentSheet && $userIds->isNotEmpty() && $tates->isNotEmpty()) {
             $this->ensureRecordsWithShots(
@@ -152,15 +156,19 @@ class GroupRecordController extends Controller
             ->values();
 
         $hitCounts = [];
+        $numericCounts = [];
 
         foreach ($users as $user) {
             $hitCounts[$user->id] = 0;
+            $numericCounts[$user->id] = 0;
 
             if (isset($records[$user->id])) {
                 foreach ($records[$user->id] as $record) {
                     $hitCounts[$user->id] += $record->shots
                         ->where('result', 'hit')
                         ->count();
+                    $numericCounts[$user->id] += $record->shots
+                        ->sum(fn($shot) => (int) ($shot->numeric_score ?? 0));
                 }
             }
         }
@@ -217,7 +225,6 @@ class GroupRecordController extends Controller
             ->whereMonth('date', \Carbon\Carbon::parse($month . '-01')->month)
             ->whereHas('members', function ($q) {
                 $q->where('is_absent', false)
-                ->where('is_late', false)
                 ->whereNotNull('position');
             })
             ->pluck('date')
@@ -263,7 +270,8 @@ class GroupRecordController extends Controller
             'tateDisplayOffset',
             'maxTatesPerPage',
             'recordHeightExtra',
-            'matchRecordHeightExtra'
+            'matchRecordHeightExtra',
+            'activeSheetScoringMode'
         ));
     }
 
@@ -514,19 +522,56 @@ class GroupRecordController extends Controller
         $newTate = $maxTate + 1;
 
         if ($maxTate > 0) {
-            foreach ($team->members()->where('date', $date)->where('tate_no', $maxTate)->get() as $member) {
-                $team->members()->create([
+            $now = now();
+            $memberInserts = $team->members()
+                ->where('date', $date)
+                ->where('tate_no', $maxTate)
+                ->get()
+                ->map(fn($member) => [
+                    'match_team_id' => $team->id,
                     'date' => $date,
                     'user_id' => $member->user_id,
                     'tate_no' => $newTate,
                     'position' => $member->position,
                     'is_absent' => $member->is_absent,
                     'is_late' => $member->is_late,
-                ]);
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ])
+                ->all();
+
+            if (!empty($memberInserts)) {
+                DB::table('match_team_members')->insert($memberInserts);
             }
         }
 
         return redirect("/group/{$groupId}/match-records?date={$date}&team_id={$team->id}&tate_no={$newTate}");
+    }
+
+    public function updateOfficialScoringMode(Request $request, $groupId)
+    {
+        $this->checkGroupAccess($groupId);
+
+        $validated = $request->validate([
+            'date' => ['required', 'date'],
+            'sheet_no' => ['required', 'integer', 'min:1'],
+            'scoring_mode' => ['required', 'in:hit_miss,numeric'],
+        ]);
+
+        DB::table('official_record_sheets')->updateOrInsert(
+            [
+                'group_id' => $groupId,
+                'date' => $validated['date'],
+                'sheet_no' => $validated['sheet_no'],
+            ],
+            [
+                'scoring_mode' => $validated['scoring_mode'],
+                'updated_at' => now(),
+                'created_at' => now(),
+            ]
+        );
+
+        return response()->json(['ok' => true]);
     }
 
     private function addTateForType(Request $request, $groupId, string $practiceType)
@@ -556,7 +601,6 @@ class GroupRecordController extends Controller
 
         $placedMembers = $lineup->members
             ->where('is_absent', false)
-            ->where('is_late', false)
             ->filter(fn($m) => !is_null($m->position))
             ->values();
         $users = $placedMembers
@@ -660,6 +704,11 @@ class GroupRecordController extends Controller
         }
 
         $shot->result = $request->result ?: null;
+        if ($request->has('numeric_score')) {
+            $shot->numeric_score = $request->numeric_score;
+        } else {
+            $shot->numeric_score = null;
+        }
         $shot->save();
 
         return response()->json(['success' => true]);
@@ -684,7 +733,7 @@ class GroupRecordController extends Controller
                     'lineup_id' => $lineup->id,
                     'user_id' => $user->id,
                     'position' => null,
-                    'is_absent' => false,
+                    'is_absent' => $user->isDefaultAbsentForDate($lineup->date),
                     'is_late' => false,
                 ]);
             }
@@ -811,7 +860,6 @@ class GroupRecordController extends Controller
 
         $placedMembers = $lineup->members
             ->where('is_absent', false)
-            ->where('is_late', false)
             ->filter(fn($member) => !is_null($member->position))
             ->values();
 
@@ -970,20 +1018,114 @@ class GroupRecordController extends Controller
     private function ensureMatchTeamRecords(MatchTeam $team, string $date, $tateNos, $attendanceByUserId = null): void
     {
         $attendanceByUserId = collect($attendanceByUserId);
+        $tateNos = collect($tateNos)->filter()->unique()->values();
 
-        foreach (collect($tateNos) as $tateNo) {
-            $userIds = $team->members()
-                ->where('date', $date)
-                ->where('tate_no', $tateNo)
-                ->whereNotNull('position')
-                ->pluck('user_id')
-                ->reject(function ($userId) use ($attendanceByUserId) {
-                    $attendance = $attendanceByUserId->get($userId);
+        if ($tateNos->isEmpty()) {
+            return;
+        }
 
-                    return $attendance?->is_absent || $attendance?->is_late;
-                });
+        $membersByTate = $team->members
+            ->where('date', $date)
+            ->whereIn('tate_no', $tateNos)
+            ->filter(function ($member) use ($attendanceByUserId) {
+                $attendance = $attendanceByUserId->get($member->user_id);
 
-            $this->ensureRecordsWithShots($userIds, $date, collect([$tateNo]), 'match', $team->id);
+                return !is_null($member->position)
+                    && !$attendance?->is_absent
+                    && !$attendance?->is_late;
+            })
+            ->groupBy('tate_no')
+            ->map(fn($members) => $members->pluck('user_id')->unique()->values());
+
+        $userIds = $membersByTate
+            ->flatten()
+            ->unique()
+            ->values();
+
+        if ($userIds->isEmpty()) {
+            return;
+        }
+
+        $existingRecords = Record::whereIn('user_id', $userIds)
+            ->where('date', $date)
+            ->where('practice_type', 'match')
+            ->where('match_team_id', $team->id)
+            ->whereIn('tate_no', $tateNos)
+            ->get();
+
+        $existingKeys = $existingRecords
+            ->map(fn($record) => $record->user_id . '-' . $record->tate_no)
+            ->all();
+
+        $now = now();
+        $recordInserts = [];
+
+        foreach ($membersByTate as $tateNo => $tateUserIds) {
+            foreach ($tateUserIds as $userId) {
+                $key = $userId . '-' . $tateNo;
+
+                if (in_array($key, $existingKeys, true)) {
+                    continue;
+                }
+
+                $recordInserts[] = [
+                    'user_id' => $userId,
+                    'date' => $date,
+                    'tate_no' => $tateNo,
+                    'practice_type' => 'match',
+                    'official_sheet_no' => 1,
+                    'match_team_id' => $team->id,
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ];
+            }
+        }
+
+        if (!empty($recordInserts)) {
+            Record::insert($recordInserts);
+        }
+
+        $records = Record::whereIn('user_id', $userIds)
+            ->where('date', $date)
+            ->where('practice_type', 'match')
+            ->where('match_team_id', $team->id)
+            ->whereIn('tate_no', $tateNos)
+            ->get();
+
+        $recordIds = $records->pluck('id');
+
+        if ($recordIds->isEmpty()) {
+            return;
+        }
+
+        $existingShotKeys = Shot::whereIn('record_id', $recordIds)
+            ->get(['record_id', 'shot_no'])
+            ->map(fn($shot) => $shot->record_id . '-' . $shot->shot_no)
+            ->all();
+
+        $shotInserts = [];
+
+        foreach ($records as $record) {
+            for ($i = 1; $i <= 4; $i++) {
+                $key = $record->id . '-' . $i;
+
+                if (in_array($key, $existingShotKeys, true)) {
+                    continue;
+                }
+
+                $shotInserts[] = [
+                    'record_id' => $record->id,
+                    'shot_no' => $i,
+                    'result' => null,
+                    'numeric_score' => null,
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ];
+            }
+        }
+
+        if (!empty($shotInserts)) {
+            Shot::insert($shotInserts);
         }
     }
 

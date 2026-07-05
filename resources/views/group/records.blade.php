@@ -35,6 +35,15 @@
     ];
     $usesGrades = (bool) ($group->uses_grades ?? false);
     $gradeColors = collect($group->grade_colors ?? []);
+    $numericScoreOptions = collect($group->numeric_score_options ?? [
+        ['value' => 1, 'color' => '#dbeafe'],
+        ['value' => 2, 'color' => '#dcfce7'],
+        ['value' => 3, 'color' => '#fef3c7'],
+    ])->map(fn($option) => [
+        'value' => (int) ($option['value'] ?? 0),
+        'color' => $option['color'] ?? '#dbeafe',
+    ])->values();
+    $numericScoreColorMap = $numericScoreOptions->mapWithKeys(fn($option) => [$option['value'] => $option['color']]);
     $gradeTextColor = function (?string $color) {
         if (!$color || !preg_match('/^#[0-9A-Fa-f]{6}$/', $color)) {
             return '#222222';
@@ -62,7 +71,23 @@
 
         return 'background:' . $color . '; color:' . $gradeTextColor($color) . '; border-color:' . $color . ';';
     };
+    $numericShotStyle = function ($shot) use ($numericScoreColorMap) {
+        if (is_null($shot?->numeric_score)) {
+            return '';
+        }
+
+        $color = $numericScoreColorMap->get((int) $shot->numeric_score, '#dbeafe');
+
+        return 'background:' . $color . '; border-color:' . $color . '; color:#111;';
+    };
 @endphp
+
+<script>
+window.numericScoreOptions = @json($numericScoreOptions);
+window.groupRecordData = {
+    groupId: {{ $group->id }},
+};
+</script>
 
 <div class="record-title-bar">
     <h4>{{ $group->name }}（{{ $recordLabel }}）</h4>
@@ -150,10 +175,14 @@
                                     ->where('tate_no', $sourceTateNo)
                                     ->firstWhere('user_id', $user->id);
                                 $attendance = ($matchAttendanceByUserId ?? collect())->get($user->id);
+                                $hasEnteredRecord = (($records[$team->id][$user->id] ?? collect()))
+                                    ->where('tate_no', $sourceTateNo)
+                                    ->contains(fn($record) => $record->shots->contains(fn($shot) => !is_null($shot->result)));
                             @endphp
                             <div class="source-member"
                                  data-user-id="{{ $user->id }}"
                                  data-position="{{ $saved?->position }}"
+                                 data-has-record="{{ $hasEnteredRecord ? 1 : 0 }}"
                                  data-gender="{{ $user->gender }}"
                                  data-grade-level="{{ $user->grade_level }}"
                                  data-grade-color="{{ $gradeColorFor($user) }}"
@@ -285,6 +314,15 @@
                         <span class="official-sheet-range">{{ $pageTateRangeLabel }}</span>
                     @endif
                 </div>
+                <label class="record-mode-switch">
+                    <input type="checkbox"
+                           data-mode-toggle="official"
+                           data-date="{{ $date }}"
+                           data-sheet-no="{{ $activeSheetNo }}"
+                           {{ ($activeSheetScoringMode ?? 'hit_miss') === 'numeric' ? 'checked' : '' }}
+                           onchange="toggleScoringMode(this)">
+                    <span>数字</span>
+                </label>
                 @if(!$isCurrentSheet)
                     <span class="official-sheet-status saved">保存済み</span>
                 @endif
@@ -411,7 +449,23 @@
                     }
                 }
 
-                $elapsedSeconds = (int) optional(optional($matchTateMetas->get($team->id))->get($tateNo))->elapsed_seconds;
+                $tateMeta = optional($matchTateMetas->get($team->id))->get($tateNo);
+                $matchScoringMode = $tateMeta?->scoring_mode ?? 'hit_miss';
+                $tateNumericTotal = 0;
+
+                foreach ($slots as $slotForNumericTotal) {
+                    if (!$slotForNumericTotal->is_empty && $slotForNumericTotal->user) {
+                        $numericRecord = ($records[$team->id][$slotForNumericTotal->user->id] ?? collect())
+                            ->where('tate_no', $tateNo)
+                            ->first();
+
+                        if ($numericRecord) {
+                            $tateNumericTotal += $numericRecord->shots->sum(fn($shot) => (int) ($shot->numeric_score ?? 0));
+                        }
+                    }
+                }
+
+                $elapsedSeconds = (int) $tateMeta?->elapsed_seconds;
                 $elapsedLabel = sprintf('%02d:%02d', floor($elapsedSeconds / 60), $elapsedSeconds % 60);
             @endphp
 
@@ -420,10 +474,20 @@
                     <div>
                         <strong>{{ $tateNo }}立目</strong>
                         <span class="match-tate-hit-total" data-tate-hit-counter="{{ $team->id }}-{{ $tateNo }}">
-                            {{ $tateTotalHits }}中
+                            {{ $matchScoringMode === 'numeric' ? $tateNumericTotal . '点' : $tateTotalHits . '中' }}
                         </span>
                     </div>
                     <div class="match-tate-tools">
+                        <label class="record-mode-switch small-switch">
+                            <input type="checkbox"
+                                   data-mode-toggle="match"
+                                   data-team-id="{{ $team->id }}"
+                                   data-date="{{ $date }}"
+                                   data-tate-no="{{ $tateNo }}"
+                                   {{ $matchScoringMode === 'numeric' ? 'checked' : '' }}
+                                   onchange="toggleScoringMode(this)">
+                            <span>数字</span>
+                        </label>
                         <div class="match-timer"
                              data-team-id="{{ $team->id }}"
                              data-date="{{ $date }}"
@@ -459,6 +523,9 @@
                                 $tateHitCount = $record
                                     ? $record->shots->where('result', 'hit')->count()
                                     : 0;
+                                $tatePointCount = $record
+                                    ? $record->shots->sum(fn($shot) => (int) ($shot->numeric_score ?? 0))
+                                    : 0;
                             @endphp
 
                             <div class="match-vertical-column">
@@ -472,15 +539,21 @@
                                     <div class="shot-btn
                                         {{ $shot?->result=='hit'?'shot-hit':'' }}
                                         {{ $shot?->result=='miss'?'shot-miss':'' }}
-                                        {{ !$shot || $shot->result==null?'shot-none':'' }}"
+                                        {{ !$shot || ($shot->result==null && !(($matchScoringMode === 'numeric') && !is_null($shot?->numeric_score)))?'shot-none':'' }}
+                                        {{ $matchScoringMode === 'numeric' && !is_null($shot?->numeric_score) ? 'shot-numeric' : '' }}"
+                                        style="{{ $matchScoringMode === 'numeric' ? $numericShotStyle($shot) : '' }}"
                                         data-id="{{ $shot->id ?? '' }}"
                                         data-record-id="{{ $record?->id }}"
                                         data-tate-counter="{{ $team->id }}-{{ $tateNo }}"
                                         data-user="{{ $user->id }}"
                                         data-result="{{ $shot?->result ?? '' }}"
+                                        data-numeric-score="{{ $shot?->numeric_score }}"
+                                        data-scoring-mode="{{ $matchScoringMode }}"
                                         onclick="updateShot(this)">
 
-                                        @if($shot?->result=='hit')
+                                        @if($matchScoringMode === 'numeric' && !is_null($shot?->numeric_score))
+                                            {{ $shot->numeric_score }}
+                                        @elseif($shot?->result=='hit')
                                             <i class="fa-regular fa-circle"></i>
                                         @elseif($shot?->result=='miss')
                                             <i class="fas fa-xmark"></i>
@@ -493,7 +566,9 @@
                                 <div class="match-vertical-name" style="{{ $gradeStyleFor($user) }}">
                                     <span>{{ $slot->position }}</span>
                                     {{ $user->name }}
-                                    <strong data-shot-counter="{{ $record?->id }}">{{ $tateHitCount }}中</strong>
+                                    <strong data-shot-counter="{{ $record?->id }}">
+                                        {{ $matchScoringMode === 'numeric' ? $tatePointCount . '点' : $tateHitCount . '中' }}
+                                    </strong>
                                 </div>
                             </div>
                         @endif
@@ -526,10 +601,20 @@
         @foreach($nameSlots as $slot)
             @php
                 $headerUser = $slot->user;
+                $headerNumericCount = $headerUser
+                    ? (($records[$headerUser->id] ?? collect())
+                        ->sum(fn($record) => $record->shots->sum(fn($shot) => (int) ($shot->numeric_score ?? 0))))
+                    : 0;
             @endphp
             <div class="score {{ (($loop->index + 1) % $nameTateSize == 0) ? 'tate-border' : '' }}"
                  data-user-id="{{ $headerUser?->id }}">
-                {{ $headerUser ? (($hitCounts[$headerUser->id] ?? 0) . '中') : '-' }}
+                @if($headerUser)
+                    {{ ($activeSheetScoringMode ?? 'hit_miss') === 'numeric'
+                        ? ($headerNumericCount . '点')
+                        : (($hitCounts[$headerUser->id] ?? 0) . '中') }}
+                @else
+                    -
+                @endif
             </div>
         @endforeach
     </div>
@@ -584,13 +669,19 @@
                         <div class="shot-btn
                             {{ $shot?->result=='hit'?'shot-hit':'' }}
                             {{ $shot?->result=='miss'?'shot-miss':'' }}
-                            {{ !$shot || $shot->result==null?'shot-none':'' }}"
+                            {{ !$shot || ($shot->result==null && !(($activeSheetScoringMode ?? 'hit_miss') === 'numeric' && !is_null($shot?->numeric_score)))?'shot-none':'' }}
+                            {{ ($activeSheetScoringMode ?? 'hit_miss') === 'numeric' && !is_null($shot?->numeric_score) ? 'shot-numeric' : '' }}"
+                            style="{{ ($activeSheetScoringMode ?? 'hit_miss') === 'numeric' ? $numericShotStyle($shot) : '' }}"
                             data-id="{{ $shot->id ?? '' }}"
                             data-user="{{ $user->id }}"
                             data-result="{{ $shot?->result ?? '' }}"
+                            data-numeric-score="{{ $shot?->numeric_score }}"
+                            data-scoring-mode="{{ $activeSheetScoringMode ?? 'hit_miss' }}"
                             onclick="updateShot(this)">
 
-                            @if($shot?->result=='hit')
+                            @if(($activeSheetScoringMode ?? 'hit_miss') === 'numeric' && !is_null($shot?->numeric_score))
+                                {{ $shot->numeric_score }}
+                            @elseif($shot?->result=='hit')
                                 <i class="fa-regular fa-circle"></i>
                             @elseif($shot?->result=='miss')
                                 <i class="fas fa-xmark"></i>
