@@ -283,7 +283,7 @@
                 {{-- 全員共通 --}}
                 <li class="nav-item mb-2">
                     <a class="nav-link" href="#" onclick="goGroupRecord()">
-                        グループ 的中記録
+                        グループ 的中記録kai
                     </a>
                 </li>
 
