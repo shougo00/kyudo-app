@@ -15,6 +15,14 @@
             <p>まだグループに参加していません</p>
         @endif
 
+        @if(session('success'))
+            <div class="alert alert-success">{{ session('success') }}</div>
+        @endif
+
+        @if(session('error'))
+            <div class="alert alert-danger">{{ session('error') }}</div>
+        @endif
+
         @foreach($groups as $group)
 
             <div class="card mb-3 p-3">
@@ -78,6 +86,21 @@
                                 </span>
 
                             </div>
+
+                            @if(auth()->id() === $group->host_user_id && $user->id !== $group->host_user_id)
+                                <form method="POST"
+                                      action="{{ route('groups.members.remove', [$group->id, $user->id]) }}"
+                                      class="mt-1">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit"
+                                            class="btn btn-outline-danger btn-sm"
+                                            style="font-size:11px;padding:2px 6px;"
+                                            onclick="return confirm('{{ $user->name }}さんをグループから退会させますか？')">
+                                        退会
+                                    </button>
+                                </form>
+                            @endif
 
                         </div>
 

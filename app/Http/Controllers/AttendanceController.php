@@ -12,7 +12,17 @@ class AttendanceController extends Controller
    public function index(Request $request, $groupId)
 {
     $user = auth()->user();
-    if (!$user->line_link_code && !$user->line_user_id) {
+
+    // ★ここ追加（超重要）
+    if (!$user->groups()->where('groups.id', $groupId)->exists()) {
+        abort(403, 'このグループにはアクセスできません');
+    }
+
+    $group = Group::with(['users' => fn($query) => $query->where('users.is_admin', false)->orderBy('name')])->findOrFail($groupId);
+    $date = $request->date ?? date('Y-m-d');
+    $isHost = (int) $group->host_user_id === (int) $user->id;
+
+    if (!$isHost && !$user->line_link_code && !$user->line_user_id) {
         do {
             $code = (string) random_int(100000, 999999);
         } while (\App\Models\User::where('line_link_code', $code)->exists());
@@ -24,14 +34,6 @@ class AttendanceController extends Controller
         $user->refresh();
     }
 
-    // ★ここ追加（超重要）
-    if (!$user->groups()->where('groups.id', $groupId)->exists()) {
-        abort(403, 'このグループにはアクセスできません');
-    }
-
-    $group = Group::findOrFail($groupId);
-    $date = $request->date ?? date('Y-m-d');
-
     $lineup = Lineup::firstOrCreate(
         [
             'group_id' => $groupId,
@@ -41,6 +43,36 @@ class AttendanceController extends Controller
             'tate_size' => 3,
         ]
     );
+
+    if ($isHost) {
+        $attendanceMembers = $group->users->map(function ($memberUser) use ($lineup, $date) {
+            $lineupMember = LineupMember::firstOrCreate(
+                [
+                    'lineup_id' => $lineup->id,
+                    'user_id' => $memberUser->id,
+                ],
+                [
+                    'position' => null,
+                    'is_absent' => $memberUser->isDefaultAbsentForDate($date),
+                    'is_late' => false,
+                ]
+            );
+
+            return [
+                'user' => $memberUser,
+                'member' => $lineupMember,
+            ];
+        });
+
+        return view('attendance.index', compact(
+            'group',
+            'user',
+            'date',
+            'lineup',
+            'isHost',
+            'attendanceMembers'
+        ));
+    }
 
     $member = LineupMember::firstOrCreate(
         [
@@ -59,7 +91,8 @@ class AttendanceController extends Controller
         'user',
         'date',
         'lineup',
-        'member'
+        'member',
+        'isHost'
     ));
 }
 
@@ -68,6 +101,7 @@ class AttendanceController extends Controller
         $request->validate([
             'status' => 'required|in:present,late,absent',
             'date' => 'required|date',
+            'user_id' => 'nullable|integer',
         ]);
 
         $date = $request->date;
@@ -75,6 +109,20 @@ class AttendanceController extends Controller
 
         if (!$user->groups()->where('groups.id', $groupId)->exists()) {
             abort(403, 'このグループにはアクセスできません');
+        }
+
+        $group = Group::findOrFail($groupId);
+        $targetUser = $user;
+
+        if ($request->filled('user_id')) {
+            if ((int) $group->host_user_id !== (int) $user->id) {
+                abort(403, 'ホストだけが他メンバーの出席を変更できます');
+            }
+
+            $targetUser = $group->users()
+                ->where('users.id', $request->integer('user_id'))
+                ->where('users.is_admin', false)
+                ->firstOrFail();
         }
 
         $lineup = Lineup::firstOrCreate(
@@ -90,11 +138,11 @@ class AttendanceController extends Controller
         $member = LineupMember::firstOrCreate(
             [
                 'lineup_id' => $lineup->id,
-                'user_id' => $user->id,
+                'user_id' => $targetUser->id,
             ],
             [
                 'position' => null,
-                'is_absent' => $user->isDefaultAbsentForDate($date),
+                'is_absent' => $targetUser->isDefaultAbsentForDate($date),
                 'is_late' => false,
             ]
         );
@@ -104,7 +152,10 @@ class AttendanceController extends Controller
             'is_late' => $request->status === 'late',
         ]);
 
-        return response()->json(['ok' => true]);
+        return response()->json([
+            'ok' => true,
+            'user_id' => $targetUser->id,
+        ]);
     }
     
     public function allAbsent(Request $request, $groupId)

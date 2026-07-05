@@ -110,11 +110,11 @@ class GroupController extends Controller
             return back()->with('error', 'ホストはグループを抜けられません');
         }
 
-        // 中間テーブルから削除
         DB::table('group_user')
             ->where('group_id', $group->id)
             ->where('user_id', $userId)
-            ->delete();
+            ->whereNull('deleted_at')
+            ->update(['deleted_at' => now()]);
         
         // グループを抜けたら一般ユーザーに戻す
         auth()->user()->update([
@@ -122,5 +122,32 @@ class GroupController extends Controller
         ]);
 
         return redirect('/groups')->with('success', 'グループを抜けました');
+    }
+
+    public function removeMember(Request $request, Group $group, int $user)
+    {
+        if ((int) $group->host_user_id !== (int) auth()->id()) {
+            abort(403, 'ホストだけがメンバーを退会させられます');
+        }
+
+        if ((int) $group->host_user_id === (int) $user) {
+            return back()->with('error', 'ホスト自身は退会させられません');
+        }
+
+        if (!$group->users()->where('users.id', $user)->exists()) {
+            return back()->with('error', 'メンバーが見つかりません');
+        }
+
+        DB::table('group_user')
+            ->where('group_id', $group->id)
+            ->where('user_id', $user)
+            ->whereNull('deleted_at')
+            ->update(['deleted_at' => now()]);
+
+        \App\Models\User::where('id', $user)->update([
+            'is_admin' => false,
+        ]);
+
+        return back()->with('success', 'メンバーを退会させました');
     }
 }

@@ -31,8 +31,11 @@ class LineupController extends Controller
 
         $this->syncLineupMembers($lineup, $group);
 
+        $activeUserIds = $group->users->pluck('id')->values();
+
         $members = $lineup->members()
         ->with('user')
+        ->whereIn('user_id', $activeUserIds)
         ->whereHas('user', function ($q) {
             $q->where('is_admin', false);
         })
@@ -82,6 +85,7 @@ class LineupController extends Controller
         $this->checkGroupAccess($lineup->group_id);
 
         $members = LineupMember::where('lineup_id', $lineupId)
+        ->whereIn('user_id', Group::findOrFail($lineup->group_id)->users()->where('users.is_admin', false)->pluck('users.id'))
         ->where('is_absent', false)
         ->whereHas('user', function ($q) {
             $q->where('is_admin', false);

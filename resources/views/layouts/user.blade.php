@@ -210,6 +210,13 @@
 
                 @endif
 
+                @if(Auth::user()->is_admin)
+                    <li class="nav-item">
+                        <a class="nav-link active" href="#"
+                        onclick="goAttendance()">出席管理</a>
+                    </li>
+                @endif
+
             @endauth
         </ul>
 
@@ -314,6 +321,14 @@
                         </a>
                     </li>
 
+                @endif
+
+                @if(Auth::user()->is_admin)
+                    <li class="nav-item mb-2">
+                        <a class="nav-link" href="#" onclick="goAttendance()">
+                            出席管理
+                        </a>
+                    </li>
                 @endif
 
                 {{-- プロフィール（全員OK） --}}

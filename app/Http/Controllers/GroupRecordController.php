@@ -47,6 +47,10 @@ class GroupRecordController extends Controller
         $lineupSlots = collect();
         $users = collect();
         $lineupSnapshotsByUserId = collect();
+        $activeGroupUserIds = $group->users
+            ->where('is_admin', false)
+            ->pluck('id')
+            ->values();
 
         if ($lineup) {
             $this->syncLineupMembers($lineup, $group);
@@ -55,6 +59,7 @@ class GroupRecordController extends Controller
             $tateSize = $lineup->tate_size;
 
             $placedMembers = $lineup->members
+                ->whereIn('user_id', $activeGroupUserIds)
                 ->where('is_absent', false)
                 ->filter(fn($m) => !is_null($m->position))
                 ->sortBy('position')
@@ -87,10 +92,7 @@ class GroupRecordController extends Controller
             }
         }
 
-        $groupUserIds = $group->users
-            ->where('is_admin', false)
-            ->pluck('id')
-            ->values();
+        $groupUserIds = $activeGroupUserIds;
         $userIds = $users->pluck('id');
 
         $this->normalizeOfficialTateNos($date, $groupUserIds);
@@ -558,6 +560,32 @@ class GroupRecordController extends Controller
             'scoring_mode' => ['required', 'in:hit_miss,numeric'],
         ]);
 
+        $groupUserIds = Group::findOrFail($groupId)
+            ->users()
+            ->where('is_admin', false)
+            ->pluck('users.id');
+
+        $sheetShots = Shot::whereHas('record', function ($query) use ($groupUserIds, $validated) {
+            $query->whereIn('user_id', $groupUserIds)
+                ->where('date', $validated['date'])
+                ->where('practice_type', 'official')
+                ->where('official_sheet_no', $validated['sheet_no']);
+        });
+
+        if ($validated['scoring_mode'] === 'numeric' && (clone $sheetShots)->whereNotNull('result')->exists()) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'このページに○×の記録が入っているため、数字モードに切り替えできません。',
+            ], 409);
+        }
+
+        if ($validated['scoring_mode'] === 'hit_miss' && (clone $sheetShots)->whereNotNull('numeric_score')->exists()) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'このページに数字の記録が入っているため、○×モードに戻せません。',
+            ], 409);
+        }
+
         DB::table('official_record_sheets')->updateOrInsert(
             [
                 'group_id' => $groupId,
@@ -598,8 +626,13 @@ class GroupRecordController extends Controller
         $this->syncLineupMembers($lineup, $group);
 
         $lineup = Lineup::with('members.user')->findOrFail($lineup->id);
+        $activeGroupUserIds = $group->users
+            ->where('is_admin', false)
+            ->pluck('id')
+            ->values();
 
         $placedMembers = $lineup->members
+            ->whereIn('user_id', $activeGroupUserIds)
             ->where('is_absent', false)
             ->filter(fn($m) => !is_null($m->position))
             ->values();
@@ -614,10 +647,7 @@ class GroupRecordController extends Controller
         }
 
         $userIds = $users->pluck('id');
-        $groupUserIds = $group->users
-            ->where('is_admin', false)
-            ->pluck('id')
-            ->values();
+        $groupUserIds = $activeGroupUserIds;
 
         if ($practiceType === 'official') {
             $this->normalizeOfficialTateNos($date, $groupUserIds);
@@ -857,8 +887,13 @@ class GroupRecordController extends Controller
 
         $this->syncLineupMembers($lineup, $group);
         $lineup = Lineup::with('members.user')->findOrFail($lineup->id);
+        $activeGroupUserIds = $group->users
+            ->where('is_admin', false)
+            ->pluck('id')
+            ->values();
 
         $placedMembers = $lineup->members
+            ->whereIn('user_id', $activeGroupUserIds)
             ->where('is_absent', false)
             ->filter(fn($member) => !is_null($member->position))
             ->values();
@@ -874,10 +909,7 @@ class GroupRecordController extends Controller
             ],
         ]);
         $userIds = $placedMembers->pluck('user_id')->values();
-        $groupUserIds = $group->users
-            ->where('is_admin', false)
-            ->pluck('id')
-            ->values();
+        $groupUserIds = $activeGroupUserIds;
 
         $tates = Record::whereIn('user_id', $groupUserIds)
             ->where('date', $date)

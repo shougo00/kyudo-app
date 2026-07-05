@@ -73,6 +73,7 @@ Route::middleware([ 'verified'])->group(function () {
     Route::post('/groups/join', [GroupController::class, 'join'])->name('groups.join');
     });
     Route::post('/groups/{group}/leave', [GroupController::class, 'leave'])->name('groups.leave');
+    Route::delete('/groups/{group}/members/{user}', [GroupController::class, 'removeMember'])->name('groups.members.remove');
 
     // グループ記録ページ
     Route::get('/group/{groupId}/records', [GroupRecordController::class, 'index'])->name('group.records');

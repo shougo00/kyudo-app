@@ -4,10 +4,10 @@
 
 <div class="container py-3">
 
-<h4>{{ $group->name }}｜出欠確認</h4>
+<h4>{{ $group->name }}｜{{ $isHost ? '出席管理' : '出欠確認' }}</h4>
 
 <form method="GET" action="/group/{{ $group->id }}/attendance" class="mb-4 text-center">
-    <div class="d-flex justify-content-center align-items-center gap-3">
+    <div class="attendance-date-nav d-flex justify-content-center align-items-center gap-3">
 
         <a href="/group/{{ $group->id }}/attendance?date={{ \Carbon\Carbon::parse($date)->subDay()->format('Y-m-d') }}"
            class="btn btn-outline-secondary">
@@ -29,6 +29,58 @@
     </div>
 </form>
 
+@if($isHost)
+    <div class="host-attendance-grid">
+        @foreach($attendanceMembers as $row)
+            @php
+                $memberUser = $row['user'];
+                $lineupMember = $row['member'];
+                $status = $lineupMember->is_absent ? 'absent' : ($lineupMember->is_late ? 'late' : 'present');
+            @endphp
+            <div class="attendance-card host-attendance-card" data-user-id="{{ $memberUser->id }}">
+                <div class="user-name">{{ $memberUser->name }}</div>
+
+                <div class="status-text mb-3" data-member-status="{{ $memberUser->id }}">
+                    @if($status === 'absent')
+                        現在：欠席
+                    @elseif($status === 'late')
+                        現在：遅刻
+                    @else
+                        現在：出席
+                    @endif
+                </div>
+
+                <div class="attendance-actions host-attendance-actions">
+                    <button type="button"
+                            data-member-button="{{ $memberUser->id }}"
+                            data-status-button="present"
+                            class="btn {{ $status === 'present' ? 'btn-success' : 'btn-outline-success' }}"
+                            onclick="setMemberAttendance({{ $memberUser->id }}, 'present')">
+                        出席
+                    </button>
+                    <button type="button"
+                            data-member-button="{{ $memberUser->id }}"
+                            data-status-button="absent"
+                            class="btn {{ $status === 'absent' ? 'btn-danger' : 'btn-outline-danger' }}"
+                            onclick="setMemberAttendance({{ $memberUser->id }}, 'absent')">
+                        欠席
+                    </button>
+                    <button type="button"
+                            data-member-button="{{ $memberUser->id }}"
+                            data-status-button="late"
+                            class="btn {{ $status === 'late' ? 'btn-warning' : 'btn-outline-warning' }}"
+                            onclick="setMemberAttendance({{ $memberUser->id }}, 'late')">
+                        遅刻
+                    </button>
+                </div>
+
+                <div class="text-muted mt-3" data-member-save-status="{{ $memberUser->id }}" style="font-size:13px;">
+                    保存済み
+                </div>
+            </div>
+        @endforeach
+    </div>
+@else
 <div class="attendance-card">
 
     <div class="user-name">
@@ -45,7 +97,7 @@
         @endif
     </div>
 
-    <div class="d-flex gap-2 justify-content-center flex-wrap">
+    <div class="attendance-actions">
         <button type="button"
                 id="presentBtn"
                 class="btn {{ (!$member->is_absent && !$member->is_late) ? 'btn-success' : 'btn-outline-success' }}"
@@ -167,6 +219,7 @@
 
     </div>
 </div>
+@endif
 
 <style>
 .attendance-card {
@@ -177,6 +230,17 @@
     border-radius: 12px;
     text-align: center;
     background: #fff;
+}
+
+.host-attendance-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 14px;
+}
+
+.host-attendance-card {
+    max-width: none;
+    padding: 18px;
 }
 
 .user-name {
@@ -190,10 +254,17 @@
     font-weight: bold;
 }
 
+.attendance-actions {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+}
+
 .attendance-card .btn {
-    min-width: 120px;
+    min-width: 0;
     padding: 12px;
     font-size: 18px;
+    white-space: nowrap;
 }
 
 .attendance-detail {
@@ -235,9 +306,152 @@
     padding: 8px 0 !important;
     font-size: 14px !important;
 }
+
+@media (max-width: 900px) {
+    .host-attendance-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+    }
+
+    .host-attendance-card {
+        padding: 14px;
+    }
+
+    .host-attendance-card .user-name {
+        font-size: 18px;
+        min-height: 1.4em;
+        overflow-wrap: anywhere;
+    }
+
+    .host-attendance-card .status-text {
+        font-size: 14px;
+        margin-bottom: 10px !important;
+    }
+
+    .host-attendance-card .btn {
+        padding: 9px 4px;
+        font-size: 15px;
+    }
+}
+
+@media (max-width: 600px) {
+    .container.py-3 {
+        padding-left: 8px;
+        padding-right: 8px;
+    }
+
+    .container.py-3 > h4 {
+        font-size: 18px;
+        line-height: 1.4;
+    }
+
+    .attendance-date-nav {
+        gap: 6px !important;
+    }
+
+    .attendance-date-nav .btn {
+        min-width: 42px;
+        padding: 8px 10px;
+    }
+
+    .attendance-date-nav input[type="date"] {
+        max-width: none !important;
+        min-width: 0;
+        flex: 1 1 auto;
+        font-size: 14px;
+    }
+
+    .host-attendance-grid {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+
+    .attendance-card {
+        max-width: none;
+        padding: 14px;
+    }
+
+    .attendance-card .btn {
+        padding: 10px 4px;
+        font-size: 15px;
+    }
+
+    .user-name {
+        font-size: 19px;
+        overflow-wrap: anywhere;
+    }
+
+    .status-text {
+        font-size: 14px;
+    }
+
+    .weekday-options {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
 </style>
 
 <script>
+function setMemberAttendance(userId, status) {
+    const buttons = document.querySelectorAll(`[data-member-button="${userId}"]`);
+    const statusText = document.querySelector(`[data-member-status="${userId}"]`);
+    const saveStatus = document.querySelector(`[data-member-save-status="${userId}"]`);
+
+    buttons.forEach(button => {
+        const buttonStatus = button.dataset.statusButton;
+        button.className =
+            buttonStatus === 'present' ? 'btn btn-outline-success' :
+            buttonStatus === 'late' ? 'btn btn-outline-warning' :
+            'btn btn-outline-danger';
+    });
+
+    const activeButton = document.querySelector(`[data-member-button="${userId}"][data-status-button="${status}"]`);
+    if (activeButton) {
+        activeButton.className =
+            status === 'present' ? 'btn btn-success' :
+            status === 'late' ? 'btn btn-warning' :
+            'btn btn-danger';
+    }
+
+    if (statusText) {
+        statusText.innerText =
+            status === 'present' ? '現在：出席' :
+            status === 'late' ? '現在：遅刻' :
+            '現在：欠席';
+    }
+
+    if (saveStatus) {
+        saveStatus.innerText = '保存中...';
+    }
+
+    fetch('/group/{{ $group->id }}/attendance', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+        },
+        body: JSON.stringify({
+            date: '{{ $date }}',
+            user_id: userId,
+            status: status
+        })
+    })
+    .then(res => {
+        if (!res.ok) throw new Error('save failed');
+        return res.json();
+    })
+    .then(() => {
+        if (saveStatus) {
+            saveStatus.innerText = '保存済み';
+        }
+    })
+    .catch(() => {
+        if (saveStatus) {
+            saveStatus.innerText = '保存失敗';
+        }
+    });
+}
+
 function setAttendance(status) {
     const presentBtn = document.getElementById('presentBtn');
     const lateBtn = document.getElementById('lateBtn');

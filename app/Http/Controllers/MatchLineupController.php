@@ -183,6 +183,27 @@ class MatchLineupController extends Controller
             'scoring_mode' => ['required', 'in:hit_miss,numeric'],
         ]);
 
+        $tateShots = Shot::whereHas('record', function ($query) use ($team, $validated) {
+            $query->where('match_team_id', $team->id)
+                ->where('date', $validated['date'])
+                ->where('practice_type', 'match')
+                ->where('tate_no', $validated['tate_no']);
+        });
+
+        if ($validated['scoring_mode'] === 'numeric' && (clone $tateShots)->whereNotNull('result')->exists()) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'この立に○×の記録が入っているため、数字モードに切り替えできません。',
+            ], 409);
+        }
+
+        if ($validated['scoring_mode'] === 'hit_miss' && (clone $tateShots)->whereNotNull('numeric_score')->exists()) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'この立に数字の記録が入っているため、○×モードに戻せません。',
+            ], 409);
+        }
+
         MatchTateMeta::updateOrCreate(
             [
                 'match_team_id' => $team->id,

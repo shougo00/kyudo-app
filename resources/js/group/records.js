@@ -208,6 +208,29 @@ window.scrollRight = scrollRight;
 function toggleScoringMode(input) {
     const mode = input.checked ? 'numeric' : 'hit_miss';
     const isOfficial = input.dataset.modeToggle === 'official';
+    const scopeSelector = isOfficial
+        ? '.shot-btn[data-scoring-mode]'
+        : `.shot-btn[data-tate-counter="${input.dataset.teamId}-${input.dataset.tateNo}"]`;
+    const scopeShots = [...document.querySelectorAll(scopeSelector)];
+    const hasHitMiss = scopeShots.some(shot => shot.dataset.result === 'hit' || shot.dataset.result === 'miss');
+    const hasNumeric = scopeShots.some(shot => shot.dataset.numericScore !== '' && shot.dataset.numericScore != null);
+
+    if (mode === 'numeric' && hasHitMiss) {
+        input.checked = false;
+        alert(isOfficial
+            ? 'このページに○×の記録が入っているため、数字モードに切り替えできません。'
+            : 'この立に○×の記録が入っているため、数字モードに切り替えできません。');
+        return;
+    }
+
+    if (mode === 'hit_miss' && hasNumeric) {
+        input.checked = true;
+        alert(isOfficial
+            ? 'このページに数字の記録が入っているため、○×モードに戻せません。'
+            : 'この立に数字の記録が入っているため、○×モードに戻せません。');
+        return;
+    }
+
     const url = isOfficial
         ? `/group/${window.groupRecordData.groupId}/records/scoring-mode`
         : `/match-teams/${input.dataset.teamId}/tate-scoring-mode`;
@@ -232,7 +255,15 @@ function toggleScoringMode(input) {
         body: JSON.stringify(body)
     })
         .then(res => res.json())
-        .then(() => window.location.reload())
+        .then(data => {
+            if (data && data.ok) {
+                window.location.reload();
+                return;
+            }
+
+            input.checked = !input.checked;
+            alert(data?.message || 'モードを切り替えできません');
+        })
         .catch(() => {
             input.checked = !input.checked;
             alert('モードの保存に失敗しました');
