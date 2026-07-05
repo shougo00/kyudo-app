@@ -16,7 +16,18 @@
 
         <div class="mb-3">
             <label>招待コード</label>
-            <input type="text" name="invite_code" class="form-control">
+            <input type="text"
+                   name="invite_code"
+                   class="form-control @error('invite_code') is-invalid @enderror"
+                   value="{{ old('invite_code') }}"
+                   inputmode="numeric"
+                   pattern="\d{4}"
+                   maxlength="4"
+                   autocomplete="one-time-code"
+                   placeholder="例：1234">
+            @error('invite_code')
+                <div class="invalid-feedback">{{ $message }}</div>
+            @enderror
         </div>
 
         

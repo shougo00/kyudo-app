@@ -27,7 +27,7 @@ class ShikokuUniversityKyudoGroupSeeder extends Seeder
             ['name' => '四国大学弓道部'],
             [
                 'host_user_id' => $host->id,
-                'invite_code' => 'SHIKOKU-KYUDO',
+                'invite_code' => '1234',
                 'official_tates_per_page' => 5,
                 'uses_grades' => true,
                 'grade_count' => 4,

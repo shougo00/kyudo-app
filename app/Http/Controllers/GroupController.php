@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Group;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 
 class GroupController extends Controller
 {
@@ -37,7 +36,7 @@ class GroupController extends Controller
         $group = Group::create([
             'name' => $request->name,
             'host_user_id' => auth()->id(),
-            'invite_code' => Str::random(12), // 少し長めに
+            'invite_code' => $this->generateInviteCode(),
         ]);
 
         // 作成者も参加
@@ -62,8 +61,15 @@ class GroupController extends Controller
     // 参加処理
    public function join(Request $request)
     {
+        $request->merge([
+            'invite_code' => trim((string) $request->invite_code),
+        ]);
+
         $request->validate([
-            'invite_code' => 'required'
+            'invite_code' => ['required', 'regex:/^\d{4}$/'],
+        ], [
+            'invite_code.required' => '招待コードを入力してください',
+            'invite_code.regex' => '招待コードは4桁の数字で入力してください',
         ]);
 
         $group = Group::where('invite_code', $request->invite_code)->first();
@@ -84,6 +90,15 @@ class GroupController extends Controller
         ]);
 
         return redirect('/groups');
+    }
+
+    private function generateInviteCode(): string
+    {
+        do {
+            $code = str_pad((string) random_int(0, 9999), 4, '0', STR_PAD_LEFT);
+        } while (Group::where('invite_code', $code)->exists());
+
+        return $code;
     }
 
     public function leave(Group $group)
