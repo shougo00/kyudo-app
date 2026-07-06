@@ -14,13 +14,13 @@ class AttendanceController extends Controller
     $user = auth()->user();
 
     // ★ここ追加（超重要）
-    if (!$user->groups()->where('groups.id', $groupId)->exists()) {
+    if (!$this->canAccessGroup($user, $groupId)) {
         abort(403, 'このグループにはアクセスできません');
     }
 
     $group = Group::with(['users' => fn($query) => $query->where('users.is_admin', false)->orderBy('name')])->findOrFail($groupId);
     $date = $request->date ?? date('Y-m-d');
-    $isHost = (int) $group->host_user_id === (int) $user->id;
+    $isHost = (int) $group->host_user_id === (int) $user->id || $this->isSystemAdmin($user);
 
     if (!$isHost && !$user->line_link_code && !$user->line_user_id) {
         do {
@@ -107,7 +107,7 @@ class AttendanceController extends Controller
         $date = $request->date;
         $user = auth()->user();
 
-        if (!$user->groups()->where('groups.id', $groupId)->exists()) {
+        if (!$this->canAccessGroup($user, $groupId)) {
             abort(403, 'このグループにはアクセスできません');
         }
 
@@ -115,7 +115,7 @@ class AttendanceController extends Controller
         $targetUser = $user;
 
         if ($request->filled('user_id')) {
-            if ((int) $group->host_user_id !== (int) $user->id) {
+            if ((int) $group->host_user_id !== (int) $user->id && !$this->isSystemAdmin($user)) {
                 abort(403, 'ホストだけが他メンバーの出席を変更できます');
             }
 
@@ -163,20 +163,24 @@ class AttendanceController extends Controller
         $request->validate([
             'all_absent' => 'required|boolean',
             'date' => 'nullable|date',
+            'user_id' => 'nullable|integer',
         ]);
 
         $user = auth()->user();
 
-        if (!$user->groups()->where('groups.id', $groupId)->exists()) {
+        if (!$this->canAccessGroup($user, $groupId)) {
             abort(403, 'このグループにはアクセスできません');
         }
 
-        $user->update([
+        $group = Group::findOrFail($groupId);
+        $targetUser = $this->targetAttendanceUser($request, $group, $user, 'ホストだけが他メンバーの主催設定を変更できます');
+
+        $targetUser->update([
             'all_absent' => $request->all_absent,
             'attendance_weekdays' => null,
         ]);
 
-        LineupMember::where('user_id', $user->id)
+        LineupMember::where('user_id', $targetUser->id)
             ->whereHas('lineup', fn($query) => $query->where('group_id', $groupId))
             ->update([
                 'is_absent' => $request->boolean('all_absent'),
@@ -199,11 +203,11 @@ class AttendanceController extends Controller
             $member = LineupMember::firstOrCreate(
                 [
                     'lineup_id' => $lineup->id,
-                    'user_id' => $user->id,
+                    'user_id' => $targetUser->id,
                 ],
                 [
                     'position' => null,
-                    'is_absent' => $user->isDefaultAbsentForDate($request->date),
+                    'is_absent' => $targetUser->isDefaultAbsentForDate($request->date),
                     'is_late' => false,
                 ]
             );
@@ -218,6 +222,7 @@ class AttendanceController extends Controller
 
         return response()->json([
             'ok' => true,
+            'user_id' => $targetUser->id,
             'status' => $status,
         ]);
     }
@@ -228,11 +233,12 @@ class AttendanceController extends Controller
             'attendance_weekdays' => ['nullable', 'array'],
             'attendance_weekdays.*' => ['integer', 'between:0,6'],
             'date' => ['nullable', 'date'],
+            'user_id' => ['nullable', 'integer'],
         ]);
 
         $user = auth()->user();
 
-        if (!$user->groups()->where('groups.id', $groupId)->exists()) {
+        if (!$this->canAccessGroup($user, $groupId)) {
             abort(403, 'このグループにはアクセスできません');
         }
 
@@ -245,13 +251,16 @@ class AttendanceController extends Controller
 
         $hasWeekdaySetting = count($weekdays) > 0;
 
-        $user->update([
+        $group = Group::findOrFail($groupId);
+        $targetUser = $this->targetAttendanceUser($request, $group, $user, 'ホストだけが他メンバーの主催設定を変更できます');
+
+        $targetUser->update([
             'attendance_weekdays' => $hasWeekdaySetting ? $weekdays : null,
-            'all_absent' => $hasWeekdaySetting ? $user->all_absent : false,
+            'all_absent' => $hasWeekdaySetting ? $targetUser->all_absent : false,
         ]);
 
         if (!$hasWeekdaySetting) {
-            LineupMember::where('user_id', $user->id)
+            LineupMember::where('user_id', $targetUser->id)
                 ->whereHas('lineup', fn($query) => $query->where('group_id', $groupId))
                 ->update([
                     'is_absent' => false,
@@ -276,17 +285,17 @@ class AttendanceController extends Controller
             $member = LineupMember::firstOrCreate(
                 [
                     'lineup_id' => $lineup->id,
-                    'user_id' => $user->id,
+                    'user_id' => $targetUser->id,
                 ],
                 [
                     'position' => null,
-                    'is_absent' => $user->isDefaultAbsentForDate($date),
+                    'is_absent' => $targetUser->isDefaultAbsentForDate($date),
                     'is_late' => false,
                 ]
             );
 
             $member->update([
-                'is_absent' => $user->isDefaultAbsentForDate($date),
+                'is_absent' => $targetUser->isDefaultAbsentForDate($date),
                 'is_late' => false,
             ]);
 
@@ -295,8 +304,36 @@ class AttendanceController extends Controller
 
         return response()->json([
             'ok' => true,
+            'user_id' => $targetUser->id,
             'status' => $status,
-            'all_absent' => (bool) $user->all_absent,
+            'all_absent' => (bool) $targetUser->all_absent,
         ]);
+    }
+
+    private function targetAttendanceUser(Request $request, Group $group, $user, string $hostOnlyMessage)
+    {
+        if (!$request->filled('user_id')) {
+            return $user;
+        }
+
+        if ((int) $group->host_user_id !== (int) $user->id && !$this->isSystemAdmin($user)) {
+            abort(403, $hostOnlyMessage);
+        }
+
+        return $group->users()
+            ->where('users.id', $request->integer('user_id'))
+            ->where('users.is_admin', false)
+            ->firstOrFail();
+    }
+
+    private function canAccessGroup($user, $groupId): bool
+    {
+        return $this->isSystemAdmin($user)
+            || $user->groups()->where('groups.id', $groupId)->exists();
+    }
+
+    private function isSystemAdmin($user): bool
+    {
+        return $user && $user->username === 'KANRI';
     }
 }

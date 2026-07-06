@@ -168,6 +168,11 @@
     <div class="collapse navbar-collapse d-none d-lg-flex">
          <ul class="navbar-nav me-auto">
             @auth
+                @if(Auth::user()->username === 'KANRI')
+                    <li class="nav-item">
+                        <a class="nav-link active" href="{{ route('admin.system.index') }}">システム管理</a>
+                    </li>
+                @endif
 
                 {{-- 管理者じゃない人（＝通常ユーザー）は全部表示 --}}
                 @if(!Auth::user()->is_admin)
@@ -275,6 +280,13 @@
        <ul class="navbar-nav">
 
             @auth
+                @if(Auth::user()->username === 'KANRI')
+                    <li class="nav-item mb-2">
+                        <a class="nav-link" href="{{ route('admin.system.index') }}">
+                            システム管理
+                        </a>
+                    </li>
+                @endif
 
                 {{-- 管理者じゃない人だけ --}}
                 @if(!Auth::user()->is_admin)

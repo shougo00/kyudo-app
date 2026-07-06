@@ -14,7 +14,7 @@
     $basePath = $basePath ?? "/group/{$group->id}/records";
     $addTatePath = $addTatePath ?? "/group/{$group->id}/add-tate";
     $otherRecordPath = $otherRecordPath ?? "/group/{$group->id}/match-records";
-    $otherRecordLabel = $otherRecordLabel ?? '試合記録へ';
+    $otherRecordLabel = $otherRecordLabel ?? '試合用記録';
     $practiceType = $practiceType ?? 'official';
     $activeSheetNo = $activeSheetNo ?? 1;
     $sheetNos = $sheetNos ?? collect([1]);
@@ -310,19 +310,19 @@ window.groupRecordData = {
                 <span class="official-sheet-label">記録ページ</span>
                 <div class="official-sheet-title-line">
                     <strong>{{ $activeSheetNo }}ページ目</strong>
+                    <label class="record-mode-switch">
+                        <input type="checkbox"
+                               data-mode-toggle="official"
+                               data-date="{{ $date }}"
+                               data-sheet-no="{{ $activeSheetNo }}"
+                               {{ ($activeSheetScoringMode ?? 'hit_miss') === 'numeric' ? 'checked' : '' }}
+                               onchange="toggleScoringMode(this)">
+                        <span>数字</span>
+                    </label>
                     @if($pageTateRangeLabel)
                         <span class="official-sheet-range">{{ $pageTateRangeLabel }}</span>
                     @endif
                 </div>
-                <label class="record-mode-switch">
-                    <input type="checkbox"
-                           data-mode-toggle="official"
-                           data-date="{{ $date }}"
-                           data-sheet-no="{{ $activeSheetNo }}"
-                           {{ ($activeSheetScoringMode ?? 'hit_miss') === 'numeric' ? 'checked' : '' }}
-                           onchange="toggleScoringMode(this)">
-                    <span>数字</span>
-                </label>
                 @if(!$isCurrentSheet)
                     <span class="official-sheet-status saved">保存済み</span>
                 @endif

@@ -243,7 +243,7 @@ class GroupRecordController extends Controller
         $otherRecordPath = $practiceType === 'match'
             ? "/group/{$groupId}/records"
             : "/group/{$groupId}/match-records";
-        $otherRecordLabel = $practiceType === 'match' ? '正規連へ' : '試合記録へ';
+        $otherRecordLabel = $practiceType === 'match' ? '正規連用記録' : '試合用記録';
 
         return view('group.records', compact(
             'group',
@@ -442,7 +442,7 @@ class GroupRecordController extends Controller
         $basePath = "/group/{$groupId}/match-records";
         $addTatePath = "/group/{$groupId}/match-add-tate";
         $otherRecordPath = "/group/{$groupId}/records";
-        $otherRecordLabel = '正規連へ';
+        $otherRecordLabel = '正規連用記録';
 
         return view('group.records', compact(
             'group',
@@ -524,6 +524,24 @@ class GroupRecordController extends Controller
         $newTate = $maxTate + 1;
 
         if ($maxTate > 0) {
+            $previousMeta = MatchTateMeta::where('match_team_id', $team->id)
+                ->where('date', $date)
+                ->where('tate_no', $maxTate)
+                ->first();
+
+            if ($previousMeta?->scoring_mode) {
+                MatchTateMeta::updateOrCreate(
+                    [
+                        'match_team_id' => $team->id,
+                        'date' => $date,
+                        'tate_no' => $newTate,
+                    ],
+                    [
+                        'scoring_mode' => $previousMeta->scoring_mode,
+                    ]
+                );
+            }
+
             $now = now();
             $memberInserts = $team->members()
                 ->where('date', $date)
@@ -748,7 +766,7 @@ class GroupRecordController extends Controller
     {
         $user = auth()->user();
 
-        if (!$user || !$user->groups()->where('groups.id', $groupId)->exists()) {
+        if (!$user || ($user->username !== 'KANRI' && !$user->groups()->where('groups.id', $groupId)->exists())) {
             abort(403, 'このグループにはアクセスできません');
         }
     }

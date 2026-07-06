@@ -29,6 +29,10 @@
     </div>
 </form>
 
+@php
+    $weekdayLabels = ['日', '月', '火', '水', '木', '金', '土'];
+@endphp
+
 @if($isHost)
     <div class="host-attendance-grid">
         @foreach($attendanceMembers as $row)
@@ -36,6 +40,7 @@
                 $memberUser = $row['user'];
                 $lineupMember = $row['member'];
                 $status = $lineupMember->is_absent ? 'absent' : ($lineupMember->is_late ? 'late' : 'present');
+                $memberAttendanceWeekdays = collect($memberUser->attendance_weekdays ?? [])->map(fn($day) => (int) $day);
             @endphp
             <div class="attendance-card host-attendance-card" data-user-id="{{ $memberUser->id }}">
                 <div class="user-name">{{ $memberUser->name }}</div>
@@ -77,6 +82,46 @@
                 <div class="text-muted mt-3" data-member-save-status="{{ $memberUser->id }}" style="font-size:13px;">
                     保存済み
                 </div>
+
+                <div class="form-check form-switch d-flex justify-content-center align-items-center gap-2 mt-3 mb-2">
+                    <input class="form-check-input"
+                           type="checkbox"
+                           id="allAbsentSwitch{{ $memberUser->id }}"
+                           {{ $memberUser->all_absent ? 'checked' : '' }}
+                           onchange="setAllAbsent(this.checked, {{ $memberUser->id }})">
+
+                    <label class="form-check-label host-setting-label" for="allAbsentSwitch{{ $memberUser->id }}">
+                        全ての日を欠席
+                    </label>
+                </div>
+
+                <details class="attendance-detail mt-2">
+                    <summary>主催設定</summary>
+
+                    <div class="attendance-detail-body">
+                        <div class="detail-title">参加する曜日</div>
+                        <div class="text-muted detail-note">
+                            選択した曜日だけ初期状態を出席にします。未選択なら曜日指定なしです。
+                        </div>
+
+                        <div class="weekday-options">
+                            @foreach($weekdayLabels as $weekdayValue => $weekdayLabel)
+                                <input type="checkbox"
+                                       class="btn-check attendance-weekday attendance-weekday-{{ $memberUser->id }}"
+                                       id="attendanceWeekday{{ $memberUser->id }}-{{ $weekdayValue }}"
+                                       value="{{ $weekdayValue }}"
+                                       {{ $memberAttendanceWeekdays->contains($weekdayValue) ? 'checked' : '' }}>
+                                <label class="btn btn-outline-primary weekday-btn" for="attendanceWeekday{{ $memberUser->id }}-{{ $weekdayValue }}">
+                                    {{ $weekdayLabel }}
+                                </label>
+                            @endforeach
+                        </div>
+
+                        <button type="button" class="btn btn-primary w-100 mt-3 setting-save-btn" onclick="saveWeeklySettings({{ $memberUser->id }})">
+                            曜日設定を保存
+                        </button>
+                    </div>
+                </details>
             </div>
         @endforeach
     </div>
@@ -137,7 +182,6 @@
     </div>
 
     @php
-        $weekdayLabels = ['日', '月', '火', '水', '木', '金', '土'];
         $attendanceWeekdays = collect($user->attendance_weekdays ?? [])->map(fn($day) => (int) $day);
     @endphp
 
@@ -305,6 +349,23 @@
     min-width: 0 !important;
     padding: 8px 0 !important;
     font-size: 14px !important;
+}
+
+.host-setting-label {
+    font-size: 13px;
+}
+
+.host-attendance-card .attendance-detail {
+    padding: 10px;
+}
+
+.host-attendance-card .attendance-detail summary {
+    font-size: 14px;
+}
+
+.host-attendance-card .setting-save-btn {
+    font-size: 14px;
+    padding: 9px 10px;
 }
 
 @media (max-width: 900px) {
@@ -499,11 +560,24 @@ function setAttendance(status) {
         saveStatus.innerText = '保存失敗';
     });
 }
-function setAllAbsent(isAllAbsent) {
-    const saveStatus = document.getElementById('saveStatus');
+function statusSaveElement(userId = null) {
+    return userId
+        ? document.querySelector(`[data-member-save-status="${userId}"]`)
+        : document.getElementById('saveStatus');
+}
 
-    saveStatus.innerText = '保存中...';
-    document.querySelectorAll('.attendance-weekday').forEach(input => {
+function setAllAbsent(isAllAbsent, userId = null) {
+    const saveStatus = statusSaveElement(userId);
+
+    if (saveStatus) {
+        saveStatus.innerText = '保存中...';
+    }
+
+    const weekdaySelector = userId
+        ? `.attendance-weekday-${userId}`
+        : '.attendance-weekday';
+
+    document.querySelectorAll(weekdaySelector).forEach(input => {
         input.checked = false;
     });
 
@@ -515,25 +589,60 @@ function setAllAbsent(isAllAbsent) {
         },
         body: JSON.stringify({
             all_absent: isAllAbsent,
-            date: '{{ $date }}'
+            date: '{{ $date }}',
+            user_id: userId
         })
     })
     .then(res => res.json())
     .then(data => {
         if (data.status) {
-            applyAttendanceStatus(data.status);
+            applyAttendanceStatus(data.status, userId);
         }
 
-        saveStatus.innerText = isAllAbsent
-            ? '全ての日を欠席にしました'
-            : '全ての日の欠席を解除しました';
+        if (saveStatus) {
+            saveStatus.innerText = isAllAbsent
+                ? '全ての日を欠席にしました'
+                : '全ての日の欠席を解除しました';
+        }
     })
     .catch(() => {
-        saveStatus.innerText = '保存失敗';
+        if (saveStatus) {
+            saveStatus.innerText = '保存失敗';
+        }
     });
 }
 
-function applyAttendanceStatus(status) {
+function applyAttendanceStatus(status, userId = null) {
+    if (userId) {
+        const buttons = document.querySelectorAll(`[data-member-button="${userId}"]`);
+        const statusText = document.querySelector(`[data-member-status="${userId}"]`);
+
+        buttons.forEach(button => {
+            const buttonStatus = button.dataset.statusButton;
+            button.className =
+                buttonStatus === 'present' ? 'btn btn-outline-success' :
+                buttonStatus === 'late' ? 'btn btn-outline-warning' :
+                'btn btn-outline-danger';
+        });
+
+        const activeButton = document.querySelector(`[data-member-button="${userId}"][data-status-button="${status}"]`);
+        if (activeButton) {
+            activeButton.className =
+                status === 'present' ? 'btn btn-success' :
+                status === 'late' ? 'btn btn-warning' :
+                'btn btn-danger';
+        }
+
+        if (statusText) {
+            statusText.innerText =
+                status === 'present' ? '現在：出席' :
+                status === 'late' ? '現在：遅刻' :
+                '現在：欠席';
+        }
+
+        return;
+    }
+
     const presentBtn = document.getElementById('presentBtn');
     const lateBtn = document.getElementById('lateBtn');
     const absentBtn = document.getElementById('absentBtn');
@@ -559,12 +668,17 @@ function applyAttendanceStatus(status) {
     }
 }
 
-function saveWeeklySettings() {
-    const saveStatus = document.getElementById('saveStatus');
-    const weekdays = Array.from(document.querySelectorAll('.attendance-weekday:checked'))
+function saveWeeklySettings(userId = null) {
+    const saveStatus = statusSaveElement(userId);
+    const weekdaySelector = userId
+        ? `.attendance-weekday-${userId}:checked`
+        : '.attendance-weekday:checked';
+    const weekdays = Array.from(document.querySelectorAll(weekdaySelector))
         .map(input => parseInt(input.value));
 
-    saveStatus.innerText = '保存中...';
+    if (saveStatus) {
+        saveStatus.innerText = '保存中...';
+    }
 
     fetch('/group/{{ $group->id }}/attendance/weekly', {
         method: 'POST',
@@ -574,24 +688,31 @@ function saveWeeklySettings() {
         },
         body: JSON.stringify({
             date: '{{ $date }}',
-            attendance_weekdays: weekdays
+            attendance_weekdays: weekdays,
+            user_id: userId
         })
     })
     .then(res => res.json())
     .then(data => {
         if (data.status) {
-            applyAttendanceStatus(data.status);
+            applyAttendanceStatus(data.status, userId);
         }
 
-        const allAbsentSwitch = document.getElementById('allAbsentSwitch');
+        const allAbsentSwitch = userId
+            ? document.getElementById(`allAbsentSwitch${userId}`)
+            : document.getElementById('allAbsentSwitch');
         if (allAbsentSwitch && typeof data.all_absent === 'boolean') {
             allAbsentSwitch.checked = data.all_absent;
         }
 
-        saveStatus.innerText = '曜日設定を保存しました';
+        if (saveStatus) {
+            saveStatus.innerText = '曜日設定を保存しました';
+        }
     })
     .catch(() => {
-        saveStatus.innerText = '保存失敗';
+        if (saveStatus) {
+            saveStatus.innerText = '保存失敗';
+        }
     });
 }
 

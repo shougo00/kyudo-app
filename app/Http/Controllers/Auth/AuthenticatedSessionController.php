@@ -33,6 +33,10 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
+        if ($request->user()?->username === 'KANRI') {
+            return redirect()->route('admin.system.index');
+        }
+
         return redirect()->route('home');
     }
 

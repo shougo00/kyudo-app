@@ -18,6 +18,7 @@ use App\Http\Controllers\GroupHistoryController;
 use App\Http\Controllers\LineWebhookController;
 use App\Http\Controllers\MatchLineupController;
 use App\Http\Controllers\SettingController;
+use App\Http\Controllers\Admin\SystemController;
 Route::get('/', function () {
     return redirect('/login');
 });
@@ -35,6 +36,7 @@ Route::middleware([ 'verified'])->group(function () {
     Route::post('/settings/unlock', [SettingController::class, 'unlock'])->name('settings.unlock');
     Route::patch('/settings', [SettingController::class, 'update'])->name('settings.update');
     Route::post('/settings/promote-grades', [SettingController::class, 'promoteGrades'])->name('settings.promote-grades');
+    Route::get('/admin/system', [SystemController::class, 'index'])->name('admin.system.index');
 
     // 3️⃣ ユーザ管理画面
     Route::get('/users', [UserController::class, 'index'])->name('users.index');
