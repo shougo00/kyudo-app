@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Models\Group;
 use App\Models\User;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 
 class ShikokuUniversityKyudoGroupSeeder extends Seeder
@@ -23,28 +24,37 @@ class ShikokuUniversityKyudoGroupSeeder extends Seeder
             ]
         );
 
-        $group = Group::updateOrCreate(
-            ['name' => '四国大学弓道部'],
-            [
-                'host_user_id' => $host->id,
-                'invite_code' => '1234',
-                'official_tates_per_page' => 5,
-                'uses_grades' => true,
-                'grade_count' => 4,
-                'grade_colors' => [
-                    1 => '#dbeafe',
-                    2 => '#fee2e2',
-                    3 => '#dcfce7',
-                    4 => '#fef3c7',
-                ],
-            ]
-        );
+        $group = Group::where('invite_code', '7706')->first()
+            ?? Group::where('name', '四国大学弓道部')->first()
+            ?? new Group();
+
+        $group->fill([
+            'name' => $group->name ?: '四国大学弓道部',
+            'host_user_id' => $group->host_user_id ?: $host->id,
+            'invite_code' => '7706',
+            'official_tates_per_page' => $group->official_tates_per_page ?: 5,
+            'uses_grades' => true,
+            'grade_count' => 4,
+            'grade_colors' => [
+                1 => '#dbeafe',
+                2 => '#fee2e2',
+                3 => '#dcfce7',
+                4 => '#fef3c7',
+            ],
+        ])->save();
 
         $studentIds = User::whereIn('username', $this->studentNumbers())
             ->pluck('id')
             ->all();
 
-        $group->users()->syncWithoutDetaching(array_merge([$host->id], $studentIds));
+        $memberIds = array_merge([$host->id], $studentIds);
+
+        $group->users()->syncWithoutDetaching($memberIds);
+
+        DB::table('group_user')
+            ->where('group_id', $group->id)
+            ->whereIn('user_id', $memberIds)
+            ->update(['deleted_at' => null]);
 
         $oldHost = User::where('username', 'shikokukyudo')->first();
 
