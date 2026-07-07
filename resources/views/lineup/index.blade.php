@@ -156,6 +156,7 @@
 <script>
 window.lineupData = {
     lineupId: {{ $lineup->id }},
+    usesGrades: @json($usesGrades),
 };
 </script>
 @endsection

@@ -49,6 +49,7 @@ function makeMember(sourceEl) {
     div.dataset.id = sourceEl.dataset.id;
     div.dataset.hasRecord = sourceEl.dataset.hasRecord || '0';
     div.dataset.gender = sourceEl.dataset.gender || '';
+    div.dataset.gradeLevel = sourceEl.dataset.gradeLevel || '';
     div.dataset.name = sourceEl.textContent.trim().toLowerCase();
     div.textContent = sourceEl.textContent.trim();
     if (div.textContent.length >= 5) {
@@ -412,13 +413,29 @@ function initMembers(reset = false) {
 
 function sortPoolMembers() {
     const members = Array.from(pool.querySelectorAll('.member'));
+    const usesGrades = Boolean(window.lineupData?.usesGrades);
 
     members
         .sort((a, b) => {
             const aUnavailable = a.classList.contains('absent') || a.classList.contains('late');
             const bUnavailable = b.classList.contains('absent') || b.classList.contains('late');
+            const unavailableOrder = Number(aUnavailable) - Number(bUnavailable);
 
-            return Number(aUnavailable) - Number(bUnavailable);
+            if (unavailableOrder !== 0) {
+                return unavailableOrder;
+            }
+
+            if (usesGrades) {
+                const aGrade = parseInt(a.dataset.gradeLevel || '0', 10);
+                const bGrade = parseInt(b.dataset.gradeLevel || '0', 10);
+                const gradeOrder = bGrade - aGrade;
+
+                if (gradeOrder !== 0) {
+                    return gradeOrder;
+                }
+            }
+
+            return (a.dataset.name || '').localeCompare(b.dataset.name || '', 'ja');
         })
         .forEach(member => pool.appendChild(member));
 }

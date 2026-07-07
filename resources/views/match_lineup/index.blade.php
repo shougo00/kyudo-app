@@ -145,6 +145,7 @@
                 tateNo: {{ $tateNo }},
                 tateSize: {{ $selectedTeam->tate_size }},
                 date: @json($date),
+                usesGrades: @json($usesGrades),
             };
         </script>
     @else

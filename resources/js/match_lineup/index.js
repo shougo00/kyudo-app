@@ -14,6 +14,8 @@ function makeMember(sourceEl) {
     div.className = 'match-member';
     div.draggable = true;
     div.dataset.userId = sourceEl.dataset.userId;
+    div.dataset.gradeLevel = sourceEl.dataset.gradeLevel || '';
+    div.dataset.name = sourceEl.textContent.trim().toLowerCase();
     div.textContent = sourceEl.textContent.trim();
 
     if (sourceEl.dataset.gender === 'male') div.classList.add('male');
@@ -151,12 +153,29 @@ function moveSelectedTo(target) {
 }
 
 function sortPoolMembers() {
+    const usesGrades = Boolean(window.matchLineupData?.usesGrades);
+
     Array.from(pool.querySelectorAll('.match-member'))
         .sort((a, b) => {
             const aUnavailable = a.classList.contains('absent') || a.classList.contains('late');
             const bUnavailable = b.classList.contains('absent') || b.classList.contains('late');
+            const unavailableOrder = Number(aUnavailable) - Number(bUnavailable);
 
-            return Number(aUnavailable) - Number(bUnavailable);
+            if (unavailableOrder !== 0) {
+                return unavailableOrder;
+            }
+
+            if (usesGrades) {
+                const aGrade = parseInt(a.dataset.gradeLevel || '0', 10);
+                const bGrade = parseInt(b.dataset.gradeLevel || '0', 10);
+                const gradeOrder = bGrade - aGrade;
+
+                if (gradeOrder !== 0) {
+                    return gradeOrder;
+                }
+            }
+
+            return (a.dataset.name || '').localeCompare(b.dataset.name || '', 'ja');
         })
         .forEach(member => pool.appendChild(member));
 }

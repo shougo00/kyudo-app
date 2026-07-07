@@ -40,6 +40,13 @@ class LineupController extends Controller
             $q->where('is_admin', false);
         })
         ->orderByRaw('position IS NULL, position ASC')
+        ->when($group->uses_grades, function ($query) {
+            $query
+                ->join('users as lineup_users', 'lineup_users.id', '=', 'lineup_members.user_id')
+                ->orderByDesc('lineup_users.grade_level')
+                ->orderBy('lineup_users.name')
+                ->select('lineup_members.*');
+        })
         ->get();
 
         $recordedUserIds = Record::whereIn('user_id', $members->pluck('user_id'))

@@ -187,6 +187,13 @@ function scrollRight() {
     if (!el) return;
 
     if (el.classList.contains('match-score-scroll')) {
+        const savedLeft = sessionStorage.getItem('matchAddTateScrollLeft');
+        if (savedLeft !== null) {
+            el.scrollLeft = parseInt(savedLeft, 10) || 0;
+            sessionStorage.removeItem('matchAddTateScrollLeft');
+            return;
+        }
+
         el.scrollLeft = 0;
         return;
     }
@@ -196,6 +203,16 @@ function scrollRight() {
 
 window.addEventListener('load', () => {
     setTimeout(scrollRight, 50);
+});
+
+document.querySelectorAll('[data-match-add-tate-form]').forEach(form => {
+    form.addEventListener('submit', () => {
+        const scrollArea = document.querySelector('.match-score-scroll');
+
+        if (scrollArea) {
+            sessionStorage.setItem('matchAddTateScrollLeft', String(scrollArea.scrollLeft));
+        }
+    });
 });
 
 function toggleCalendar(event) {
@@ -391,12 +408,29 @@ function initInlineMatchLineup() {
     }
 
     function sortInlinePoolMembers() {
+        const usesGrades = Boolean(window.groupRecordData?.usesGrades);
+
         Array.from(pool.querySelectorAll('.inline-member'))
             .sort((a, b) => {
                 const aUnavailable = a.classList.contains('absent') || a.classList.contains('late');
                 const bUnavailable = b.classList.contains('absent') || b.classList.contains('late');
+                const unavailableOrder = Number(aUnavailable) - Number(bUnavailable);
 
-                return Number(aUnavailable) - Number(bUnavailable);
+                if (unavailableOrder !== 0) {
+                    return unavailableOrder;
+                }
+
+                if (usesGrades) {
+                    const aGrade = parseInt(a.dataset.gradeLevel || '0', 10);
+                    const bGrade = parseInt(b.dataset.gradeLevel || '0', 10);
+                    const gradeOrder = bGrade - aGrade;
+
+                    if (gradeOrder !== 0) {
+                        return gradeOrder;
+                    }
+                }
+
+                return (a.dataset.name || '').localeCompare(b.dataset.name || '', 'ja');
             })
             .forEach(member => pool.appendChild(member));
     }
@@ -407,6 +441,8 @@ function initInlineMatchLineup() {
         member.draggable = true;
         member.dataset.userId = sourceEl.dataset.userId;
         member.dataset.hasRecord = sourceEl.dataset.hasRecord || '0';
+        member.dataset.gradeLevel = sourceEl.dataset.gradeLevel || '';
+        member.dataset.name = sourceEl.textContent.trim().toLowerCase();
         member.textContent = sourceEl.textContent.trim();
 
         if (sourceEl.dataset.gender === 'male') member.classList.add('male');
@@ -670,7 +706,15 @@ function closeMatchLineupModal() {
     modal.hidden = true;
     document.body.classList.remove('modal-open');
 
-    if (shouldReload) window.location.reload();
+    if (shouldReload) {
+        const scrollArea = document.querySelector('.match-score-scroll');
+
+        if (scrollArea) {
+            sessionStorage.setItem('matchAddTateScrollLeft', String(scrollArea.scrollLeft));
+        }
+
+        window.location.reload();
+    }
 }
 
 window.openMatchLineupModal = openMatchLineupModal;

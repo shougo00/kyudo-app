@@ -86,6 +86,7 @@
 window.numericScoreOptions = @json($numericScoreOptions);
 window.groupRecordData = {
     groupId: {{ $group->id }},
+    usesGrades: @json($usesGrades),
 };
 </script>
 
@@ -416,7 +417,7 @@ window.groupRecordData = {
             </div>
             <div class="match-team-actions">
                 @if(!$team->trashed())
-                    <form method="POST" action="{{ $addTatePath }}">
+                    <form method="POST" action="{{ $addTatePath }}" data-match-add-tate-form>
                         @csrf
                         <input type="hidden" name="date" value="{{ $date }}">
                         <input type="hidden" name="team_id" value="{{ $team->id }}">
