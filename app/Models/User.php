@@ -34,6 +34,7 @@ class User extends Authenticatable
         'attendance_weekdays',
         'official_record_height_extra',
         'match_record_height_extra',
+        'uses_camera',
         'line_user_id',
         'line_link_code',
     ];
@@ -63,6 +64,7 @@ class User extends Authenticatable
             'grade_level' => 'integer',
             'all_absent' => 'boolean',
             'attendance_weekdays' => 'array',
+            'uses_camera' => 'boolean',
         ];
     }
 

@@ -9,8 +9,8 @@
             <div class="text-muted">KANRI専用の管理ダッシュボード</div>
         </div>
         <div class="d-flex gap-2 flex-wrap">
-            <a href="{{ route('users.index') }}" class="btn btn-outline-primary">ユーザー管理</a>
-            <a href="{{ route('groups') }}" class="btn btn-outline-primary">グループ管理</a>
+            <a href="{{ route('admin.system.users') }}" class="btn btn-outline-primary">KANRIユーザー管理</a>
+            <a href="{{ route('admin.system.groups') }}" class="btn btn-outline-primary">KANRIグループ管理</a>
             <a href="{{ route('news.index') }}" class="btn btn-outline-primary">お知らせ管理</a>
         </div>
     </div>

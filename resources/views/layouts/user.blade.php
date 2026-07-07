@@ -209,9 +209,11 @@
                         onclick="goAttendance()">出欠確認</a>
                     </li>
 
-                    <li class="nav-item">
-                        <a class="nav-link active" href="{{ route('camera') }}">カメラ</a>
-                    </li>
+                    @if(Auth::user()->uses_camera)
+                        <li class="nav-item">
+                            <a class="nav-link active" href="{{ route('camera') }}">カメラ</a>
+                        </li>
+                    @endif
 
                 @endif
 
@@ -327,11 +329,13 @@
                         </a>
                     </li>
 
-                    <li class="nav-item mb-2">
-                        <a class="nav-link" href="{{ route('camera') }}">
-                            カメラ
-                        </a>
-                    </li>
+                    @if(Auth::user()->uses_camera)
+                        <li class="nav-item mb-2">
+                            <a class="nav-link" href="{{ route('camera') }}">
+                                カメラ
+                            </a>
+                        </li>
+                    @endif
 
                 @endif
 

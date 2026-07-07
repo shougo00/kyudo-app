@@ -184,7 +184,14 @@ function updateNumericShot(el, id, userId, recordId, tateCounterKey) {
 }
 function scrollRight() {
     const el = document.querySelector('.score-scroll');
-    if (el) el.scrollLeft = el.scrollWidth;
+    if (!el) return;
+
+    if (el.classList.contains('match-score-scroll')) {
+        el.scrollLeft = 0;
+        return;
+    }
+
+    el.scrollLeft = el.scrollWidth;
 }
 
 window.addEventListener('load', () => {

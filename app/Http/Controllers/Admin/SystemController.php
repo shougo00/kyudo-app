@@ -11,9 +11,12 @@ use App\Models\News;
 use App\Models\Record;
 use App\Models\Shot;
 use App\Models\User;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use SplFileObject;
 
@@ -35,6 +38,121 @@ class SystemController extends Controller
             'selectedLog' => $selectedLog,
             'logLines' => $selectedLog ? $this->tailLog($selectedLog['path']) : [],
         ]);
+    }
+
+    public function users(Request $request): View
+    {
+        $this->authorizeSystemAdmin($request);
+
+        $search = trim((string) $request->query('search', ''));
+
+        $users = User::query()
+            ->withCount('groups')
+            ->when($search !== '', function ($query) use ($search) {
+                $query->where(function ($query) use ($search) {
+                    $query->where('name', 'like', "%{$search}%")
+                        ->orWhere('username', 'like', "%{$search}%")
+                        ->orWhere('email', 'like', "%{$search}%");
+                });
+            })
+            ->orderByDesc('id')
+            ->paginate(20)
+            ->withQueryString();
+
+        return view('admin.system.users', compact('users', 'search'));
+    }
+
+    public function updateUser(Request $request, User $user): RedirectResponse
+    {
+        $this->authorizeSystemAdmin($request);
+
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'username' => [
+                'required',
+                'string',
+                'max:255',
+                Rule::unique('users', 'username')->ignore($user->id),
+            ],
+            'password' => ['nullable', 'string', 'min:4'],
+        ]);
+
+        if ($user->username === 'KANRI') {
+            $validated['username'] = 'KANRI';
+        }
+
+        $user->name = $validated['name'];
+        $user->username = $validated['username'];
+
+        if (!empty($validated['password'])) {
+            $user->password = Hash::make($validated['password']);
+        }
+
+        $user->save();
+
+        return back()->with('success', "{$user->name} の情報を更新しました。");
+    }
+
+    public function destroyUser(Request $request, User $user): RedirectResponse
+    {
+        $this->authorizeSystemAdmin($request);
+
+        if ($user->username === 'KANRI' || $request->user()->is($user)) {
+            return back()->with('error', 'KANRIアカウントは削除できません。');
+        }
+
+        DB::transaction(function () use ($user) {
+            Group::where('host_user_id', $user->id)
+                ->get()
+                ->each(fn(Group $group) => $this->deleteGroupAndMemberships($group));
+
+            DB::table('avatars')->where('user_id', $user->id)->delete();
+            DB::table('group_user')->where('user_id', $user->id)->delete();
+            DB::table('sessions')->where('user_id', $user->id)->delete();
+
+            if ($user->email) {
+                DB::table('password_reset_tokens')->where('email', $user->email)->delete();
+            }
+
+            $user->delete();
+        });
+
+        return back()->with('success', "{$user->name} のアカウントを削除しました。");
+    }
+
+    public function groups(Request $request): View
+    {
+        $this->authorizeSystemAdmin($request);
+
+        $search = trim((string) $request->query('search', ''));
+
+        $groups = Group::query()
+            ->with('host')
+            ->withCount('users')
+            ->when($search !== '', function ($query) use ($search) {
+                $query->where(function ($query) use ($search) {
+                    $query->where('name', 'like', "%{$search}%")
+                        ->orWhere('invite_code', 'like', "%{$search}%")
+                        ->orWhereHas('host', function ($query) use ($search) {
+                            $query->where('name', 'like', "%{$search}%")
+                                ->orWhere('username', 'like', "%{$search}%");
+                        });
+                });
+            })
+            ->orderByDesc('id')
+            ->paginate(20)
+            ->withQueryString();
+
+        return view('admin.system.groups', compact('groups', 'search'));
+    }
+
+    public function destroyGroup(Request $request, Group $group): RedirectResponse
+    {
+        $this->authorizeSystemAdmin($request);
+
+        DB::transaction(fn() => $this->deleteGroupAndMemberships($group));
+
+        return back()->with('success', "{$group->name} を削除し、全員を退会状態にしました。");
     }
 
     private function authorizeSystemAdmin(Request $request): void
@@ -83,6 +201,12 @@ class SystemController extends Controller
             ->sortByDesc('updated_at')
             ->values()
             ->all();
+    }
+
+    private function deleteGroupAndMemberships(Group $group): void
+    {
+        DB::table('group_user')->where('group_id', $group->id)->delete();
+        $group->delete();
     }
 
     private function selectedLog(Request $request, array $logFiles): ?array

@@ -53,7 +53,7 @@
                 'month' => $month ?? now()->format('Y-m'),
             ] + $monthlyQuery) }}"
            class="page-tab {{ $view === 'monthly' ? 'active' : '' }}">
-            月間記録{{ $currentMonth->format('Y年n月') }}
+            月間記録
         </a>
     </div>
 

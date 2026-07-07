@@ -53,8 +53,6 @@ class SettingController extends Controller
 
         $validated = $request->validate([
             'official_tates_per_page' => ['required', 'integer', 'min:1', 'max:10'],
-            'official_record_height_extra' => ['required', 'integer', 'in:0,30,60,90,120'],
-            'match_record_height_extra' => ['required', 'integer', 'in:0,30,60,90,120'],
             'uses_grades' => ['nullable', 'boolean'],
             'grade_count' => ['required', 'integer', 'min:1', 'max:12'],
             'grade_colors' => ['array'],
@@ -95,12 +93,24 @@ class SettingController extends Controller
             'numeric_score_options' => count($numericScoreOptions) > 0 ? $numericScoreOptions : $this->defaultNumericScoreOptions(),
         ]);
 
+        return back()->with('status', 'settings-updated');
+    }
+
+    public function updateUser(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'official_record_height_extra' => ['required', 'integer', 'in:0,30,60,90,120'],
+            'match_record_height_extra' => ['required', 'integer', 'in:0,30,60,90,120'],
+            'uses_camera' => ['nullable', 'boolean'],
+        ]);
+
         $request->user()->update([
             'official_record_height_extra' => $validated['official_record_height_extra'],
             'match_record_height_extra' => $validated['match_record_height_extra'],
+            'uses_camera' => $request->boolean('uses_camera'),
         ]);
 
-        return back()->with('status', 'settings-updated');
+        return back()->with('status', 'user-settings-updated');
     }
 
     public function promoteGrades(Request $request): RedirectResponse

@@ -86,6 +86,27 @@
 .container.self-bg { background-color: #e6f2ff; }
 .container.official-bg { background-color: #ffe6e6; }
 
+.record-control-sticky {
+    position: sticky;
+    top: calc(env(safe-area-inset-top, 0px) + 6px);
+    z-index: 30;
+    margin: 0 0 1rem;
+    padding: 12px 12px 14px;
+    background: inherit;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 10px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.08);
+}
+
+.record-card-list {
+    padding-top: 2px;
+}
+
+.record-card-list .card {
+    scroll-margin-top: 190px;
+}
+
 /* ボタンタイプ */
 .practice-type-buttons .btn { padding: 0.25rem 0.5rem; font-size: 0.85rem; }
 .btn-official { background-color: #ff4d4d; color: white; border-color: #ff4d4d; }
@@ -108,3 +129,39 @@
 }
 .delete-record:hover { color: #434242; }
 .delete-record:active { transform: scale(0.95); color: #434242; background: transparent; }
+
+@media (max-width: 600px) {
+    .record-control-sticky {
+        top: calc(env(safe-area-inset-top, 0px) + 4px);
+        padding: 10px;
+        border-radius: 8px;
+    }
+
+    .record-head {
+        align-items: flex-start !important;
+        gap: 8px;
+        margin-bottom: 8px !important;
+    }
+
+    .record-head h4 {
+        font-size: 18px;
+        line-height: 1.4;
+    }
+
+    .record-head-actions {
+        flex-direction: column;
+        align-items: flex-end !important;
+        gap: 6px;
+    }
+
+    .summary-text {
+        margin-right: 0 !important;
+        text-align: right;
+    }
+
+    .practice-type-buttons {
+        display: flex;
+        gap: 4px;
+    }
+
+}

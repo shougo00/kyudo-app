@@ -1,6 +1,15 @@
 @extends('layouts.user')
 
 @section('content')
+@php
+    $typeLabels = [
+        'official' => '正規連',
+        'self' => '自主練',
+        'match' => '試合',
+        'all' => '総合',
+    ];
+    $currentTypeLabel = $typeLabels[$type] ?? '総合';
+@endphp
 <script>
 window.historyPageData = {
     type: @json($type),
@@ -56,10 +65,10 @@ window.historyPageData = {
 
     <!-- タイプ切替ボタン -->
     <div class="type-switch">
-        <button onclick="changeType(event,'official')" id="btn-official" class="btn btn-sm btn-outline-danger">正規連</button>
-        <button onclick="changeType(event,'self')" id="btn-self" class="btn btn-sm btn-outline-primary">自主練</button>
-        <button onclick="changeType(event,'match')" id="btn-match" class="btn btn-sm btn-outline-warning">試合</button>
-        <button onclick="changeType(event,'all')" id="btn-all" class="btn btn-sm btn-outline-success">総合</button>
+        <button type="button" data-record-type="official" id="btn-official" class="btn btn-sm btn-outline-danger">正規連</button>
+        <button type="button" data-record-type="self" id="btn-self" class="btn btn-sm btn-outline-primary">自主練</button>
+        <button type="button" data-record-type="match" id="btn-match" class="btn btn-sm btn-outline-warning">試合</button>
+        <button type="button" data-record-type="all" id="btn-all" class="btn btn-sm btn-outline-success">総合</button>
     </div>
 
     <!-- カレンダー -->
@@ -99,7 +108,7 @@ window.historyPageData = {
         </div>
     </div>
     <div class="rate-chart-card">
-        <div class="rate-chart-title">総合的中率グラフ{{ $month }}</div>
+        <div class="rate-chart-title">{{ $currentTypeLabel }}的中率グラフ{{ $month }}</div>
         <div class="chart-wrap">
             <canvas id="overallRateChart"></canvas>
         </div>

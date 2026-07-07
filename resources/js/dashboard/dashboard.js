@@ -28,6 +28,12 @@ const prevMonth = pageData.prevMonth;
 const nextMonth = pageData.nextMonth;
 const currentMonth = pageData.currentMonth;
 const groupId = pageData.groupId;
+const typeLabels = {
+    official: '正規連',
+    self: '自主練',
+    match: '試合',
+    all: '総合'
+};
 
 document.getElementById('month-label').innerText = new Date(currentMonth+'-01').getMonth()+1 + '月';
 
@@ -102,6 +108,9 @@ function renderCalendar(){
 }
 
 function changeType(e,type){
+    if(e){
+        e.preventDefault();
+    }
     currentType = type;
     const url = new URL(window.location);
     url.searchParams.set('type', type);
@@ -114,9 +123,16 @@ let overallRateChart = null;
 function renderOverallRateChart(){
     const labels = [];
     const rates = [];
+    const chartType = typeLabels[currentType] ? currentType : 'all';
+    const chartLabel = typeLabels[chartType];
+
+    const title = document.querySelector('.rate-chart-title');
+    if(title){
+        title.innerText = `${chartLabel}的中率グラフ${currentMonth}`;
+    }
 
     Object.keys(calendarData).sort().forEach(date => {
-        const data = calendarData[date]?.all;
+        const data = calendarData[date]?.[chartType];
 
         if(data && Number(data.shots) > 0){
             labels.push(Number(date.split('-')[2]) + '日');
@@ -136,7 +152,7 @@ function renderOverallRateChart(){
         data: {
             labels: labels,
             datasets: [{
-                label: '総合的中率',
+                label: `${chartLabel}的中率`,
                 data: rates,
                 tension: 0.35,
                 fill: false,
@@ -173,7 +189,18 @@ function renderAll(){
     updateMonthLinks();
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+function initializeDashboard(){
+    document.querySelectorAll('[data-record-type]').forEach(button => {
+        button.addEventListener('click', event => {
+            changeType(event, button.dataset.recordType);
+        });
+    });
     renderAll();
     window.changeType = changeType;
-});
+}
+
+if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', initializeDashboard);
+} else {
+    initializeDashboard();
+}

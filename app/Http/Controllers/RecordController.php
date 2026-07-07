@@ -95,7 +95,12 @@ class RecordController extends Controller
             ]);
         }
 
-        return redirect()->back();
+        return redirect()
+            ->route('home', [
+                'date' => $date,
+                'type' => $practiceType,
+            ])
+            ->withFragment("record-{$record->id}");
     }
     public function updateShot(Request $request, $id)
     {

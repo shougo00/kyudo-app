@@ -104,7 +104,7 @@ window.groupRecordData = {
         <button type="button" class="btn btn-outline-primary" onclick="reloadAndPrint()">
         印刷
     </button>
-        @if($practiceType !== 'match')
+        @if($practiceType !== 'match' && $isCurrentSheet)
             <a href="/group/{{ $group->id }}/lineup?date={{ $date }}" class="btn btn-secondary">
                 立順
             </a>

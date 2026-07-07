@@ -34,9 +34,15 @@ Route::middleware([ 'verified'])->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
     Route::get('/settings', [SettingController::class, 'index'])->name('settings.index');
     Route::post('/settings/unlock', [SettingController::class, 'unlock'])->name('settings.unlock');
+    Route::patch('/settings/user', [SettingController::class, 'updateUser'])->name('settings.user.update');
     Route::patch('/settings', [SettingController::class, 'update'])->name('settings.update');
     Route::post('/settings/promote-grades', [SettingController::class, 'promoteGrades'])->name('settings.promote-grades');
     Route::get('/admin/system', [SystemController::class, 'index'])->name('admin.system.index');
+    Route::get('/admin/system/users', [SystemController::class, 'users'])->name('admin.system.users');
+    Route::patch('/admin/system/users/{user}', [SystemController::class, 'updateUser'])->name('admin.system.users.update');
+    Route::delete('/admin/system/users/{user}', [SystemController::class, 'destroyUser'])->name('admin.system.users.destroy');
+    Route::get('/admin/system/groups', [SystemController::class, 'groups'])->name('admin.system.groups');
+    Route::delete('/admin/system/groups/{group}', [SystemController::class, 'destroyGroup'])->name('admin.system.groups.destroy');
 
     // 3️⃣ ユーザ管理画面
     Route::get('/users', [UserController::class, 'index'])->name('users.index');
@@ -62,7 +68,11 @@ Route::middleware([ 'verified'])->group(function () {
 
 
     Route::get('/camera', function () {
-    return view('camera');
+        if (!auth()->user()?->uses_camera) {
+            return redirect()->route('settings.index')->with('status', 'camera-disabled');
+        }
+
+        return view('camera');
     })->name('camera');
 
    Route::middleware('auth')->group(function () {

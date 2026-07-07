@@ -12,9 +12,103 @@
         <a href="{{ route('profile.edit') }}" class="btn btn-outline-secondary">プロフィールへ</a>
     </div>
 
+    @if(session('status') === 'settings-updated')
+        <div class="alert alert-success">グループ設定を保存しました。</div>
+    @endif
+    @if(session('status') === 'user-settings-updated')
+        <div class="alert alert-success">ユーザー設定を保存しました。</div>
+    @endif
+    @if(session('status') === 'camera-disabled')
+        <div class="alert alert-warning">カメラを使用するには、この画面でカメラ設定をオンにしてください。</div>
+    @endif
+    @if(session('status') === 'grades-promoted')
+        <div class="alert alert-success">
+            グループ内の学年を1つ上げました。更新人数：{{ session('promoted_count', 0) }}人
+        </div>
+    @endif
+
+    @php
+        $heightOptions = [
+            0 => '標準',
+            30 => '少し下',
+            60 => '下',
+            90 => 'かなり下',
+            120 => '最大',
+        ];
+        $selectedHeight = (int) old('official_record_height_extra', $user->official_record_height_extra ?? 60);
+        $selectedMatchHeight = (int) old('match_record_height_extra', $user->match_record_height_extra ?? 60);
+    @endphp
+
+    <div class="card shadow-sm mb-3">
+        <div class="card-header bg-white">
+            <strong>ユーザー設定</strong>
+        </div>
+        <div class="card-body">
+            <form method="POST" action="{{ route('settings.user.update') }}">
+                @csrf
+                @method('PATCH')
+
+                <div class="mb-3">
+                    <label for="official_record_height_extra" class="form-label">記録欄の下位置</label>
+                    <select id="official_record_height_extra"
+                            name="official_record_height_extra"
+                            class="form-select @error('official_record_height_extra') is-invalid @enderror">
+                        @foreach($heightOptions as $value => $label)
+                            <option value="{{ $value }}" {{ $selectedHeight === $value ? 'selected' : '' }}>
+                                {{ $label }}
+                            </option>
+                        @endforeach
+                    </select>
+                    @error('official_record_height_extra')
+                        <div class="invalid-feedback">{{ $message }}</div>
+                    @enderror
+                </div>
+
+                <div class="mb-3">
+                    <label for="match_record_height_extra" class="form-label">試合記録欄の下位置</label>
+                    <select id="match_record_height_extra"
+                            name="match_record_height_extra"
+                            class="form-select @error('match_record_height_extra') is-invalid @enderror">
+                        @foreach($heightOptions as $value => $label)
+                            <option value="{{ $value }}" {{ $selectedMatchHeight === $value ? 'selected' : '' }}>
+                                {{ $label }}
+                            </option>
+                        @endforeach
+                    </select>
+                    @error('match_record_height_extra')
+                        <div class="invalid-feedback">{{ $message }}</div>
+                    @enderror
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">カメラ</label>
+                    <div class="form-check form-switch">
+                        <input class="form-check-input"
+                               type="checkbox"
+                               id="uses_camera"
+                               name="uses_camera"
+                               value="1"
+                               {{ old('uses_camera', $user->uses_camera ?? false) ? 'checked' : '' }}>
+                        <label class="form-check-label" for="uses_camera">
+                            カメラを使用する
+                        </label>
+                    </div>
+                    <div class="text-muted small mt-1">
+                        オフの場合はメニューにカメラを表示しません。
+                    </div>
+                    @error('uses_camera')
+                        <div class="text-danger small mt-1">{{ $message }}</div>
+                    @enderror
+                </div>
+
+                <button class="btn btn-primary">ユーザー設定を保存</button>
+            </form>
+        </div>
+    </div>
+
     @if(!$group)
         <div class="alert alert-warning">
-            グループに参加してから設定できます。
+            グループ設定は、グループに参加してから使用できます。
         </div>
     @elseif(!$unlocked)
         <div class="card shadow-sm">
@@ -45,18 +139,9 @@
     @else
         <div class="card shadow-sm">
             <div class="card-header bg-white">
-                <strong>正規練記録</strong>
+                <strong>グループ設定</strong>
             </div>
             <div class="card-body">
-                @if(session('status') === 'settings-updated')
-                    <div class="alert alert-success">設定を保存しました。</div>
-                @endif
-                @if(session('status') === 'grades-promoted')
-                    <div class="alert alert-success">
-                        グループ内の学年を1つ上げました。更新人数：{{ session('promoted_count', 0) }}人
-                    </div>
-                @endif
-
                 <form method="POST" action="{{ route('settings.update') }}">
                     @csrf
                     @method('PATCH')
@@ -73,51 +158,6 @@
                             @endfor
                         </select>
                         @error('official_tates_per_page')
-                            <div class="invalid-feedback">{{ $message }}</div>
-                        @enderror
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="official_record_height_extra" class="form-label">記録欄の下位置（ユーザー設定）</label>
-                        <select id="official_record_height_extra"
-                                name="official_record_height_extra"
-                                class="form-select @error('official_record_height_extra') is-invalid @enderror">
-                            @php
-                                $heightOptions = [
-                                    0 => '標準',
-                                    30 => '少し下',
-                                    60 => '下',
-                                    90 => 'かなり下',
-                                    120 => '最大',
-                                ];
-                                $selectedHeight = (int) old('official_record_height_extra', $user->official_record_height_extra ?? 60);
-                            @endphp
-                            @foreach($heightOptions as $value => $label)
-                                <option value="{{ $value }}" {{ $selectedHeight === $value ? 'selected' : '' }}>
-                                    {{ $label }}
-                                </option>
-                            @endforeach
-                        </select>
-                        @error('official_record_height_extra')
-                            <div class="invalid-feedback">{{ $message }}</div>
-                        @enderror
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="match_record_height_extra" class="form-label">試合記録欄の下位置（ユーザー設定）</label>
-                        <select id="match_record_height_extra"
-                                name="match_record_height_extra"
-                                class="form-select @error('match_record_height_extra') is-invalid @enderror">
-                            @php
-                                $selectedMatchHeight = (int) old('match_record_height_extra', $user->match_record_height_extra ?? 60);
-                            @endphp
-                            @foreach($heightOptions as $value => $label)
-                                <option value="{{ $value }}" {{ $selectedMatchHeight === $value ? 'selected' : '' }}>
-                                    {{ $label }}
-                                </option>
-                            @endforeach
-                        </select>
-                        @error('match_record_height_extra')
                             <div class="invalid-feedback">{{ $message }}</div>
                         @enderror
                     </div>
