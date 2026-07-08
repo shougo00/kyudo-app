@@ -11,6 +11,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!container) return;
 
     let type = container.dataset.type;
+    const shotUrlTemplate = container.dataset.shotUrl || '/shots/__ID__';
+    const recordUrlTemplate = container.dataset.recordUrl || '/records/__ID__';
 
     function updateBackground() {
         container.classList.remove('self-bg','official-bg');
@@ -51,7 +53,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let recordId = btn.dataset.record;
         updateRecordResult(recordId);
 
-        fetch(`/shots/${btn.dataset.id}`, {
+        fetch(shotUrlTemplate.replace('__ID__', btn.dataset.id), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -100,7 +102,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         let recordId = btn.dataset.id;
 
-        fetch(`/records/${recordId}`, {
+        fetch(recordUrlTemplate.replace('__ID__', recordId), {
             method: 'DELETE',
             headers: {
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,

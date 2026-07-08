@@ -10,6 +10,7 @@ use App\Http\Controllers\Admin\NewsController;
 use App\Http\Controllers\VideoController;
 use App\Http\Controllers\GroupController;
 use App\Http\Controllers\GroupRecordController;
+use App\Http\Controllers\GroupSelfRecordController;
 use App\Http\Controllers\LineupController;
 use App\Http\Controllers\AttendanceController; 
 use App\Http\Controllers\KyudoResultController;      
@@ -89,6 +90,10 @@ Route::middleware([ 'verified'])->group(function () {
 
     // グループ記録ページ
     Route::get('/group/{groupId}/records', [GroupRecordController::class, 'index'])->name('group.records');
+    Route::get('/group/{group}/self-records', [GroupSelfRecordController::class, 'index'])->name('group.self-records');
+    Route::post('/group/{group}/self-records', [GroupSelfRecordController::class, 'store'])->name('group.self-records.store');
+    Route::post('/group/{group}/self-shots/{shot}', [GroupSelfRecordController::class, 'updateShot'])->name('group.self-shots.update');
+    Route::delete('/group/{group}/self-records/{record}', [GroupSelfRecordController::class, 'destroy'])->name('group.self-records.destroy');
     Route::post('/group/{groupId}/add-tate', [GroupRecordController::class, 'addTate']);
     Route::post('/group/{groupId}/records/switch-sheet', [GroupRecordController::class, 'switchOfficialSheet']);
     Route::post('/group/{groupId}/records/scoring-mode', [GroupRecordController::class, 'updateOfficialScoringMode']);

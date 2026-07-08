@@ -187,8 +187,15 @@
                 {{-- 全員共通 --}}
                 <li class="nav-item">
                     <a class="nav-link active" href="#"
-                    onclick="goGroupRecord()">グループ 的中記録</a>
+                    onclick="goGroupRecord()">グループ 的中記録（正規連）</a>
                 </li>
+
+                @if(($firstGroup = Auth::user()->groups->first()) && ((int) $firstGroup->host_user_id === (int) Auth::id() || Auth::user()->username === 'KANRI'))
+                    <li class="nav-item">
+                        <a class="nav-link active" href="#"
+                        onclick="goGroupSelfRecord()">グループ的中記録（自主練）</a>
+                    </li>
+                @endif
 
                 <li class="nav-item">
                     <a class="nav-link active" href="#"
@@ -304,9 +311,17 @@
                 {{-- 全員共通 --}}
                 <li class="nav-item mb-2">
                     <a class="nav-link" href="#" onclick="goGroupRecord()">
-                        グループ 的中記録
+                        グループ 的中記録（正規連）
                     </a>
                 </li>
+
+                @if(($firstGroup = Auth::user()->groups->first()) && ((int) $firstGroup->host_user_id === (int) Auth::id() || Auth::user()->username === 'KANRI'))
+                    <li class="nav-item mb-2">
+                        <a class="nav-link" href="#" onclick="goGroupSelfRecord()">
+                            グループ的中記録（自主練）
+                        </a>
+                    </li>
+                @endif
 
                 <li class="nav-item mb-2">
                     <a class="nav-link" href="#" onclick="goGroupHistory()">
@@ -436,6 +451,24 @@ function goGroupRecord() {
 
         // 遷移
         window.location.href = `/group/${groupId}/records`;
+
+    @else
+        alert('ログインしてください');
+    @endauth
+
+}
+
+function goGroupSelfRecord() {
+
+    @auth
+        let groupId = {{ Auth::user()->groups->first()->id ?? 'null' }};
+
+        if (!groupId) {
+            alert('グループに参加していません');
+            return;
+        }
+
+        window.location.href = `/group/${groupId}/self-records`;
 
     @else
         alert('ログインしてください');
