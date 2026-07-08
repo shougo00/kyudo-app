@@ -104,6 +104,10 @@ class GroupRecordController extends Controller
             $activeSheetNo = 1;
         }
 
+        if (!$sheetNos->contains($activeSheetNo)) {
+            $activeSheetNo = (int) ($sheetNos->max() ?? 1);
+        }
+
         $tates = Record::whereIn('user_id', $groupUserIds)
             ->where('date', $date)
             ->where('practice_type', $practiceType)
@@ -149,6 +153,9 @@ class GroupRecordController extends Controller
             ->where('practice_type', $practiceType)
             ->where('official_sheet_no', $activeSheetNo)
             ->get();
+        $hasEnteredOfficialShots = $recordRows
+            ->contains(fn($record) => $record->shots
+                ->contains(fn($shot) => !is_null($shot->result)));
 
         $records = $recordRows->groupBy('user_id');
         $users = $users
@@ -244,6 +251,7 @@ class GroupRecordController extends Controller
             ? "/group/{$groupId}/records"
             : "/group/{$groupId}/match-records";
         $otherRecordLabel = $practiceType === 'match' ? '正規連用記録' : '試合用記録';
+        $canSwitchOfficialSheet = $hasEnteredOfficialShots;
 
         return view('group.records', compact(
             'group',
@@ -273,7 +281,8 @@ class GroupRecordController extends Controller
             'maxTatesPerPage',
             'recordHeightExtra',
             'matchRecordHeightExtra',
-            'activeSheetScoringMode'
+            'activeSheetScoringMode',
+            'canSwitchOfficialSheet'
         ));
     }
 
@@ -486,7 +495,22 @@ class GroupRecordController extends Controller
         $group = Group::with('users')->findOrFail($groupId);
         $date = $request->date ?? date('Y-m-d');
         $activeSheetNo = max(1, (int) ($request->sheet_no ?? 1));
-        $maxTatesPerPage = max(1, (int) ($group->official_tates_per_page ?? 5));
+        $activeGroupUserIds = $group->users
+            ->where('is_admin', false)
+            ->pluck('id')
+            ->values();
+        $hasEnteredOfficialShots = Record::whereIn('user_id', $activeGroupUserIds)
+            ->where('date', $date)
+            ->where('practice_type', 'official')
+            ->where('official_sheet_no', $activeSheetNo)
+            ->whereHas('shots', function ($query) {
+                $query->whereNotNull('result');
+            })
+            ->exists();
+
+        if (!$hasEnteredOfficialShots) {
+            return redirect("/group/{$groupId}/records?date={$date}&sheet_no={$activeSheetNo}");
+        }
 
         $this->captureOfficialSheetLineup($group, $date, $activeSheetNo);
 

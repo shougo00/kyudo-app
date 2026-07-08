@@ -18,7 +18,6 @@
 
         return 'background:' . $color . '; border-color:' . $color . '; color:#111;';
     };
-    $participantRouteParams = $participantQuery ? ['participants' => $participantQuery] : [];
 @endphp
 
 <div class="container py-3 self-bg group-self-record-page"
@@ -53,10 +52,7 @@
                 <summary>参加者を追加</summary>
                 <div class="self-member-picker-list">
                     @forelse($availableMembers as $member)
-                        @php
-                            $nextParticipantQuery = $activeMembers->pluck('id')->push($member->id)->unique()->implode(',');
-                        @endphp
-                        <a href="{{ route('group.self-records', ['group' => $group->id, 'date' => $date, 'user_id' => $member->id, 'participants' => $nextParticipantQuery]) }}">
+                        <a href="{{ route('group.self-records', ['group' => $group->id, 'date' => $date, 'user_id' => $member->id]) }}">
                             {{ $member->name }}
                             @if($group->uses_grades && $member->grade_level)
                                 <small>{{ $member->grade_level }}年</small>
@@ -71,7 +67,7 @@
 
         <div class="group-member-tabs mb-2">
             @forelse($activeMembers as $member)
-                <a href="{{ route('group.self-records', array_merge(['group' => $group->id, 'date' => $date, 'user_id' => $member->id], $participantRouteParams)) }}"
+                <a href="{{ route('group.self-records', ['group' => $group->id, 'date' => $date, 'user_id' => $member->id]) }}"
                    class="group-member-tab {{ $selectedUser?->id === $member->id ? 'active' : '' }}">
                     {{ $member->name }}
                     @if($group->uses_grades && $member->grade_level)
@@ -84,17 +80,13 @@
         </div>
 
         <div class="d-flex justify-content-between align-items-center mb-2">
-            <a href="{{ route('group.self-records', array_merge(['group' => $group->id, 'date' => $prevDate, 'user_id' => $selectedUser?->id], $participantRouteParams)) }}" class="btn btn-outline-secondary">＜</a>
+            <a href="{{ route('group.self-records', ['group' => $group->id, 'date' => $prevDate]) }}" class="btn btn-outline-secondary">＜</a>
 
             <form id="date-form" method="GET" action="{{ route('group.self-records', $group) }}">
-                <input type="hidden" name="user_id" value="{{ $selectedUser?->id }}">
-                @if($participantQuery)
-                    <input type="hidden" name="participants" value="{{ $participantQuery }}">
-                @endif
                 <input type="date" name="date" value="{{ $date }}" class="form-control text-center" id="date-picker">
             </form>
 
-            <a href="{{ route('group.self-records', array_merge(['group' => $group->id, 'date' => $nextDate, 'user_id' => $selectedUser?->id], $participantRouteParams)) }}" class="btn btn-outline-secondary">＞</a>
+            <a href="{{ route('group.self-records', ['group' => $group->id, 'date' => $nextDate]) }}" class="btn btn-outline-secondary">＞</a>
         </div>
 
         @if($selectedUser)
@@ -102,9 +94,6 @@
                 @csrf
                 <input type="hidden" name="date" value="{{ $date }}">
                 <input type="hidden" name="user_id" value="{{ $selectedUser->id }}">
-                @if($participantQuery)
-                    <input type="hidden" name="participants" value="{{ $participantQuery }}">
-                @endif
                 <button class="btn btn-primary w-100">＋ {{ $selectedUser->name }} の立を追加</button>
             </form>
         @endif

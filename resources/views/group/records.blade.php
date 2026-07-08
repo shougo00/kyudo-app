@@ -356,7 +356,7 @@ window.groupRecordData = {
 
                     <form method="POST"
                           action="/group/{{ $group->id }}/records/switch-sheet"
-                          onsubmit="return confirm('{{ $activeSheetNo }}ページ目の記録と立順を保存して、新しいページへ切り替えますか？')">
+                          onsubmit="return handleOfficialSheetSwitchSubmit(this, '{{ $activeSheetNo }}ページ目の記録と立順を保存して、新しいページへ切り替えますか？')">
                         @csrf
                         <input type="hidden" name="date" value="{{ $date }}">
                         <input type="hidden" name="sheet_no" value="{{ $activeSheetNo }}">
@@ -369,6 +369,42 @@ window.groupRecordData = {
             @endif
         </div>
     </div>
+@endif
+
+@if($practiceType !== 'match')
+    <script>
+        function handleOfficialSheetSwitchSubmit(form, confirmMessage) {
+            const hasEnteredShot = Array.from(document.querySelectorAll('.score-wrapper .shot-btn[data-result]'))
+                .some((shot) => shot.dataset.result === 'hit' || shot.dataset.result === 'miss');
+
+            if (!hasEnteredShot) {
+                alert('先にこのページで○か×を1つ以上入力してください。');
+                return false;
+            }
+
+            if (!confirm(confirmMessage)) {
+                return false;
+            }
+
+            const pendingUpdates = window.groupRecordPendingShotUpdates;
+
+            if (pendingUpdates && pendingUpdates.size > 0) {
+                const submitButton = form.querySelector('button[type="submit"], button:not([type])');
+
+                if (submitButton) {
+                    submitButton.disabled = true;
+                }
+
+                Promise.allSettled(Array.from(pendingUpdates)).then(() => {
+                    HTMLFormElement.prototype.submit.call(form);
+                });
+
+                return false;
+            }
+
+            return true;
+        }
+    </script>
 @endif
 
 @if($practiceType === 'match' && !$selectedTeam)

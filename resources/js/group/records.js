@@ -97,14 +97,20 @@ function updateShot(el){
         }
     }
 
-    fetch(`/group/shot/${id}`,{
+    window.groupRecordPendingShotUpdates = window.groupRecordPendingShotUpdates || new Set();
+
+    const request = fetch(`/group/shot/${id}`,{
         method:'POST',
         headers:{
             'Content-Type':'application/json',
             'X-CSRF-TOKEN':document.querySelector('meta[name="csrf-token"]').content
         },
         body: JSON.stringify({ result: next })
+    }).finally(() => {
+        window.groupRecordPendingShotUpdates.delete(request);
     });
+
+    window.groupRecordPendingShotUpdates.add(request);
 }
 
 function updateNumericShot(el, id, userId, recordId, tateCounterKey) {

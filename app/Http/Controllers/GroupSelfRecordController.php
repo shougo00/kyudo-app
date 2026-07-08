@@ -21,7 +21,8 @@ class GroupSelfRecordController extends Controller
         $date = $request->date ?? date('Y-m-d');
         $members = $this->members($group);
         $memberIds = $members->pluck('id')->values();
-        $participantIds = $this->participantIds($request, $memberIds);
+        $sessionKey = $this->participantSessionKey($group, $date);
+        $participantIds = $this->participantIds($request, $memberIds, $group, $date);
 
         if ($request->filled('user_id')) {
             $requestedUserId = (int) $request->query('user_id');
@@ -32,7 +33,7 @@ class GroupSelfRecordController extends Controller
         }
 
         $participantIds = $participantIds->unique()->values();
-        $participantQuery = $participantIds->implode(',');
+        $request->session()->put($sessionKey, $participantIds->all());
         $activeMembers = $members->whereIn('id', $participantIds)->values();
         $selectedUser = $this->selectedUser($request, $members);
 
@@ -81,8 +82,7 @@ class GroupSelfRecordController extends Controller
             'totalShots',
             'totalHits',
             'hitRate',
-            'numericScoreOptions',
-            'participantQuery'
+            'numericScoreOptions'
         ));
     }
 
@@ -97,10 +97,11 @@ class GroupSelfRecordController extends Controller
         ]);
 
         $user = $this->memberOrFail($group, (int) $validated['user_id']);
-        $participantIds = $this->participantIds($request, $this->members($group)->pluck('id')->values())
+        $participantIds = $this->participantIds($request, $this->members($group)->pluck('id')->values(), $group, $validated['date'])
             ->push($user->id)
             ->unique()
             ->values();
+        $request->session()->put($this->participantSessionKey($group, $validated['date']), $participantIds->all());
 
         $maxTate = Record::where('user_id', $user->id)
             ->where('date', $validated['date'])
@@ -127,7 +128,6 @@ class GroupSelfRecordController extends Controller
                 'group' => $group->id,
                 'date' => $validated['date'],
                 'user_id' => $user->id,
-                'participants' => $participantIds->implode(','),
             ])
             ->withFragment("record-{$record->id}");
     }
@@ -193,12 +193,21 @@ class GroupSelfRecordController extends Controller
         return $members->firstWhere('id', (int) $request->query('user_id'));
     }
 
-    private function participantIds(Request $request, $memberIds)
+    private function participantIds(Request $request, $memberIds, Group $group, string $date)
     {
-        return collect(explode(',', (string) $request->query('participants', $request->input('participants', ''))))
+        $sessionIds = collect($request->session()->get($this->participantSessionKey($group, $date), []));
+        $requestIds = collect(explode(',', (string) $request->query('participants', $request->input('participants', ''))));
+
+        return $sessionIds
+            ->merge($requestIds)
             ->map(fn($id) => (int) trim($id))
             ->filter(fn(int $id) => $id > 0 && $memberIds->contains($id))
             ->values();
+    }
+
+    private function participantSessionKey(Group $group, string $date): string
+    {
+        return "group_self_record_participants_{$group->id}_{$date}";
     }
 
     private function memberOrFail(Group $group, int $userId): User
