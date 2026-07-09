@@ -340,20 +340,6 @@ window.groupRecordData = {
 
             @if($isCurrentSheet)
                 <div class="official-sheet-actions">
-                    @if(!$isPageFull)
-                        <form method="POST" action="{{ $addTatePath }}">
-                            @csrf
-                            <input type="hidden" name="date" value="{{ $date }}">
-                            <input type="hidden" name="sheet_no" value="{{ $activeSheetNo }}">
-                            <button class="btn btn-primary">
-                                <i class="fa-solid fa-plus"></i>
-                                立を追加
-                            </button>
-                        </form>
-                    @else
-                        <span class="official-sheet-limit">{{ $maxTatesPerPage }}立まで</span>
-                    @endif
-
                     <form method="POST"
                           action="/group/{{ $group->id }}/records/switch-sheet"
                           onsubmit="return handleOfficialSheetSwitchSubmit(this, '{{ $activeSheetNo }}ページ目の記録と立順を保存して、新しいページへ切り替えますか？')">
@@ -865,108 +851,108 @@ window.groupRecordData = {
 @else
     @if($tates->isNotEmpty())
         @php
-            $printSlots = ($officialTateSlots ?? collect())->get($tates->first(), $lineupSlots);
+            $allPrintSlots = ($officialTateSlots ?? collect())->get($tates->first(), $lineupSlots);
             $printTateSize = ($officialTateSizes ?? collect())->get($tates->first(), $tateSize);
             $printTateSize = max(1, (int) $printTateSize);
-            $pageTotalHits = 0;
-
-            foreach ($tates as $printTateNoForTotal) {
-                foreach ($printSlots as $slotForTotal) {
-                    if (!$slotForTotal->is_empty && $slotForTotal->user) {
-                        $printTotalRecord = ($records[$slotForTotal->user->id] ?? collect())
-                            ->where('tate_no', $printTateNoForTotal)
-                            ->first();
-
-                        if ($printTotalRecord) {
-                            $pageTotalHits += $printTotalRecord->shots->where('result', 'hit')->count();
-                        }
-                    }
-                }
-            }
+            $printTatePages = collect($tates)->chunk(5);
+            $printMemberPages = collect($allPrintSlots)->chunk(17);
         @endphp
 
-        <div class="print-page">
-            <div class="print-title">
-                {{ $group->name }}（{{ $recordLabel }}）<br>
-                {{ \Carbon\Carbon::parse($date)->locale('ja')->isoFormat('YYYY年M月D日（ddd）') }}
-            </div>
+        @foreach($printTatePages as $printTatePage)
+            @foreach($printMemberPages as $printSlots)
+                <div class="print-page">
+                    <div class="print-title">
+                        {{ $group->name }}（{{ $recordLabel }}）<br>
+                        {{ \Carbon\Carbon::parse($date)->locale('ja')->isoFormat('YYYY年M月D日（ddd）') }}
+                        @if($printTatePages->count() > 1 || $printMemberPages->count() > 1)
+                            / {{ $tateDisplayOffset + $printTatePage->first() }}〜{{ $tateDisplayOffset + $printTatePage->last() }}立
+                            / {{ $printSlots->first()?->position ?? 1 }}〜{{ $printSlots->last()?->position ?? $printSlots->count() }}番
+                        @endif
+                    </div>
 
-            <div class="print-score-header">
-                <div class="print-tate-label"></div>
+                    <div class="print-score-header">
+                        <div class="print-tate-label"></div>
 
-                @foreach($printSlots as $slot)
-                    @php
-                        $user = $slot->user;
-                        $hitCount = 0;
+                        @foreach($printSlots as $slot)
+                            @php
+                                $user = $slot->user;
+                                $hitCount = 0;
+                                $slotPosition = (int) ($slot->position ?? $loop->iteration);
 
-                        if ($user) {
-                            foreach ($tates as $scoreTateNo) {
-                                $scoreRecord = ($records[$user->id] ?? collect())
-                                    ->where('tate_no', $scoreTateNo)
-                                    ->first();
+                                if ($user) {
+                                    foreach ($printTatePage as $scoreTateNo) {
+                                        $scoreRecord = ($records[$user->id] ?? collect())
+                                            ->where('tate_no', $scoreTateNo)
+                                            ->first();
 
-                                if ($scoreRecord) {
-                                    $hitCount += $scoreRecord->shots->where('result', 'hit')->count();
+                                        if ($scoreRecord) {
+                                            $hitCount += $scoreRecord->shots->where('result', 'hit')->count();
+                                        }
+                                    }
                                 }
-                            }
-                        }
-                    @endphp
+                            @endphp
 
-                    <div class="print-score {{ (($loop->index + 1) % $printTateSize == 0) ? 'print-tate-border' : '' }}">
-                        {{ $slot->is_empty ? '-' : $hitCount . '中' }}
+                            <div class="print-score {{ ($slotPosition % $printTateSize == 0) ? 'print-tate-border' : '' }}">
+                                {{ $slot->is_empty ? '-' : $hitCount . '中' }}
+                            </div>
+                        @endforeach
                     </div>
-                @endforeach
-            </div>
 
-            <div class="print-tate-area">
-                @foreach($tates as $tateNo)
-                    @php
-                        $displayTateNo = $tateDisplayOffset + $tateNo;
-                    @endphp
+                    <div class="print-tate-area">
+                        @foreach($printTatePage as $tateNo)
+                            @php
+                                $displayTateNo = $tateDisplayOffset + $tateNo;
+                            @endphp
 
-                <div class="print-tate-row">
-                    <div class="print-tate-label">{{ $displayTateNo }}</div>
+                            <div class="print-tate-row">
+                                <div class="print-tate-label">{{ $displayTateNo }}</div>
 
-                    @foreach($printSlots as $slot)
-                        @php
-                            $user = $slot->user;
-                            $record = $user
-                                ? ($records[$user->id] ?? collect())->where('tate_no', $tateNo)->first()
-                                : null;
-                        @endphp
+                                @foreach($printSlots as $slot)
+                                    @php
+                                        $user = $slot->user;
+                                        $slotPosition = (int) ($slot->position ?? $loop->iteration);
+                                        $record = $user
+                                            ? ($records[$user->id] ?? collect())->where('tate_no', $tateNo)->first()
+                                            : null;
+                                    @endphp
 
-                        <div class="print-user-column {{ (($loop->index + 1) % $printTateSize == 0) ? 'print-tate-border' : '' }}">
-                            @for($i=1;$i<=4;$i++)
-                                @php
-                                    $shot = $record
-                                        ? $record->shots->where('shot_no',$i)->first()
-                                        : null;
-                                @endphp
+                                    <div class="print-user-column {{ ($slotPosition % $printTateSize == 0) ? 'print-tate-border' : '' }}">
+                                        @for($i=1;$i<=4;$i++)
+                                            @php
+                                                $shot = $record
+                                                    ? $record->shots->where('shot_no',$i)->first()
+                                                    : null;
+                                            @endphp
 
-                                <div class="print-shot">
-                                    @if($shot?->result=='hit')
-                                        ○
-                                    @elseif($shot?->result=='miss')
-                                        ×
-                                    @endif
-                                </div>
-                            @endfor
-                        </div>
-                    @endforeach
+                                            <div class="print-shot">
+                                                @if($shot?->result=='hit')
+                                                    ○
+                                                @elseif($shot?->result=='miss')
+                                                    ×
+                                                @endif
+                                            </div>
+                                        @endfor
+                                    </div>
+                                @endforeach
+                            </div>
+                        @endforeach
+                    </div>
+
+                    <div class="print-name-row">
+                        <div class="print-name-spacer"></div>
+
+                        @foreach($printSlots as $slot)
+                            @php
+                                $slotPosition = (int) ($slot->position ?? $loop->iteration);
+                            @endphp
+                            <div class="print-name {{ ($slotPosition % $printTateSize == 0) ? 'print-tate-border' : '' }}">
+                                {{ $slot->is_empty ? '空き' : $slot->user->name }}
+                            </div>
+                        @endforeach
+                    </div>
                 </div>
-                @endforeach
-            </div>
-
-            <div class="print-name-row">
-                <div class="print-name-spacer"></div>
-
-                @foreach($printSlots as $slot)
-                    <div class="print-name {{ (($loop->index + 1) % $printTateSize == 0) ? 'print-tate-border' : '' }}">
-                        {{ $slot->is_empty ? '空き' : $slot->user->name }}
-                    </div>
-                @endforeach
-            </div>
-        </div>
+            @endforeach
+        @endforeach
     @endif
 @endif
 

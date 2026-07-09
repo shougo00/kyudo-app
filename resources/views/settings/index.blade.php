@@ -147,7 +147,7 @@
                     @method('PATCH')
 
                     <div class="mb-3">
-                        <label for="official_tates_per_page" class="form-label">1ページの最大立数（グループ設定）</label>
+                        <label for="official_tates_per_page" class="form-label">公式記録の1ページ最大立数（グループ設定）</label>
                         <select id="official_tates_per_page"
                                 name="official_tates_per_page"
                                 class="form-select @error('official_tates_per_page') is-invalid @enderror">

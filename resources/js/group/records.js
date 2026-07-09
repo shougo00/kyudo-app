@@ -1,27 +1,49 @@
 function reloadAndPrint() {
+    waitForPendingShotUpdates().then(() => {
     const url = new URL(window.location.href);
     url.searchParams.set('print', '1');
     window.location.href = url.toString();
+    });
 }
 
 window.addEventListener('load', () => {
     const url = new URL(window.location.href);
+    const isPrintRequest = url.searchParams.get('print') === '1';
 
-    if (url.searchParams.get('print') === '1') {
+    if (isPrintRequest) {
         url.searchParams.delete('print');
         history.replaceState(null, '', url.toString());
 
-        setTimeout(() => {
-            window.print();
-        }, 500);
+        printAfterReady();
     }
 });
+
+function waitForPendingShotUpdates() {
+    const pendingUpdates = window.groupRecordPendingShotUpdates;
+
+    if (!pendingUpdates || pendingUpdates.size === 0) {
+        return Promise.resolve();
+    }
+
+    return Promise.allSettled(Array.from(pendingUpdates));
+}
+
+async function printAfterReady() {
+    await waitForPendingShotUpdates();
+
+    if (document.fonts && document.fonts.ready) {
+        await document.fonts.ready;
+    }
+
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    setTimeout(() => window.print(), 250);
+}
     
 function updateShot(el){
 
     const id = el.dataset.id;
     if(!id){
-        alert('先に立を追加してください');
+        alert('先に立順を設定してください');
         return;
     }
 
@@ -196,19 +218,30 @@ function scrollRight() {
         const savedLeft = sessionStorage.getItem('matchAddTateScrollLeft');
         if (savedLeft !== null) {
             el.scrollLeft = parseInt(savedLeft, 10) || 0;
+            el.scrollTop = el.scrollHeight;
             sessionStorage.removeItem('matchAddTateScrollLeft');
             return;
         }
 
         el.scrollLeft = 0;
+        el.scrollTop = el.scrollHeight;
         return;
     }
 
     el.scrollLeft = el.scrollWidth;
+    el.scrollTop = el.scrollHeight;
 }
 
 window.addEventListener('load', () => {
-    setTimeout(scrollRight, 50);
+    const url = new URL(window.location.href);
+
+    if (url.searchParams.get('print') === '1') {
+        return;
+    }
+
+    [50, 200, 500].forEach(delay => {
+        setTimeout(scrollRight, delay);
+    });
 });
 
 document.querySelectorAll('[data-match-add-tate-form]').forEach(form => {

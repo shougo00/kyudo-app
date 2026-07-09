@@ -108,6 +108,20 @@ class GroupRecordController extends Controller
             $activeSheetNo = (int) ($sheetNos->max() ?? 1);
         }
 
+        $isCurrentSheet = $activeSheetNo === (int) ($sheetNos->max() ?? 1);
+
+        if ($isCurrentSheet) {
+            $this->createInitialOfficialSheetRecordsIfNeeded(
+                $group,
+                $date,
+                $activeSheetNo,
+                $userIds,
+                $groupUserIds,
+                $maxTatesPerPage,
+                $lineupSnapshotsByUserId
+            );
+        }
+
         $tates = Record::whereIn('user_id', $groupUserIds)
             ->where('date', $date)
             ->where('practice_type', $practiceType)
@@ -117,7 +131,6 @@ class GroupRecordController extends Controller
             ->sort()
             ->values();
 
-        $isCurrentSheet = $activeSheetNo === (int) ($sheetNos->max() ?? 1);
         $tateDisplayOffset = $this->officialTateDisplayOffset($groupUserIds, $date, $activeSheetNo, $tates);
         $activeSheetScoringMode = DB::table('official_record_sheets')
             ->where('group_id', $groupId)
@@ -486,6 +499,67 @@ class GroupRecordController extends Controller
     public function addTate(Request $request, $groupId)
     {
         return $this->addTateForType($request, $groupId, 'official');
+    }
+
+    private function createInitialOfficialSheetRecordsIfNeeded(
+        Group $group,
+        string $date,
+        int $activeSheetNo,
+        $userIds,
+        $groupUserIds,
+        int $maxTatesPerPage,
+        $lineupSnapshotsByUserId
+    ): void {
+        $userIds = collect($userIds)->values();
+        $groupUserIds = collect($groupUserIds)->values();
+
+        if ($userIds->isEmpty() || $groupUserIds->isEmpty()) {
+            return;
+        }
+
+        $currentSheetTates = Record::whereIn('user_id', $groupUserIds)
+            ->where('date', $date)
+            ->where('practice_type', 'official')
+            ->where('official_sheet_no', $activeSheetNo)
+            ->pluck('tate_no')
+            ->unique()
+            ->sort()
+            ->values();
+
+        if ($currentSheetTates->count() >= $maxTatesPerPage) {
+            return;
+        }
+
+        $missingTateCount = $maxTatesPerPage - $currentSheetTates->count();
+        $maxTate = Record::whereIn('user_id', $groupUserIds)
+            ->where('date', $date)
+            ->where('practice_type', 'official')
+            ->max('tate_no');
+        $startTate = $maxTate ? $maxTate + 1 : 1;
+        $tates = collect(range($startTate, $startTate + $missingTateCount - 1));
+
+        DB::table('official_record_sheets')->updateOrInsert(
+            [
+                'group_id' => $group->id,
+                'date' => $date,
+                'sheet_no' => $activeSheetNo,
+            ],
+            [
+                'updated_at' => now(),
+                'created_at' => now(),
+            ]
+        );
+
+        $this->ensureRecordsWithShots(
+            $userIds,
+            $date,
+            $tates,
+            'official',
+            null,
+            $lineupSnapshotsByUserId,
+            true,
+            $activeSheetNo
+        );
     }
 
     public function switchOfficialSheet(Request $request, $groupId)

@@ -18,6 +18,7 @@ class Group extends Model
     ];
 
     protected $casts = [
+        'official_tates_per_page' => 'integer',
         'uses_grades' => 'boolean',
         'grade_count' => 'integer',
         'grade_colors' => 'array',
