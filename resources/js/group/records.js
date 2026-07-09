@@ -215,16 +215,29 @@ function scrollRight() {
     if (!el) return;
 
     if (el.classList.contains('match-score-scroll')) {
-        const savedLeft = sessionStorage.getItem('matchAddTateScrollLeft');
-        if (savedLeft !== null) {
-            el.scrollLeft = parseInt(savedLeft, 10) || 0;
-            el.scrollTop = el.scrollHeight;
+        if (window.matchAddTateRestorePosition === undefined) {
+            const savedLeft = sessionStorage.getItem('matchAddTateScrollLeft');
+            const savedTop = sessionStorage.getItem('matchAddTateScrollTop');
+            window.matchAddTateRestorePosition = savedLeft !== null || savedTop !== null
+                ? {
+                    left: savedLeft !== null ? (parseInt(savedLeft, 10) || 0) : 0,
+                    top: savedTop !== null ? (parseInt(savedTop, 10) || 0) : 0,
+                }
+                : null;
             sessionStorage.removeItem('matchAddTateScrollLeft');
+            sessionStorage.removeItem('matchAddTateScrollTop');
+        }
+
+        if (window.matchAddTateRestorePosition !== null) {
+            requestAnimationFrame(() => {
+                el.scrollLeft = window.matchAddTateRestorePosition.left;
+                el.scrollTop = window.matchAddTateRestorePosition.top;
+            });
             return;
         }
 
         el.scrollLeft = 0;
-        el.scrollTop = el.scrollHeight;
+        el.scrollTop = 0;
         return;
     }
 
@@ -250,6 +263,7 @@ document.querySelectorAll('[data-match-add-tate-form]').forEach(form => {
 
         if (scrollArea) {
             sessionStorage.setItem('matchAddTateScrollLeft', String(scrollArea.scrollLeft));
+            sessionStorage.setItem('matchAddTateScrollTop', String(scrollArea.scrollTop));
         }
     });
 });
@@ -750,6 +764,7 @@ function closeMatchLineupModal() {
 
         if (scrollArea) {
             sessionStorage.setItem('matchAddTateScrollLeft', String(scrollArea.scrollLeft));
+            sessionStorage.setItem('matchAddTateScrollTop', String(scrollArea.scrollTop));
         }
 
         window.location.reload();

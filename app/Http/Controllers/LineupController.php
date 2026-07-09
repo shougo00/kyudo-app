@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\Group;
 use App\Models\Lineup;
 use App\Models\LineupMember;
+use App\Models\MatchTeam;
 use App\Models\Record;
 
 class LineupController extends Controller
@@ -59,7 +60,9 @@ class LineupController extends Controller
             ->unique()
             ->values();
 
-        return view('lineup.index', compact('group', 'lineup', 'members', 'date', 'recordedUserIds'));
+        $latestMatchUserIds = $this->latestMatchUserIds($group, $date);
+
+        return view('lineup.index', compact('group', 'lineup', 'members', 'date', 'recordedUserIds', 'latestMatchUserIds'));
     }
 
     public function save(Request $request, $lineupId)
@@ -135,6 +138,35 @@ class LineupController extends Controller
             }
         }
     }
+
+    private function latestMatchUserIds(Group $group, string $date)
+    {
+        return MatchTeam::withTrashed()
+            ->with(['members' => fn($query) => $query->where('date', $date)])
+            ->where('group_id', $group->id)
+            ->whereHas('members', fn($query) => $query->where('date', $date))
+            ->get()
+            ->flatMap(function ($team) {
+                $latestTateNo = $team->members
+                    ->pluck('tate_no')
+                    ->filter()
+                    ->max();
+
+                if (!$latestTateNo) {
+                    return collect();
+                }
+
+                return $team->members
+                    ->where('tate_no', $latestTateNo)
+                    ->whereNotNull('position')
+                    ->where('is_absent', false)
+                    ->where('is_late', false)
+                    ->pluck('user_id');
+            })
+            ->unique()
+            ->values();
+    }
+
     public function copyPrevious(Lineup $lineup)
     {
         $this->checkGroupAccess($lineup->group_id);

@@ -48,12 +48,22 @@ function makeMember(sourceEl) {
     div.draggable = true;
     div.dataset.id = sourceEl.dataset.id;
     div.dataset.hasRecord = sourceEl.dataset.hasRecord || '0';
+    div.dataset.inLatestMatch = sourceEl.dataset.inLatestMatch || '0';
     div.dataset.gender = sourceEl.dataset.gender || '';
     div.dataset.gradeLevel = sourceEl.dataset.gradeLevel || '';
-    div.dataset.name = sourceEl.textContent.trim().toLowerCase();
-    div.textContent = sourceEl.textContent.trim();
-    if (div.textContent.length >= 5) {
+    const memberName = sourceEl.textContent.trim();
+    div.dataset.displayName = memberName;
+    div.dataset.name = memberName.toLowerCase();
+    div.textContent = memberName;
+    if (memberName.length >= 5) {
         div.classList.add('long-name');
+    }
+    if (div.dataset.inLatestMatch === '1') {
+        div.classList.add('in-latest-match');
+        const badge = document.createElement('span');
+        badge.className = 'match-badge';
+        badge.textContent = '試';
+        div.appendChild(badge);
     }
     // ===== PCドラッグ =====
     div.addEventListener('dragstart', () => {
@@ -163,6 +173,10 @@ function hasEnteredRecord(member) {
     return member?.dataset.hasRecord === '1';
 }
 
+function isInLatestMatch(member) {
+    return member?.dataset.inLatestMatch === '1';
+}
+
 function confirmRemoveRecordedMember(member) {
     if (!isPlacedMember(member) || !hasEnteredRecord(member)) {
         return true;
@@ -187,7 +201,7 @@ function selectMember(member) {
         document.querySelectorAll('.cell').forEach(el => el.classList.add('tap-target'));
         pool.classList.add('tap-target');
         if (selectedMemberLabel) {
-            selectedMemberLabel.innerText = `選択中: ${member.textContent.trim()}`;
+            selectedMemberLabel.innerText = `選択中: ${member.dataset.displayName || member.textContent.trim()}`;
         }
     } else if (selectedMemberLabel) {
         selectedMemberLabel.innerText = '選択なし';
@@ -481,6 +495,7 @@ function randomize() {
     // 未配置にいる人だけ対象
     const members = Array.from(pool.querySelectorAll('.member'))
         .filter(member =>
+            !isInLatestMatch(member) &&
             !member.classList.contains('absent') &&
             !member.classList.contains('late')
         );

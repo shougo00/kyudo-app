@@ -110,6 +110,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    gap: 4px;
 
     font-size: 14px;
     line-height: 1.1;
@@ -151,6 +152,21 @@
     background: #ffd54f !important;
     color: #000 !important;
     border-color: #fbc02d !important;
+}
+
+.member .match-badge {
+    flex: 0 0 auto;
+    min-width: 18px;
+    height: 18px;
+    border-radius: 999px;
+    background: #dc3545;
+    color: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 800;
+    line-height: 1;
 }
 
 .member.late::after,
