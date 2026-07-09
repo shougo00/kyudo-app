@@ -60,10 +60,6 @@ function makeMember(sourceEl) {
     }
     if (div.dataset.inLatestMatch === '1') {
         div.classList.add('in-latest-match');
-        const badge = document.createElement('span');
-        badge.className = 'match-badge';
-        badge.textContent = '試';
-        div.appendChild(badge);
     }
     // ===== PCドラッグ =====
     div.addEventListener('dragstart', () => {

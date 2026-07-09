@@ -23,6 +23,7 @@
 <div class="container py-3 self-bg group-self-record-page"
      id="records-container"
      data-type="self"
+     data-readonly="{{ $canManageSelfRecords ? 0 : 1 }}"
      data-shot-url="{{ route('group.self-shots.update', ['group' => $group->id, 'shot' => '__ID__']) }}"
      data-record-url="{{ route('group.self-records.destroy', ['group' => $group->id, 'record' => '__ID__']) }}">
 
@@ -48,21 +49,23 @@
                 </div>
             </div>
 
-            <details class="self-member-picker">
-                <summary>参加者を追加</summary>
-                <div class="self-member-picker-list">
-                    @forelse($availableMembers as $member)
-                        <a href="{{ route('group.self-records', ['group' => $group->id, 'date' => $date, 'user_id' => $member->id]) }}">
-                            {{ $member->name }}
-                            @if($group->uses_grades && $member->grade_level)
-                                <small>{{ $member->grade_level }}年</small>
-                            @endif
-                        </a>
-                    @empty
-                        <span class="text-muted small">追加できるメンバーはいません。</span>
-                    @endforelse
-                </div>
-            </details>
+            @if($canManageSelfRecords)
+                <details class="self-member-picker">
+                    <summary>参加者を追加</summary>
+                    <div class="self-member-picker-list">
+                        @forelse($availableMembers as $member)
+                            <a href="{{ route('group.self-records', ['group' => $group->id, 'date' => $date, 'user_id' => $member->id]) }}">
+                                {{ $member->name }}
+                                @if($group->uses_grades && $member->grade_level)
+                                    <small>{{ $member->grade_level }}年</small>
+                                @endif
+                            </a>
+                        @empty
+                            <span class="text-muted small">追加できるメンバーはいません。</span>
+                        @endforelse
+                    </div>
+                </details>
+            @endif
         </div>
 
         <div class="group-member-tabs mb-2">
@@ -89,7 +92,7 @@
             <a href="{{ route('group.self-records', ['group' => $group->id, 'date' => $nextDate]) }}" class="btn btn-outline-secondary">＞</a>
         </div>
 
-        @if($selectedUser)
+        @if($selectedUser && $canManageSelfRecords)
             <form method="POST" action="{{ route('group.self-records.store', $group) }}" class="mb-0">
                 @csrf
                 <input type="hidden" name="date" value="{{ $date }}">
@@ -105,7 +108,13 @@
         <div class="self-empty-state">
             @if($activeMembers->isEmpty())
                 <strong>自主練する人を選んで始めます。</strong>
-                <p>上の「参加者を追加」から、この日に自主練するメンバーを選んでください。</p>
+                <p>
+                    @if($canManageSelfRecords)
+                        上の「参加者を追加」から、この日に自主練するメンバーを選んでください。
+                    @else
+                        この日の自主練記録はまだありません。
+                    @endif
+                </p>
             @else
                 <strong>記録する人を選んでください。</strong>
                 <p>上の参加者タブから、記録を入力するメンバーを選んでください。</p>
@@ -122,9 +131,11 @@
                 <div class="d-flex align-items-center justify-content-between">
                     <div class="d-flex align-items-center">
                         <strong>{{ $record->tate_no }}立目</strong>
-                        <button class="delete-record ms-2" data-id="{{ $record->id }}" title="立を削除">
-                            <i class="fas fa-trash-alt"></i>
-                        </button>
+                        @if($canManageSelfRecords)
+                            <button class="delete-record ms-2" data-id="{{ $record->id }}" title="立を削除">
+                                <i class="fas fa-trash-alt"></i>
+                            </button>
+                        @endif
                     </div>
                     <span id="result-{{ $record->id }}" class="record-result">
                         <span class="hit-count">{{ $record->shots->where('result', 'hit')->count() }}/4</span>
@@ -139,7 +150,8 @@
                                 data-result="{{ $shot->result }}"
                                 data-numeric-score="{{ $shot->numeric_score }}"
                                 style="{{ $numericShotStyle($shot) }}"
-                                title="クリックで入力">
+                                title="{{ $canManageSelfRecords ? 'クリックで入力' : '閲覧のみ' }}"
+                                {{ $canManageSelfRecords ? '' : 'disabled' }}>
                             @if(!is_null($shot->numeric_score))
                                 {{ $shot->numeric_score }}
                             @elseif($shot->result == 'hit')

@@ -28,15 +28,7 @@
     @endif
 
     @php
-        $heightOptions = [
-            0 => '標準',
-            30 => '少し下',
-            60 => '下',
-            90 => 'かなり下',
-            120 => '最大',
-        ];
-        $selectedHeight = (int) old('official_record_height_extra', $user->official_record_height_extra ?? 60);
-        $selectedMatchHeight = (int) old('match_record_height_extra', $user->match_record_height_extra ?? 60);
+        $selectedLineupPoolHeightLevel = (int) old('lineup_pool_height_level', $user->lineup_pool_height_level ?? 5);
     @endphp
 
     <div class="card shadow-sm mb-3">
@@ -49,33 +41,17 @@
                 @method('PATCH')
 
                 <div class="mb-3">
-                    <label for="official_record_height_extra" class="form-label">記録欄の下位置</label>
-                    <select id="official_record_height_extra"
-                            name="official_record_height_extra"
-                            class="form-select @error('official_record_height_extra') is-invalid @enderror">
-                        @foreach($heightOptions as $value => $label)
-                            <option value="{{ $value }}" {{ $selectedHeight === $value ? 'selected' : '' }}>
-                                {{ $label }}
+                    <label for="lineup_pool_height_level" class="form-label">立順未配置欄の高さ</label>
+                    <select id="lineup_pool_height_level"
+                            name="lineup_pool_height_level"
+                            class="form-select @error('lineup_pool_height_level') is-invalid @enderror">
+                        @for($i = 1; $i <= 10; $i++)
+                            <option value="{{ $i }}" {{ $selectedLineupPoolHeightLevel === $i ? 'selected' : '' }}>
+                                {{ $i }}
                             </option>
-                        @endforeach
+                        @endfor
                     </select>
-                    @error('official_record_height_extra')
-                        <div class="invalid-feedback">{{ $message }}</div>
-                    @enderror
-                </div>
-
-                <div class="mb-3">
-                    <label for="match_record_height_extra" class="form-label">試合記録欄の下位置</label>
-                    <select id="match_record_height_extra"
-                            name="match_record_height_extra"
-                            class="form-select @error('match_record_height_extra') is-invalid @enderror">
-                        @foreach($heightOptions as $value => $label)
-                            <option value="{{ $value }}" {{ $selectedMatchHeight === $value ? 'selected' : '' }}>
-                                {{ $label }}
-                            </option>
-                        @endforeach
-                    </select>
-                    @error('match_record_height_extra')
+                    @error('lineup_pool_height_level')
                         <div class="invalid-feedback">{{ $message }}</div>
                     @enderror
                 </div>

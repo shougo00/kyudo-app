@@ -16,13 +16,21 @@ class GroupSelfRecordController extends Controller
 {
     public function index(Request $request, Group $group): View
     {
-        $this->authorizeHost($group);
+        $this->authorizeView($group);
 
         $date = $request->date ?? date('Y-m-d');
         $members = $this->members($group);
         $memberIds = $members->pluck('id')->values();
         $sessionKey = $this->participantSessionKey($group, $date);
         $participantIds = $this->participantIds($request, $memberIds, $group, $date);
+        $recordedUserIds = Record::whereIn('user_id', $memberIds)
+            ->where('date', $date)
+            ->where('practice_type', 'self')
+            ->pluck('user_id');
+        $participantIds = $participantIds
+            ->merge($recordedUserIds)
+            ->unique()
+            ->values();
 
         if ($request->filled('user_id')) {
             $requestedUserId = (int) $request->query('user_id');
@@ -35,7 +43,8 @@ class GroupSelfRecordController extends Controller
         $participantIds = $participantIds->unique()->values();
         $request->session()->put($sessionKey, $participantIds->all());
         $activeMembers = $members->whereIn('id', $participantIds)->values();
-        $selectedUser = $this->selectedUser($request, $members);
+        $selectedUser = $this->selectedUser($request, $members, $activeMembers);
+        $canManageSelfRecords = $this->canManage($group);
 
         $availableMembers = $members
             ->reject(fn(User $member) => $activeMembers->contains('id', $member->id))
@@ -82,7 +91,8 @@ class GroupSelfRecordController extends Controller
             'totalShots',
             'totalHits',
             'hitRate',
-            'numericScoreOptions'
+            'numericScoreOptions',
+            'canManageSelfRecords'
         ));
     }
 
@@ -168,11 +178,25 @@ class GroupSelfRecordController extends Controller
 
     private function authorizeHost(Group $group): void
     {
-        $user = auth()->user();
-
-        if (!$user || ($user->username !== 'KANRI' && (int) $group->host_user_id !== (int) $user->id)) {
+        if (!$this->canManage($group)) {
             abort(403, 'ホストだけがグループ自主練記録を操作できます');
         }
+    }
+
+    private function authorizeView(Group $group): void
+    {
+        $user = auth()->user();
+
+        if (!$user || ($user->username !== 'KANRI' && !$user->groups()->where('groups.id', $group->id)->exists())) {
+            abort(403, 'このグループにはアクセスできません');
+        }
+    }
+
+    private function canManage(Group $group): bool
+    {
+        $user = auth()->user();
+
+        return $user && ($user->username === 'KANRI' || (int) $group->host_user_id === (int) $user->id);
     }
 
     private function members(Group $group)
@@ -184,13 +208,17 @@ class GroupSelfRecordController extends Controller
             ->get();
     }
 
-    private function selectedUser(Request $request, $members): ?User
+    private function selectedUser(Request $request, $members, $activeMembers): ?User
     {
-        if ($members->isEmpty() || !$request->filled('user_id')) {
+        if ($members->isEmpty()) {
             return null;
         }
 
-        return $members->firstWhere('id', (int) $request->query('user_id'));
+        if ($request->filled('user_id')) {
+            return $members->firstWhere('id', (int) $request->query('user_id'));
+        }
+
+        return $activeMembers->first();
     }
 
     private function participantIds(Request $request, $memberIds, Group $group, string $date)

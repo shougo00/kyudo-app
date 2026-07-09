@@ -311,7 +311,7 @@
                 {{-- 全員共通 --}}
                 <li class="nav-item mb-2">
                     <a class="nav-link" href="#" onclick="goGroupRecord()">
-                        グループ 的中記録（正規連）
+                        グループ的中記録（正規連）
                     </a>
                 </li>
 

@@ -27,7 +27,11 @@
         return $gradeColors->get((string) $user->grade_level) ?? $gradeColors->get((int) $user->grade_level);
     };
 @endphp
-<div class="container py-3">
+@php
+    $lineupPoolHeightLevel = max(1, min(10, (int) (auth()->user()?->lineup_pool_height_level ?? 5)));
+    $lineupPoolMaxHeight = 14 + ($lineupPoolHeightLevel * 4);
+@endphp
+<div class="container py-3" style="--lineup-pool-max-height: {{ $lineupPoolMaxHeight }}dvh;">
 
 <div class="d-flex justify-content-between align-items-center mb-2">
     <h4 class="lineup-title mb-0">

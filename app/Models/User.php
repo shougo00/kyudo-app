@@ -35,6 +35,7 @@ class User extends Authenticatable
         'official_record_height_extra',
         'match_record_height_extra',
         'uses_camera',
+        'lineup_pool_height_level',
         'line_user_id',
         'line_link_code',
     ];
@@ -65,6 +66,7 @@ class User extends Authenticatable
             'all_absent' => 'boolean',
             'attendance_weekdays' => 'array',
             'uses_camera' => 'boolean',
+            'lineup_pool_height_level' => 'integer',
         ];
     }
 

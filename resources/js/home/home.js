@@ -11,6 +11,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!container) return;
 
     let type = container.dataset.type;
+    const readonly = container.dataset.readonly === '1';
     const shotUrlTemplate = container.dataset.shotUrl || '/shots/__ID__';
     const recordUrlTemplate = container.dataset.recordUrl || '/records/__ID__';
 
@@ -151,6 +152,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     updateBackground();
-    initShotButtons();
-    initDeleteButtons();
+    if (!readonly) {
+        initShotButtons();
+        initDeleteButtons();
+    }
 });

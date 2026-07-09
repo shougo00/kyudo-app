@@ -154,19 +154,9 @@
     border-color: #fbc02d !important;
 }
 
-.member .match-badge {
-    flex: 0 0 auto;
-    min-width: 18px;
-    height: 18px;
-    border-radius: 999px;
-    background: #dc3545;
-    color: #fff;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 11px;
-    font-weight: 800;
-    line-height: 1;
+.member.in-latest-match {
+    color: #dc3545 !important;
+    font-weight: 900;
 }
 
 .member.late::after,
@@ -249,7 +239,7 @@
     flex-wrap: wrap;
     gap: 10px;
     min-height: 80px;
-    max-height: 34dvh;
+    max-height: var(--lineup-pool-max-height, 34dvh);
     overflow: auto;
     border: 2px dashed #ddd;
     padding: 10px;

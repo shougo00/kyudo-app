@@ -31,8 +31,8 @@ class GroupRecordController extends Controller
         $group = Group::with('users')->findOrFail($groupId);
         $date = $request->date ?? date('Y-m-d');
         $maxTatesPerPage = max(1, (int) ($group->official_tates_per_page ?? 5));
-        $recordHeightExtra = max(0, min(120, (int) (auth()->user()?->official_record_height_extra ?? 60)));
-        $matchRecordHeightExtra = max(0, min(120, (int) (auth()->user()?->match_record_height_extra ?? 60)));
+        $recordHeightExtra = 60;
+        $matchRecordHeightExtra = 60;
 
         if ($practiceType === 'match') {
             return $this->showMatchRecords($request, $group, $date);

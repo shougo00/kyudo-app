@@ -99,14 +99,12 @@ class SettingController extends Controller
     public function updateUser(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'official_record_height_extra' => ['required', 'integer', 'in:0,30,60,90,120'],
-            'match_record_height_extra' => ['required', 'integer', 'in:0,30,60,90,120'],
+            'lineup_pool_height_level' => ['required', 'integer', 'min:1', 'max:10'],
             'uses_camera' => ['nullable', 'boolean'],
         ]);
 
         $request->user()->update([
-            'official_record_height_extra' => $validated['official_record_height_extra'],
-            'match_record_height_extra' => $validated['match_record_height_extra'],
+            'lineup_pool_height_level' => $validated['lineup_pool_height_level'],
             'uses_camera' => $request->boolean('uses_camera'),
         ]);
 
