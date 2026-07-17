@@ -4,8 +4,10 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 
+use App\Models\Group;
 use App\Models\Record;
 use App\Models\Shot;
+use App\Models\User;
 use Carbon\Carbon;
 
 class RecordController extends Controller
@@ -147,10 +149,31 @@ class RecordController extends Controller
     }
     public function dashboard(Request $request)
     {
-        $userId = auth()->id();
-        $groupId = auth()->user()?->groups()->value('groups.id');
+        $viewer = auth()->user();
+        $targetUser = $viewer;
+        $targetGroup = null;
+
+        if ($request->filled('user_id')) {
+            $targetGroup = Group::findOrFail($request->integer('group_id'));
+
+            if ($viewer?->username !== 'KANRI' && !$targetGroup->users()->where('users.id', $viewer->id)->exists()) {
+                abort(403);
+            }
+
+            $targetUser = User::where('is_admin', false)->findOrFail($request->integer('user_id'));
+
+            if (!$targetGroup->users()->where('users.id', $targetUser->id)->exists()) {
+                abort(404);
+            }
+        }
+
+        $userId = $targetUser->id;
+        $isViewingOwnHistory = (int) $userId === (int) $viewer->id;
 
         $type = $request->type ?? 'all';
+        if ($type === 'match') {
+            $type = 'official';
+        }
 
         // 月
         $month = $request->month ?? now()->format('Y-m');
@@ -184,15 +207,13 @@ class RecordController extends Controller
             ->where('date', $today)
             ->get();
 
-        $todayOfficial = $calc($todayRecords->where('practice_type','official'));
+        $todayOfficial = $calc($todayRecords->whereIn('practice_type',['official', 'match']));
         $todaySelf     = $calc($todayRecords->where('practice_type','self'));
-        $todayMatch    = $calc($todayRecords->where('practice_type','match'));
         $todayAll      = $calc($todayRecords);
 
         // ===== 月間 =====
-        $monthOfficial = $calc($records->where('practice_type','official'));
+        $monthOfficial = $calc($records->whereIn('practice_type',['official', 'match']));
         $monthSelf     = $calc($records->where('practice_type','self'));
-        $monthMatch    = $calc($records->where('practice_type','match'));
         $monthAll      = $calc($records);
 
         // ===== 年間 =====
@@ -205,18 +226,16 @@ class RecordController extends Controller
             ->whereBetween('date', [$yearStart, $yearEnd])
             ->get();
 
-        $yearOfficial = $calc($yearRecords->where('practice_type','official'));
+        $yearOfficial = $calc($yearRecords->whereIn('practice_type',['official', 'match']));
         $yearSelf     = $calc($yearRecords->where('practice_type','self'));
-        $yearMatch    = $calc($yearRecords->where('practice_type','match'));
         $yearAll      = $calc($yearRecords);
 
         // ===== カレンダー =====
         $calendar = [];
         foreach ($records->groupBy('date') as $date => $dayRecords) {
             $calendar[$date] = [
-                'official' => $calc($dayRecords->where('practice_type','official')),
+                'official' => $calc($dayRecords->whereIn('practice_type',['official', 'match'])),
                 'self'     => $calc($dayRecords->where('practice_type','self')),
-                'match'    => $calc($dayRecords->where('practice_type','match')),
                 'all'      => $calc($dayRecords),
             ];
         }
@@ -226,11 +245,13 @@ class RecordController extends Controller
             'month',
             'prevMonth',
             'nextMonth',
-            'groupId',
             'type',
-            'todayOfficial','todaySelf','todayMatch','todayAll',
-            'monthOfficial','monthSelf','monthMatch','monthAll',
-            'yearOfficial','yearSelf','yearMatch','yearAll'
+            'targetUser',
+            'targetGroup',
+            'isViewingOwnHistory',
+            'todayOfficial','todaySelf','todayAll',
+            'monthOfficial','monthSelf','monthAll',
+            'yearOfficial','yearSelf','yearAll'
         ));
     }
 }

@@ -30,6 +30,7 @@
 @php
     $lineupPoolHeightLevel = max(1, min(10, (int) (auth()->user()?->lineup_pool_height_level ?? 5)));
     $lineupPoolMaxHeight = 14 + ($lineupPoolHeightLevel * 4);
+    $canEditLineup = (bool) ($canEditLineup ?? true);
 @endphp
 <div class="container py-3" style="--lineup-pool-max-height: {{ $lineupPoolMaxHeight }}dvh;">
 
@@ -63,26 +64,26 @@
 
 {{-- 操作ボタン --}}
 <div class="lineup-toolbar mb-2">
-    <select id="tateSize" class="form-select toolbar-item">
+    <select id="tateSize" class="form-select toolbar-item" {{ $canEditLineup ? '' : 'disabled' }}>
         @for($i = 3; $i <= 15; $i++)
             <option value="{{ $i }}" {{ $lineup->tate_size == $i ? 'selected' : '' }}>
                 {{ $i }}人立
             </option>
         @endfor
     </select>
-    <button type="button" class="btn btn-outline-primary toolbar-btn" onclick="addLineupRow()">
+    <button type="button" class="btn btn-outline-primary toolbar-btn" onclick="addLineupRow()" {{ $canEditLineup ? '' : 'disabled' }}>
         ＋列追加
     </button>
     <form method="POST" action="/lineup/{{ $lineup->id }}/copy-previous" class="toolbar-form">
         @csrf
-        <button type="submit" class="btn btn-outline-info toolbar-btn">
+        <button type="submit" class="btn btn-outline-info toolbar-btn" {{ $canEditLineup ? '' : 'disabled' }}>
             前回コピー
         </button>
     </form>
-    <button type="button" class="btn btn-secondary toolbar-btn" onclick="randomize()">
+    <button type="button" class="btn btn-secondary toolbar-btn" onclick="randomize()" {{ $canEditLineup ? '' : 'disabled' }}>
         ランダム配置
     </button>
-    <button type="button" class="btn btn-outline-danger toolbar-btn" onclick="clearAll()">
+    <button type="button" class="btn btn-outline-danger toolbar-btn" onclick="clearAll()" {{ $canEditLineup ? '' : 'disabled' }}>
     全員未配置
     </button>
 </div>
@@ -162,6 +163,7 @@
 window.lineupData = {
     lineupId: {{ $lineup->id }},
     usesGrades: @json($usesGrades),
+    canEdit: @json($canEditLineup),
 };
 </script>
 @endsection

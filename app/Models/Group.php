@@ -10,6 +10,8 @@ class Group extends Model
         'host_user_id',
         'invite_code',
         'official_tates_per_page',
+        'show_group_records_to_members',
+        'allow_members_edit_group_records',
         'uses_grades',
         'grade_count',
         'grade_colors',
@@ -19,6 +21,8 @@ class Group extends Model
 
     protected $casts = [
         'official_tates_per_page' => 'integer',
+        'show_group_records_to_members' => 'boolean',
+        'allow_members_edit_group_records' => 'boolean',
         'uses_grades' => 'boolean',
         'grade_count' => 'integer',
         'grade_colors' => 'array',

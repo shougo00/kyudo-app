@@ -77,6 +77,27 @@
                     @enderror
                 </div>
 
+                <div class="mb-3">
+                    <label class="form-label">ホストユーザー</label>
+                    <div class="form-check form-switch">
+                        <input class="form-check-input"
+                               type="checkbox"
+                               id="is_admin"
+                               name="is_admin"
+                               value="1"
+                               {{ old('is_admin', $user->is_admin ?? false) ? 'checked' : '' }}>
+                        <label class="form-check-label" for="is_admin">
+                            タブレットなどで使用するホストユーザーとしてON
+                        </label>
+                    </div>
+                    <div class="text-muted small mt-1">
+                        オンの場合、ログイン後にグループ履歴へ移動します。
+                    </div>
+                    @error('is_admin')
+                        <div class="text-danger small mt-1">{{ $message }}</div>
+                    @enderror
+                </div>
+
                 <button class="btn btn-primary">ユーザー設定を保存</button>
             </form>
         </div>
@@ -135,6 +156,48 @@
                         </select>
                         @error('official_tates_per_page')
                             <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">グループ記録画面の表示（グループ設定）</label>
+                        <div class="form-check form-switch">
+                            <input class="form-check-input"
+                                   type="checkbox"
+                                   id="show_group_records_to_members"
+                                   name="show_group_records_to_members"
+                                   value="1"
+                                   {{ old('show_group_records_to_members', $group->show_group_records_to_members ?? false) ? 'checked' : '' }}>
+                            <label class="form-check-label" for="show_group_records_to_members">
+                                ホスト以外にもグループ的中記録（正規連）を表示する
+                            </label>
+                        </div>
+                        <div class="text-muted small mt-1">
+                            オフの場合、ホスト以外のメニューには正規連のグループ記録を表示しません。自主練は常にホストのみ表示します。
+                        </div>
+                        @error('show_group_records_to_members')
+                            <div class="text-danger small mt-1">{{ $message }}</div>
+                        @enderror
+                    </div>
+
+                    <div class="mb-3 ms-3 ps-2 border-start">
+                        <label class="form-label">ホスト以外の編集権限（グループ設定）</label>
+                        <div class="form-check form-switch">
+                            <input class="form-check-input"
+                                   type="checkbox"
+                                   id="allow_members_edit_group_records"
+                                   name="allow_members_edit_group_records"
+                                   value="1"
+                                   {{ old('allow_members_edit_group_records', $group->allow_members_edit_group_records ?? false) ? 'checked' : '' }}>
+                            <label class="form-check-label" for="allow_members_edit_group_records">
+                                ホスト以外も正規連の立順変更・的中入力をできるようにする
+                            </label>
+                        </div>
+                        <div class="text-muted small mt-1">
+                            オフの場合、ホスト以外は閲覧のみになります。
+                        </div>
+                        @error('allow_members_edit_group_records')
+                            <div class="text-danger small mt-1">{{ $message }}</div>
                         @enderror
                     </div>
 
@@ -298,6 +361,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const toggle = document.getElementById('uses_grades');
     const settings = document.getElementById('gradeSettings');
     const count = document.getElementById('grade_count');
+    const showGroupRecordsToggle = document.getElementById('show_group_records_to_members');
+    const editGroupRecordsToggle = document.getElementById('allow_members_edit_group_records');
 
     function refreshGradeSettings() {
         if (!settings || !toggle || !count) return;
@@ -331,6 +396,20 @@ document.addEventListener('DOMContentLoaded', () => {
     if (count) count.addEventListener('change', refreshGradeSettings);
 
     refreshGradeSettings();
+
+    function refreshGroupRecordEditSetting() {
+        if (!showGroupRecordsToggle || !editGroupRecordsToggle) return;
+
+        editGroupRecordsToggle.disabled = !showGroupRecordsToggle.checked;
+        if (!showGroupRecordsToggle.checked) {
+            editGroupRecordsToggle.checked = false;
+        }
+    }
+
+    if (showGroupRecordsToggle) {
+        showGroupRecordsToggle.addEventListener('change', refreshGroupRecordEditSetting);
+    }
+    refreshGroupRecordEditSetting();
 });
 
 function addNumericScoreRow() {

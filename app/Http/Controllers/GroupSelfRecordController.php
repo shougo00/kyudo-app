@@ -179,7 +179,7 @@ class GroupSelfRecordController extends Controller
     private function authorizeHost(Group $group): void
     {
         if (!$this->canManage($group)) {
-            abort(403, 'ホストだけがグループ自主練記録を操作できます');
+            abort(403, 'グループ自主練記録を編集できません');
         }
     }
 
@@ -190,13 +190,25 @@ class GroupSelfRecordController extends Controller
         if (!$user || ($user->username !== 'KANRI' && !$user->groups()->where('groups.id', $group->id)->exists())) {
             abort(403, 'このグループにはアクセスできません');
         }
+
+        if (!$this->isHostOrAdmin($group, $user)) {
+            abort(403, 'ホスト以外はグループ自主練記録を表示できません');
+        }
     }
 
     private function canManage(Group $group): bool
     {
         $user = auth()->user();
 
-        return $user && ($user->username === 'KANRI' || (int) $group->host_user_id === (int) $user->id);
+        return $this->isHostOrAdmin($group, $user);
+    }
+
+    private function isHostOrAdmin(Group $group, $user): bool
+    {
+        return $user && (
+            $user->username === 'KANRI'
+            || (int) $group->host_user_id === (int) $user->id
+        );
     }
 
     private function members(Group $group)

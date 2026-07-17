@@ -26,13 +26,14 @@ class GroupRecordController extends Controller
 
     private function showRecords(Request $request, $groupId, string $practiceType)
     {
-        $this->checkGroupAccess($groupId);
+        $this->checkGroupAccess($groupId, $practiceType === 'official');
 
         $group = Group::with('users')->findOrFail($groupId);
         $date = $request->date ?? date('Y-m-d');
         $maxTatesPerPage = max(1, (int) ($group->official_tates_per_page ?? 5));
         $recordHeightExtra = 60;
         $matchRecordHeightExtra = 60;
+        $canEditGroupRecords = $practiceType === 'match' || $this->canEditGroupRecords($group);
 
         if ($practiceType === 'match') {
             return $this->showMatchRecords($request, $group, $date);
@@ -110,6 +111,10 @@ class GroupRecordController extends Controller
 
         $isCurrentSheet = $activeSheetNo === (int) ($sheetNos->max() ?? 1);
 
+        if ($isCurrentSheet && $userIds->isEmpty()) {
+            $this->deleteEmptyOfficialSheetRecords($groupUserIds, $date, $activeSheetNo);
+        }
+
         if ($isCurrentSheet) {
             $this->createInitialOfficialSheetRecordsIfNeeded(
                 $group,
@@ -171,11 +176,13 @@ class GroupRecordController extends Controller
                 ->contains(fn($shot) => !is_null($shot->result)));
 
         $records = $recordRows->groupBy('user_id');
-        $users = $users
-            ->merge($recordRows->pluck('user')->filter())
-            ->filter()
-            ->unique('id')
-            ->values();
+        if ($lineupSlots->isNotEmpty()) {
+            $users = $users
+                ->merge($recordRows->pluck('user')->filter())
+                ->filter()
+                ->unique('id')
+                ->values();
+        }
 
         $hitCounts = [];
         $numericCounts = [];
@@ -201,6 +208,12 @@ class GroupRecordController extends Controller
         foreach ($tates as $tateNo) {
             if ($isCurrentSheet && $lineupSlots->isNotEmpty()) {
                 $officialTateSlots->put($tateNo, $lineupSlots);
+                $officialTateSizes->put($tateNo, $tateSize);
+                continue;
+            }
+
+            if ($isCurrentSheet && $lineupSlots->isEmpty()) {
+                $officialTateSlots->put($tateNo, collect());
                 $officialTateSizes->put($tateNo, $tateSize);
                 continue;
             }
@@ -295,13 +308,15 @@ class GroupRecordController extends Controller
             'recordHeightExtra',
             'matchRecordHeightExtra',
             'activeSheetScoringMode',
-            'canSwitchOfficialSheet'
+            'canSwitchOfficialSheet',
+            'canEditGroupRecords'
         ));
     }
 
     private function showMatchRecords(Request $request, Group $group, string $date)
     {
         $groupId = $group->id;
+        $canEditGroupRecords = true;
         $matchAttendanceByUserId = $this->attendanceMembersByUserId($group, $date);
         $teams = MatchTeam::withTrashed()
             ->with(['members' => function ($q) use ($date) {
@@ -492,7 +507,8 @@ class GroupRecordController extends Controller
             'matchTeamTates',
             'matchTeamSlots',
             'matchTateMetas',
-            'matchAttendanceByUserId'
+            'matchAttendanceByUserId',
+            'canEditGroupRecords'
         ));
     }
 
@@ -562,9 +578,30 @@ class GroupRecordController extends Controller
         );
     }
 
+    private function deleteEmptyOfficialSheetRecords($groupUserIds, string $date, int $activeSheetNo): void
+    {
+        $recordIds = Record::whereIn('user_id', $groupUserIds)
+            ->where('date', $date)
+            ->where('practice_type', 'official')
+            ->where('official_sheet_no', $activeSheetNo)
+            ->whereDoesntHave('shots', function ($query) {
+                $query
+                    ->whereNotNull('result')
+                    ->orWhereNotNull('numeric_score');
+            })
+            ->pluck('id');
+
+        if ($recordIds->isEmpty()) {
+            return;
+        }
+
+        Shot::whereIn('record_id', $recordIds)->delete();
+        Record::whereIn('id', $recordIds)->delete();
+    }
+
     public function switchOfficialSheet(Request $request, $groupId)
     {
-        $this->checkGroupAccess($groupId);
+        $this->checkGroupAccess($groupId, true, true);
 
         $group = Group::with('users')->findOrFail($groupId);
         $date = $request->date ?? date('Y-m-d');
@@ -668,7 +705,7 @@ class GroupRecordController extends Controller
 
     public function updateOfficialScoringMode(Request $request, $groupId)
     {
-        $this->checkGroupAccess($groupId);
+        $this->checkGroupAccess($groupId, true, true);
 
         $validated = $request->validate([
             'date' => ['required', 'date'],
@@ -720,7 +757,7 @@ class GroupRecordController extends Controller
 
     private function addTateForType(Request $request, $groupId, string $practiceType)
     {
-        $this->checkGroupAccess($groupId);
+        $this->checkGroupAccess($groupId, $practiceType === 'official', $practiceType === 'official');
 
         $group = Group::with('users')->findOrFail($groupId);
         $date = $request->date ?? date('Y-m-d');
@@ -846,7 +883,7 @@ class GroupRecordController extends Controller
         }
 
         if ($groupId) {
-            $this->checkGroupAccess($groupId);
+            $this->checkGroupAccess($groupId, $record->practice_type === 'official', $record->practice_type === 'official');
         }
 
         $shot->result = $request->result ?: null;
@@ -860,13 +897,51 @@ class GroupRecordController extends Controller
         return response()->json(['success' => true]);
     }
 
-    private function checkGroupAccess($groupId): void
+    private function checkGroupAccess($groupId, bool $requiresGroupRecordPermission = false, bool $requiresGroupRecordEditPermission = false): void
     {
         $user = auth()->user();
+
+        $group = Group::findOrFail($groupId);
 
         if (!$user || ($user->username !== 'KANRI' && !$user->groups()->where('groups.id', $groupId)->exists())) {
             abort(403, 'このグループにはアクセスできません');
         }
+
+        if ($this->isGroupHostOrAdmin($group, $user)) {
+            return;
+        }
+
+        if (
+            ($requiresGroupRecordPermission || $requiresGroupRecordEditPermission)
+            && $user->username !== 'KANRI'
+            && !$group->show_group_records_to_members
+        ) {
+            abort(403, 'ホスト以外はグループ記録画面を表示できません');
+        }
+
+        if (
+            $requiresGroupRecordEditPermission
+            && !$group->allow_members_edit_group_records
+        ) {
+            abort(403, 'ホスト以外はグループ記録を編集できません');
+        }
+    }
+
+    private function isGroupHostOrAdmin(Group $group, $user): bool
+    {
+        return $user
+            && (
+                $user->username === 'KANRI'
+                || (int) $group->host_user_id === (int) $user->id
+            );
+    }
+
+    private function canEditGroupRecords(Group $group): bool
+    {
+        $user = auth()->user();
+
+        return $this->isGroupHostOrAdmin($group, $user)
+            || ((bool) $group->show_group_records_to_members && (bool) $group->allow_members_edit_group_records);
     }
 
     private function syncLineupMembers(Lineup $lineup, Group $group): void

@@ -1,4 +1,45 @@
 /* ===== 今日・月間・年間 ===== */
+.history-viewing-user {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 10px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: #111;
+    color: #fff;
+    font-weight: 700;
+}
+
+.history-viewing-label {
+    display: block;
+    color: #ccc;
+    font-size: 11px;
+    font-weight: 600;
+    margin-bottom: 2px;
+}
+
+.history-back-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 32px;
+    padding: 5px 12px;
+    border-radius: 8px;
+    background: #fff;
+    color: #111;
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.history-back-button:hover {
+    color: #111;
+    background: #f1f1f1;
+}
+
 .summary-wrapper { display: flex; justify-content: space-between; margin-bottom: 10px; flex-wrap: wrap; }
 .summary-box { font-size: 13px; }
 .summary-box .summary-title { color: #888; font-size: 11px; margin-bottom: 2px; }
@@ -40,11 +81,19 @@
 /* カレンダー全体背景 */
 .bg-official { background-color: #ffe6e6; }
 .bg-self     { background-color: #e6f2ff; }
-.bg-match    { background-color: #fff3bf; }
 .bg-all      { background-color: #e0e0e0; }
 
 /* スマホ対応 */
 @media (max-width: 600px) {
+    .history-viewing-user {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .history-back-button {
+        width: 100%;
+    }
+
     .summary-title{  font-size: 20px !important; }
     .summary-wrapper { flex-direction: column; gap: 15px; }
     .summary-box { text-align: center !important; font-size: 20px; }
@@ -75,6 +124,50 @@
     width: 100%;
 }
 
+.chart-filter-controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid #eee;
+}
+
+.chart-filter-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    margin: 0;
+    font-size: 13px;
+    font-weight: 700;
+    color: #333;
+}
+
+.chart-filter-toggle input {
+    width: 18px;
+    height: 18px;
+    accent-color: #111;
+}
+
+.chart-filter-threshold {
+    margin: 0;
+}
+
+.chart-filter-threshold select {
+    min-height: 34px;
+    padding: 4px 28px 4px 10px;
+    border: 1px solid #bbb;
+    border-radius: 8px;
+    background: #fff;
+    font-weight: 700;
+}
+
+.chart-filter-threshold select:disabled {
+    opacity: 0.5;
+}
+
 #overallRateChart {
     width: 100%;
     max-height: 260px;
@@ -87,6 +180,15 @@
 
     .rate-chart-card {
         padding: 10px;
+    }
+
+    .chart-filter-controls {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .chart-filter-threshold select {
+        width: 100%;
     }
 
     #overallRateChart {

@@ -147,6 +147,38 @@
     margin-bottom: 6px;
 }
 
+.name-with-action {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 6px;
+}
+
+.name-with-action .user-name {
+    margin-bottom: 0;
+}
+
+.detail-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 28px;
+    padding: 4px 10px;
+    border-radius: 8px;
+    border: 1px solid #222;
+    color: #222;
+    text-decoration: none;
+    font-size: 12px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.detail-link:hover {
+    background: #222;
+    color: #fff;
+}
+
 .score-line {
     display: flex;
     justify-content: space-between;
@@ -240,6 +272,7 @@
     .filter-actions .btn {
         width: 100%;
     }
+
 }
 
 /* 印刷時だけ表を出す */

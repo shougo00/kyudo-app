@@ -133,7 +133,7 @@ Route::middleware([ 'verified'])->group(function () {
     Route::get('/group/{group}/history', [GroupHistoryController::class, 'index'])
         ->name('group.history')
         ->middleware('auth');
-    
+
     Route::get('/group/{group}/monthly-print', [GroupHistoryController::class, 'monthlyPrint'])
     ->name('group.monthlyPrint');
     Route::get('/group/{group}/monthly-csv', [GroupHistoryController::class, 'monthlyCsv'])

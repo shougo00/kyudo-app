@@ -26,7 +26,6 @@ class ProfileUpdateRequest extends FormRequest
                 Rule::unique('users', 'username')->ignore($this->user()->id),
             ],
 
-            'is_admin' => ['nullable', 'boolean'],
             'gender' => ['required', 'in:male,female'],
             'grade_level' => $gradeRules,
         ];

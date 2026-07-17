@@ -16,6 +16,7 @@
     $otherRecordPath = $otherRecordPath ?? "/group/{$group->id}/match-records";
     $otherRecordLabel = $otherRecordLabel ?? '試合用記録';
     $practiceType = $practiceType ?? 'official';
+    $canEditGroupRecords = (bool) ($canEditGroupRecords ?? true);
     $activeSheetNo = $activeSheetNo ?? 1;
     $sheetNos = $sheetNos ?? collect([1]);
     $isCurrentSheet = $isCurrentSheet ?? true;
@@ -87,6 +88,7 @@ window.numericScoreOptions = @json($numericScoreOptions);
 window.groupRecordData = {
     groupId: {{ $group->id }},
     usesGrades: @json($usesGrades),
+    canEdit: @json($canEditGroupRecords),
 };
 </script>
 
@@ -317,6 +319,7 @@ window.groupRecordData = {
                                data-date="{{ $date }}"
                                data-sheet-no="{{ $activeSheetNo }}"
                                {{ ($activeSheetScoringMode ?? 'hit_miss') === 'numeric' ? 'checked' : '' }}
+                               {{ $canEditGroupRecords ? '' : 'disabled' }}
                                onchange="toggleScoringMode(this)">
                         <span>数字</span>
                     </label>
@@ -338,7 +341,7 @@ window.groupRecordData = {
                 @endforeach
             </div>
 
-            @if($isCurrentSheet)
+            @if($isCurrentSheet && $canEditGroupRecords)
                 <div class="official-sheet-actions">
                     <form method="POST"
                           action="/group/{{ $group->id }}/records/switch-sheet"
@@ -643,6 +646,7 @@ window.groupRecordData = {
     </div>
 @endif
 
+@if($lineupSlots->isNotEmpty())
 <div class="tate-area">
 @foreach($tates as $tateNo)
     @php
@@ -700,7 +704,7 @@ window.groupRecordData = {
                             data-result="{{ $shot?->result ?? '' }}"
                             data-numeric-score="{{ $shot?->numeric_score }}"
                             data-scoring-mode="{{ $activeSheetScoringMode ?? 'hit_miss' }}"
-                            onclick="updateShot(this)">
+                            {{ $canEditGroupRecords ? 'onclick=updateShot(this)' : '' }}>
 
                             @if(($activeSheetScoringMode ?? 'hit_miss') === 'numeric' && !is_null($shot?->numeric_score))
                                 {{ $shot->numeric_score }}
@@ -740,6 +744,7 @@ window.groupRecordData = {
             </div>
         @endforeach
     </div>
+@endif
 @endif
 
 @endif

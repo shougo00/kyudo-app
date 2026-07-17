@@ -202,8 +202,8 @@ class GroupHistoryController extends Controller
 
         if ($period === 'year') {
             return [
-                now()->startOfYear()->format('Y-m-d'),
-                now()->endOfYear()->format('Y-m-d'),
+                now()->subDays(364)->format('Y-m-d'),
+                now()->format('Y-m-d'),
             ];
         }
 

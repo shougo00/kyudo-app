@@ -8,6 +8,7 @@ const lineupSummary = document.getElementById('lineupSummary');
 const selectedMemberLabel = document.getElementById('selectedMemberLabel');
 const poolCount = document.getElementById('poolCount');
 const poolTools = document.getElementById('poolTools');
+const canEditLineup = window.lineupData?.canEdit !== false;
 
 let dragged = null;
 let selectedMember = null;
@@ -45,7 +46,7 @@ function makeMember(sourceEl) {
         div.classList.add('late');
     }
 
-    div.draggable = true;
+    div.draggable = canEditLineup;
     div.dataset.id = sourceEl.dataset.id;
     div.dataset.hasRecord = sourceEl.dataset.hasRecord || '0';
     div.dataset.inLatestMatch = sourceEl.dataset.inLatestMatch || '0';
@@ -61,6 +62,11 @@ function makeMember(sourceEl) {
     if (div.dataset.inLatestMatch === '1') {
         div.classList.add('in-latest-match');
     }
+
+    if (!canEditLineup) {
+        return div;
+    }
+
     // ===== PCドラッグ =====
     div.addEventListener('dragstart', () => {
         dragged = div;
@@ -285,36 +291,38 @@ function renderGrid(minRows = 0) {
         num.className = 'cell-number';
         cell.appendChild(num);
 
-        cell.addEventListener('click', () => {
-            moveSelectedTo(cell);
-        });
+        if (canEditLineup) {
+            cell.addEventListener('click', () => {
+                moveSelectedTo(cell);
+            });
 
-        cell.addEventListener('dragover', e => {
-            e.preventDefault();
-            clearDragOver();
-            cell.classList.add('drag-over');
-        });
+            cell.addEventListener('dragover', e => {
+                e.preventDefault();
+                clearDragOver();
+                cell.classList.add('drag-over');
+            });
 
-        cell.addEventListener('drop', e => {
-            e.preventDefault();
+            cell.addEventListener('drop', e => {
+                e.preventDefault();
 
-            if (!dragged) return;
+                if (!dragged) return;
 
-            const existing = cell.querySelector('.member');
+                const existing = cell.querySelector('.member');
 
-            if (existing && existing !== dragged) {
-                if (!swapMembers(dragged, existing)) {
-                    clearDragOver();
-                    return;
+                if (existing && existing !== dragged) {
+                    if (!swapMembers(dragged, existing)) {
+                        clearDragOver();
+                        return;
+                    }
+                } else {
+                    cell.appendChild(dragged);
                 }
-            } else {
-                cell.appendChild(dragged);
-            }
 
-            clearDragOver();
-            updatePoolView();
-            autoSave();
-        });
+                clearDragOver();
+                updatePoolView();
+                autoSave();
+            });
+        }
 
         grid.appendChild(cell);
     }
@@ -385,6 +393,8 @@ function rerenderKeepingMembers(oldSize, newSize) {
 }
 
 function addLineupRow() {
+    if (!canEditLineup) return;
+
     extraRows++;
     rerenderKeepingMembers(currentTateSize, currentTateSize);
     autoSave();
@@ -450,44 +460,50 @@ function sortPoolMembers() {
         .forEach(member => pool.appendChild(member));
 }
 
-pool.addEventListener('click', () => {
-    moveSelectedTo(pool);
-});
+if (canEditLineup) {
+    pool.addEventListener('click', () => {
+        moveSelectedTo(pool);
+    });
 
-pool.addEventListener('dragover', e => {
-    e.preventDefault();
-    clearDragOver();
-    pool.classList.add('drag-over');
-});
+    pool.addEventListener('dragover', e => {
+        e.preventDefault();
+        clearDragOver();
+        pool.classList.add('drag-over');
+    });
 
-pool.addEventListener('drop', e => {
-    e.preventDefault();
+    pool.addEventListener('drop', e => {
+        e.preventDefault();
 
-    if (dragged) {
-        if (!confirmRemoveRecordedMember(dragged)) {
-            clearDragOver();
-            return;
+        if (dragged) {
+            if (!confirmRemoveRecordedMember(dragged)) {
+                clearDragOver();
+                return;
+            }
+
+            pool.appendChild(dragged);
         }
 
-        pool.appendChild(dragged);
-    }
+        clearDragOver();
+        updatePoolView();
+        autoSave();
+    });
+}
 
-    clearDragOver();
-    updatePoolView();
-    autoSave();
-});
+if (canEditLineup) {
+    tateSelect.addEventListener('change', () => {
+        const newSize = parseInt(tateSelect.value);
 
-tateSelect.addEventListener('change', () => {
-    const newSize = parseInt(tateSelect.value);
+        rerenderKeepingMembers(currentTateSize, newSize);
 
-    rerenderKeepingMembers(currentTateSize, newSize);
+        currentTateSize = newSize;
 
-    currentTateSize = newSize;
-
-    autoSave();
-});
+        autoSave();
+    });
+}
 
 function randomize() {
+    if (!canEditLineup) return;
+
     // 未配置にいる人だけ対象
     const members = Array.from(pool.querySelectorAll('.member'))
         .filter(member =>
@@ -526,6 +542,8 @@ function randomize() {
 }
 
 function autoSave() {
+    if (!canEditLineup) return;
+
     saveStatus.innerText = '保存中...';
 
     clearTimeout(saveTimer);
@@ -536,6 +554,8 @@ function autoSave() {
 }
 
 function save(showAlert = false) {
+    if (!canEditLineup) return;
+
     let list = [];
     const cells = getCellsRightToLeft();
 
@@ -583,6 +603,8 @@ function save(showAlert = false) {
     });
 }
 function clearAll() {
+    if (!canEditLineup) return;
+
     if (!confirm('本当に全員を未配置にしますか？\nページを切り替えていない場合、現在の立順が保存されません。')) {
         return;
     }

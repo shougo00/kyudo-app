@@ -53,6 +53,8 @@ class SettingController extends Controller
 
         $validated = $request->validate([
             'official_tates_per_page' => ['required', 'integer', 'min:1', 'max:10'],
+            'show_group_records_to_members' => ['nullable', 'boolean'],
+            'allow_members_edit_group_records' => ['nullable', 'boolean'],
             'uses_grades' => ['nullable', 'boolean'],
             'grade_count' => ['required', 'integer', 'min:1', 'max:12'],
             'grade_colors' => ['array'],
@@ -87,6 +89,9 @@ class SettingController extends Controller
 
         $group->update([
             'official_tates_per_page' => $validated['official_tates_per_page'],
+            'show_group_records_to_members' => $request->boolean('show_group_records_to_members'),
+            'allow_members_edit_group_records' => $request->boolean('show_group_records_to_members')
+                && $request->boolean('allow_members_edit_group_records'),
             'uses_grades' => $request->boolean('uses_grades'),
             'grade_count' => $gradeCount,
             'grade_colors' => $gradeColors,
@@ -101,11 +106,13 @@ class SettingController extends Controller
         $validated = $request->validate([
             'lineup_pool_height_level' => ['required', 'integer', 'min:1', 'max:10'],
             'uses_camera' => ['nullable', 'boolean'],
+            'is_admin' => ['nullable', 'boolean'],
         ]);
 
         $request->user()->update([
             'lineup_pool_height_level' => $validated['lineup_pool_height_level'],
             'uses_camera' => $request->boolean('uses_camera'),
+            'is_admin' => $request->boolean('is_admin'),
         ]);
 
         return back()->with('status', 'user-settings-updated');

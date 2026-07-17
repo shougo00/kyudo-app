@@ -25,7 +25,13 @@
     </div>
 
     <div class="rank-info">
-        <div class="user-name">{{ $row['user']->name }}</div>
+        <div class="name-with-action">
+            <div class="user-name">{{ $row['user']->name }}</div>
+            <a href="{{ route('dashboard', ['group_id' => $group->id, 'user_id' => $row['user']->id]) }}"
+               class="detail-link">
+                詳細
+            </a>
+        </div>
 
         <div class="score-line {{ $allSelected ? 'active-score-subtle' : '' }}">
             <span>総合</span>

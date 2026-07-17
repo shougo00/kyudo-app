@@ -40,6 +40,9 @@ async function printAfterReady() {
 }
     
 function updateShot(el){
+    if (window.groupRecordData && window.groupRecordData.canEdit === false) {
+        return;
+    }
 
     const id = el.dataset.id;
     if(!id){

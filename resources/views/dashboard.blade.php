@@ -5,7 +5,6 @@
     $typeLabels = [
         'official' => '正規連',
         'self' => '自主練',
-        'match' => '試合',
         'all' => '総合',
     ];
     $currentTypeLabel = $typeLabels[$type] ?? '総合';
@@ -15,21 +14,20 @@ window.historyPageData = {
     type: @json($type),
     todayOfficial: @json($todayOfficial),
     todaySelf: @json($todaySelf),
-    todayMatch: @json($todayMatch),
     todayAll: @json($todayAll),
     monthOfficial: @json($monthOfficial),
     monthSelf: @json($monthSelf),
-    monthMatch: @json($monthMatch),
     monthAll: @json($monthAll),
     yearOfficial: @json($yearOfficial),
     yearSelf: @json($yearSelf),
-    yearMatch: @json($yearMatch),
     yearAll: @json($yearAll),
     calendar: @json($calendar),
     prevMonth: @json($prevMonth),
     nextMonth: @json($nextMonth),
     currentMonth: @json($month),
-    groupId: @json($groupId)
+    targetUserId: @json($targetUser->id),
+    targetGroupId: @json($targetGroup?->id),
+    isViewingOwnHistory: @json($isViewingOwnHistory)
 };
 </script>
 
@@ -39,6 +37,22 @@ window.historyPageData = {
 
 
 <div class="container py-2">
+    @if(!$isViewingOwnHistory)
+        <div class="history-viewing-user">
+            <div>
+                <span class="history-viewing-label">表示中</span>
+                <strong>{{ $targetUser->name }} の的中履歴</strong>
+            </div>
+            <a href="{{ route('group.history', [
+                    'group' => $targetGroup->id,
+                    'view' => 'monthly',
+                    'month' => $month,
+                ]) }}"
+               class="history-back-button">
+                戻る
+            </a>
+        </div>
+    @endif
 
     <!-- 今日 & 月間 & 年間 -->
     <div class="summary-wrapper">
@@ -67,7 +81,6 @@ window.historyPageData = {
     <div class="type-switch">
         <button type="button" data-record-type="official" id="btn-official" class="btn btn-sm btn-outline-danger">正規連</button>
         <button type="button" data-record-type="self" id="btn-self" class="btn btn-sm btn-outline-primary">自主練</button>
-        <button type="button" data-record-type="match" id="btn-match" class="btn btn-sm btn-outline-warning">試合</button>
         <button type="button" data-record-type="all" id="btn-all" class="btn btn-sm btn-outline-success">総合</button>
     </div>
 
@@ -111,6 +124,22 @@ window.historyPageData = {
         <div class="rate-chart-title">{{ $currentTypeLabel }}的中率グラフ{{ $month }}</div>
         <div class="chart-wrap">
             <canvas id="overallRateChart"></canvas>
+        </div>
+        <div class="chart-filter-controls">
+            <label class="chart-filter-toggle">
+                <input type="checkbox" id="chartShotFilterEnabled" checked>
+                <span>グラフは指定射数以上の日だけ表示</span>
+            </label>
+
+            <label class="chart-filter-threshold">
+                <select id="chartShotThreshold">
+                    @foreach ([4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 60, 80, 100] as $shotThreshold)
+                        <option value="{{ $shotThreshold }}" {{ $shotThreshold === 20 ? 'selected' : '' }}>
+                            {{ $shotThreshold }}射以上
+                        </option>
+                    @endforeach
+                </select>
+            </label>
         </div>
     </div>
 

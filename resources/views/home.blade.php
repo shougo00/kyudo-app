@@ -27,7 +27,7 @@
     };
 @endphp
 
-<div class="container py-3 {{ $type=='self' ? 'self-bg' : 'official-bg' }}" id="records-container" data-type="{{ $type }}">
+<div class="container py-3 {{ $type == 'match' ? 'match-bg' : ($type == 'self' ? 'self-bg' : 'official-bg') }}" id="records-container" data-type="{{ $type }}">
 
     <div class="record-control-sticky">
         <div class="d-flex justify-content-between align-items-center mb-3 record-head">
@@ -51,6 +51,11 @@
                     <a href="{{ route('home', ['date'=>$date, 'type'=>'self']) }}" 
                     class="btn btn-sm {{ ($type ?? 'official') == 'self' ? 'btn-primary' : 'btn-outline-primary' }}">
                         自主練
+                    </a>
+
+                    <a href="{{ route('home', ['date'=>$date, 'type'=>'match']) }}"
+                    class="btn btn-sm {{ ($type ?? 'official') == 'match' ? 'btn-warning' : 'btn-outline-warning' }}">
+                        試合練
                     </a>
                 </div>
             </div>

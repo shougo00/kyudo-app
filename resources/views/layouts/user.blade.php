@@ -168,6 +168,19 @@
     <div class="collapse navbar-collapse d-none d-lg-flex">
          <ul class="navbar-nav me-auto">
             @auth
+                @php
+                    $firstGroup = Auth::user()->groups->first();
+                    $canViewGroupRecords = $firstGroup && (
+                        (int) $firstGroup->host_user_id === (int) Auth::id()
+                        || Auth::user()->username === 'KANRI'
+                        || (bool) $firstGroup->show_group_records_to_members
+                    );
+                    $canViewGroupSelfRecords = $firstGroup && (
+                        (int) $firstGroup->host_user_id === (int) Auth::id()
+                        || Auth::user()->username === 'KANRI'
+                    );
+                @endphp
+
                 @if(Auth::user()->username === 'KANRI')
                     <li class="nav-item">
                         <a class="nav-link active" href="{{ route('admin.system.index') }}">システム管理</a>
@@ -184,13 +197,14 @@
                     </li>
                 @endif
 
-                {{-- 全員共通 --}}
-                <li class="nav-item">
-                    <a class="nav-link active" href="#"
-                    onclick="goGroupRecord()">グループ 的中記録（正規連）</a>
-                </li>
+                @if($canViewGroupRecords)
+                    <li class="nav-item">
+                        <a class="nav-link active" href="#"
+                        onclick="goGroupRecord()">グループ 的中記録（正規連）</a>
+                    </li>
+                @endif
 
-                @if(($firstGroup = Auth::user()->groups->first()) && ((int) $firstGroup->host_user_id === (int) Auth::id() || Auth::user()->username === 'KANRI'))
+                @if($canViewGroupSelfRecords)
                     <li class="nav-item">
                         <a class="nav-link active" href="#"
                         onclick="goGroupSelfRecord()">グループ的中記録（自主練）</a>
@@ -289,6 +303,19 @@
        <ul class="navbar-nav">
 
             @auth
+                @php
+                    $firstGroup = Auth::user()->groups->first();
+                    $canViewGroupRecords = $firstGroup && (
+                        (int) $firstGroup->host_user_id === (int) Auth::id()
+                        || Auth::user()->username === 'KANRI'
+                        || (bool) $firstGroup->show_group_records_to_members
+                    );
+                    $canViewGroupSelfRecords = $firstGroup && (
+                        (int) $firstGroup->host_user_id === (int) Auth::id()
+                        || Auth::user()->username === 'KANRI'
+                    );
+                @endphp
+
                 @if(Auth::user()->username === 'KANRI')
                     <li class="nav-item mb-2">
                         <a class="nav-link" href="{{ route('admin.system.index') }}">
@@ -308,14 +335,15 @@
                     </li>
                 @endif
 
-                {{-- 全員共通 --}}
-                <li class="nav-item mb-2">
-                    <a class="nav-link" href="#" onclick="goGroupRecord()">
-                        グループ的中記録（正規連）
-                    </a>
-                </li>
+                @if($canViewGroupRecords)
+                    <li class="nav-item mb-2">
+                        <a class="nav-link" href="#" onclick="goGroupRecord()">
+                            グループ的中記録（正規連）
+                        </a>
+                    </li>
+                @endif
 
-                @if(($firstGroup = Auth::user()->groups->first()) && ((int) $firstGroup->host_user_id === (int) Auth::id() || Auth::user()->username === 'KANRI'))
+                @if($canViewGroupSelfRecords)
                     <li class="nav-item mb-2">
                         <a class="nav-link" href="#" onclick="goGroupSelfRecord()">
                             グループ的中記録（自主練）
@@ -362,7 +390,6 @@
                     </li>
                 @endif
 
-                {{-- プロフィール（全員OK） --}}
                 <li class="nav-item mb-2">
                     <a class="nav-link" href="{{ route('avatar.show') }}">アバター</a>
                 </li>
@@ -476,22 +503,5 @@ function goGroupSelfRecord() {
 
 }
 
-function goGroupMatchRecord() {
-
-    @auth
-        let groupId = {{ Auth::user()->groups->first()->id ?? 'null' }};
-
-        if (!groupId) {
-            alert('グループに参加していません');
-            return;
-        }
-
-        window.location.href = `/group/${groupId}/match-records`;
-
-    @else
-        alert('ログインしてください');
-    @endauth
-
-}
 </script>
 </html>

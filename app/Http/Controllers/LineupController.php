@@ -13,11 +13,12 @@ class LineupController extends Controller
 {
     public function index(Request $request, $groupId)
     {
-        $this->checkGroupAccess($groupId);
+        $this->checkGroupAccess($groupId, true);
 
         $group = Group::with(['users' => function ($q) {
             $q->where('is_admin', false);
         }])->findOrFail($groupId);
+        $canEditLineup = $this->canEditGroupRecords($group);
         $date = $request->date ?? date('Y-m-d');
 
         $lineup = Lineup::firstOrCreate(
@@ -62,14 +63,14 @@ class LineupController extends Controller
 
         $latestMatchUserIds = $this->latestMatchUserIds($group, $date);
 
-        return view('lineup.index', compact('group', 'lineup', 'members', 'date', 'recordedUserIds', 'latestMatchUserIds'));
+        return view('lineup.index', compact('group', 'lineup', 'members', 'date', 'recordedUserIds', 'latestMatchUserIds', 'canEditLineup'));
     }
 
     public function save(Request $request, $lineupId)
     {
         $lineup = Lineup::findOrFail($lineupId);
 
-        $this->checkGroupAccess($lineup->group_id);
+        $this->checkGroupAccess($lineup->group_id, true, true);
 
         foreach ($request->members as $m) {
             LineupMember::where('id', $m['id'])
@@ -92,7 +93,7 @@ class LineupController extends Controller
     {
         $lineup = Lineup::findOrFail($lineupId);
 
-        $this->checkGroupAccess($lineup->group_id);
+        $this->checkGroupAccess($lineup->group_id, true, true);
 
         $members = LineupMember::where('lineup_id', $lineupId)
         ->whereIn('user_id', Group::findOrFail($lineup->group_id)->users()->where('users.is_admin', false)->pluck('users.id'))
@@ -113,12 +114,31 @@ class LineupController extends Controller
         return response()->json(['ok' => true]);
     }
 
-    private function checkGroupAccess($groupId): void
+    private function checkGroupAccess($groupId, bool $requiresGroupRecordPermission = false, bool $requiresGroupRecordEditPermission = false): void
     {
         $user = auth()->user();
+        $group = Group::findOrFail($groupId);
 
         if (!$user || !$user->groups()->where('groups.id', $groupId)->exists()) {
             abort(403, 'このグループにはアクセスできません');
+        }
+
+        if ($this->isGroupHostOrAdmin($group, $user)) {
+            return;
+        }
+
+        if (
+            ($requiresGroupRecordPermission || $requiresGroupRecordEditPermission)
+            && !$group->show_group_records_to_members
+        ) {
+            abort(403, 'ホスト以外は立順画面を表示できません');
+        }
+
+        if (
+            $requiresGroupRecordEditPermission
+            && !$group->allow_members_edit_group_records
+        ) {
+            abort(403, 'ホスト以外は立順を変更できません');
         }
     }
 
@@ -169,7 +189,7 @@ class LineupController extends Controller
 
     public function copyPrevious(Lineup $lineup)
     {
-        $this->checkGroupAccess($lineup->group_id);
+        $this->checkGroupAccess($lineup->group_id, true, true);
 
         // 前回の「立順がセットされている日」を探す
         $previous = Lineup::where('group_id', $lineup->group_id)
@@ -207,5 +227,22 @@ class LineupController extends Controller
         }
 
         return back()->with('success', '前回の立順をコピーしました');
+    }
+
+    private function isGroupHostOrAdmin(Group $group, $user): bool
+    {
+        return $user
+            && (
+                $user->username === 'KANRI'
+                || (int) $group->host_user_id === (int) $user->id
+            );
+    }
+
+    private function canEditGroupRecords(Group $group): bool
+    {
+        $user = auth()->user();
+
+        return $this->isGroupHostOrAdmin($group, $user)
+            || ((bool) $group->show_group_records_to_members && (bool) $group->allow_members_edit_group_records);
     }
 }

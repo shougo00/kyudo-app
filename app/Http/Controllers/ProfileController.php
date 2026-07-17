@@ -32,10 +32,6 @@ class ProfileController extends Controller
         $user = $request->user();
 
         $user->fill($request->validated());
-
-        // ホストユーザーON/OFF保存
-        $user->is_admin = $request->boolean('is_admin');
-
         $user->save();
 
         return Redirect::route('profile.edit')

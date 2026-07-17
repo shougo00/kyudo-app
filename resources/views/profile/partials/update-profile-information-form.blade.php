@@ -83,29 +83,6 @@
             </div>
         @endif
 
-        @if($user->groups()->exists())
-        <div class="mb-3">
-            <label class="form-label">ホストユーザー</label>
-
-            <div class="form-check form-switch">
-                <input class="form-check-input"
-                    type="checkbox"
-                    id="is_admin"
-                    name="is_admin"
-                    value="1"
-                    {{ old('is_admin', $user->is_admin) ? 'checked' : '' }}>
-
-                <label class="form-check-label" for="is_admin">
-                    タブレットなどで使用するホストユーザーとしてON
-                </label>
-            </div>
-
-            @error('is_admin')
-                <div class="text-danger">{{ $message }}</div>
-            @enderror
-        </div>
-        @endif
-
         <div class="d-flex align-items-center gap-3">
             <button type="submit" class="btn btn-primary">保存</button>
 
