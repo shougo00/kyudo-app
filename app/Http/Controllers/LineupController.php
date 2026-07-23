@@ -8,6 +8,7 @@ use App\Models\Lineup;
 use App\Models\LineupMember;
 use App\Models\MatchTeam;
 use App\Models\Record;
+use Illuminate\Support\Facades\DB;
 
 class LineupController extends Controller
 {
@@ -51,11 +52,25 @@ class LineupController extends Controller
         })
         ->get();
 
+        $latestOfficialSheetNo = max(
+            1,
+            (int) Record::whereIn('user_id', $activeUserIds)
+                ->where('date', $date)
+                ->where('practice_type', 'official')
+                ->max('official_sheet_no'),
+            (int) DB::table('official_record_sheets')
+                ->where('group_id', $groupId)
+                ->where('date', $date)
+                ->max('sheet_no')
+        );
+
         $recordedUserIds = Record::whereIn('user_id', $members->pluck('user_id'))
             ->where('date', $date)
             ->where('practice_type', 'official')
+            ->where('official_sheet_no', $latestOfficialSheetNo)
             ->whereHas('shots', function ($q) {
-                $q->whereNotNull('result');
+                $q->whereNotNull('result')
+                    ->orWhereNotNull('numeric_score');
             })
             ->pluck('user_id')
             ->unique()
