@@ -173,7 +173,7 @@ class GroupRecordController extends Controller
             ->get();
         $hasEnteredOfficialShots = $recordRows
             ->contains(fn($record) => $record->shots
-                ->contains(fn($shot) => !is_null($shot->result)));
+                ->contains(fn($shot) => !is_null($shot->result) || !is_null($shot->numeric_score)));
 
         $records = $recordRows->groupBy('user_id');
         if ($lineupSlots->isNotEmpty()) {
@@ -615,7 +615,8 @@ class GroupRecordController extends Controller
             ->where('practice_type', 'official')
             ->where('official_sheet_no', $activeSheetNo)
             ->whereHas('shots', function ($query) {
-                $query->whereNotNull('result');
+                $query->whereNotNull('result')
+                    ->orWhereNotNull('numeric_score');
             })
             ->exists();
 

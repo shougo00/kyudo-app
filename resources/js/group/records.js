@@ -201,7 +201,9 @@ function updateNumericShot(el, id, userId, recordId, tateCounterKey) {
         }
     }
 
-    fetch(`/group/shot/${id}`,{
+    window.groupRecordPendingShotUpdates = window.groupRecordPendingShotUpdates || new Set();
+
+    const request = fetch(`/group/shot/${id}`,{
         method:'POST',
         headers:{
             'Content-Type':'application/json',
@@ -211,7 +213,11 @@ function updateNumericShot(el, id, userId, recordId, tateCounterKey) {
             result: null,
             numeric_score: nextScore
         })
+    }).finally(() => {
+        window.groupRecordPendingShotUpdates.delete(request);
     });
+
+    window.groupRecordPendingShotUpdates.add(request);
 }
 function scrollRight() {
     const el = document.querySelector('.score-scroll');

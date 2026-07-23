@@ -364,10 +364,15 @@ window.groupRecordData = {
     <script>
         function handleOfficialSheetSwitchSubmit(form, confirmMessage) {
             const hasEnteredShot = Array.from(document.querySelectorAll('.score-wrapper .shot-btn[data-result]'))
-                .some((shot) => shot.dataset.result === 'hit' || shot.dataset.result === 'miss');
+                .some((shot) => {
+                    const hasHitMiss = shot.dataset.result === 'hit' || shot.dataset.result === 'miss';
+                    const hasNumeric = shot.dataset.numericScore !== '' && shot.dataset.numericScore != null;
+
+                    return hasHitMiss || hasNumeric;
+                });
 
             if (!hasEnteredShot) {
-                alert('先にこのページで○か×を1つ以上入力してください。');
+                alert('先にこのページで記録を1つ以上入力してください。');
                 return false;
             }
 
