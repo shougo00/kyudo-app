@@ -22,6 +22,7 @@ class DatabaseSeeder extends Seeder
             ItemSeeder::class,
             StudentAccountSeeder::class,
             ShikokuUniversityKyudoGroupSeeder::class,
+            DemoKyudoGroupSeeder::class,
         ]);
         $this->call(KyudoResultSeeder::class);
 
