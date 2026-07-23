@@ -4,12 +4,12 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Rules\PasswordPolicy;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\Rules;
 use Illuminate\View\View;
 
 class RegisteredUserController extends Controller
@@ -39,7 +39,7 @@ class RegisteredUserController extends Controller
                 'regex:/^[a-zA-Z0-9]+$/',
                 'unique:users,username',
             ],
-            'password' => ['required', 'confirmed', Rules\Password::defaults()],
+            'password' => ['required', 'confirmed', new PasswordPolicy()],
             'is_admin' => ['nullable', 'boolean'],
             'gender' => ['required', 'in:male,female'],
         ], [
