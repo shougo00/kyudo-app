@@ -15,7 +15,7 @@ class ShikokuUniversityKyudoGroupSeeder extends Seeder
         $host = User::updateOrCreate(
             ['username' => 'shikoku'],
             [
-                'name' => '四国大学弓道部',
+                'name' => '四国大学管理者',
                 'email' => null,
                 'password' => Hash::make('shikoku'),
                 'is_admin' => true,
@@ -30,7 +30,7 @@ class ShikokuUniversityKyudoGroupSeeder extends Seeder
 
         $group->fill([
             'name' => $group->name ?: '四国大学弓道部',
-            'host_user_id' => $group->host_user_id ?: $host->id,
+            'host_user_id' => $host->id,
             'invite_code' => '7706',
             'official_tates_per_page' => $group->official_tates_per_page ?: 5,
             'uses_grades' => true,
