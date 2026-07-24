@@ -5,7 +5,7 @@
 @vite(['resources/css/group/records.css', 'resources/js/group/records.js'])
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<div class="container-fluid py-3 record-page" style="--record-height-extra: {{ max(0, min(120, (int) ($recordHeightExtra ?? 60))) }}px; --match-record-height-extra: {{ max(0, min(120, (int) ($matchRecordHeightExtra ?? 60))) }}px;">
+<div class="container-fluid py-3 record-page {{ ($matchSelection ?? null) ? 'match-selection-mode' : '' }}" style="--record-height-extra: {{ max(0, min(120, (int) ($recordHeightExtra ?? 60))) }}px; --match-record-height-extra: {{ max(0, min(120, (int) ($matchRecordHeightExtra ?? 60))) }}px;">
 
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
@@ -25,6 +25,17 @@
     $recordHeightExtra = max(0, min(120, (int) ($recordHeightExtra ?? 60)));
     $matchRecordHeightExtra = max(0, min(120, (int) ($matchRecordHeightExtra ?? 60)));
     $isPageFull = $practiceType !== 'match' && isset($tates) && $tates->count() >= $maxTatesPerPage;
+    $matchSelection = $matchSelection ?? null;
+    $matchSelectionQuery = '';
+
+    if ($matchSelection) {
+        $matchSelectionQuery = '&' . http_build_query([
+            'match_team_id' => $matchSelection['team_id'],
+            'match_tate_no' => $matchSelection['tate_no'],
+            'match_position' => $matchSelection['position'],
+        ]);
+    }
+
     $pageTateRangeLabel = '';
     if ($practiceType !== 'match' && isset($tates) && $tates->isNotEmpty()) {
         $pageTateRangeLabel = ($tateDisplayOffset + $tates->min()) . '立〜' . ($tateDisplayOffset + $tates->max()) . '立';
@@ -81,6 +92,44 @@
 
         return 'background:' . $color . '; border-color:' . $color . '; color:#111;';
     };
+    $matchPositionLabel = function (int $position, int $tateSize) {
+        if ($position === 1) {
+            return '大前';
+        }
+
+        if ($tateSize > 1 && $position === $tateSize) {
+            return '落';
+        }
+
+        return [
+            2 => '二的',
+            3 => '三的',
+            4 => '四的',
+            5 => '五的',
+            6 => '六的',
+            7 => '七的',
+            8 => '八的',
+            9 => '九的',
+            10 => '十的',
+            11 => '十一的',
+            12 => '十二的',
+            13 => '十三的',
+            14 => '十四的',
+        ][$position] ?? "{$position}的";
+    };
+    $matchPositionLabels = $matchSelection
+        ? collect(range(1, $matchSelection['tate_size']))
+            ->mapWithKeys(fn($position) => [$position => $matchPositionLabel($position, $matchSelection['tate_size'])])
+        : collect();
+    $matchSelectionPayload = $matchSelection ? [
+        'teamId' => $matchSelection['team_id'],
+        'teamName' => $matchSelection['team_name'],
+        'tateNo' => $matchSelection['tate_no'],
+        'position' => $matchSelection['position'],
+        'tateSize' => $matchSelection['tate_size'],
+        'positionLabels' => $matchPositionLabels,
+        'backUrl' => $matchSelection['back_url'],
+    ] : null;
 @endphp
 
 <script>
@@ -89,32 +138,96 @@ window.groupRecordData = {
     groupId: {{ $group->id }},
     usesGrades: @json($usesGrades),
     canEdit: @json($canEditGroupRecords),
+    matchSelection: @json($matchSelectionPayload),
 };
 </script>
 
 <div class="record-title-bar">
     <h4>{{ $group->name }}（{{ $recordLabel }}）</h4>
 
-    <div class="record-title-actions">
-        <a href="{{ $otherRecordPath }}?date={{ $date }}&month={{ $month }}" class="btn btn-outline-success">
-            {{ $otherRecordLabel }}
-        </a>
-        @if($practiceType === 'match')
-            <button type="button" class="btn btn-primary" onclick="openMatchTeamCreateModal()">
-                ＋ チーム作成
-            </button>
-        @endif
-        <button type="button" class="btn btn-outline-primary" onclick="reloadAndPrint()">
-        印刷
-    </button>
-        @if($practiceType !== 'match' && $isCurrentSheet)
-            <a href="/group/{{ $group->id }}/lineup?date={{ $date }}" class="btn btn-secondary">
-                立順
+    @unless($matchSelection)
+        <div class="record-title-actions">
+            <a href="{{ $otherRecordPath }}?date={{ $date }}&month={{ $month }}" class="btn btn-outline-success">
+                {{ $otherRecordLabel }}
             </a>
-        @endif
-    </div>
+            @if($practiceType === 'match')
+                <button type="button" class="btn btn-primary" onclick="openMatchTeamCreateModal()">
+                    ＋ チーム作成
+                </button>
+            @endif
+            <button type="button" class="btn btn-outline-primary" onclick="reloadAndPrint()">
+                印刷
+            </button>
+            @if($practiceType !== 'match' && $isCurrentSheet)
+                <a href="/group/{{ $group->id }}/lineup?date={{ $date }}" class="btn btn-secondary">
+                    立順
+                </a>
+            @endif
+        </div>
+    @endunless
 
 </div>
+
+@if(session('error'))
+    <div class="alert alert-danger">
+        {{ session('error') }}
+    </div>
+@endif
+
+@if($matchSelection)
+    @php
+        $assignedMembers = $matchSelection['assigned_members'];
+        $currentAssignedMember = $assignedMembers->get($matchSelection['position']);
+        $currentMatchPositionLabel = $matchPositionLabel($matchSelection['position'], $matchSelection['tate_size']);
+    @endphp
+    <div class="match-record-select-panel">
+        <div class="match-record-select-main">
+            <span class="match-record-select-label">試合立順に割り当て</span>
+            <strong data-match-selection-heading>{{ $matchSelection['team_name'] }} / {{ $matchSelection['tate_no'] }}立目 / {{ $currentMatchPositionLabel }}</strong>
+            <span class="match-record-select-current"
+                  data-match-selection-current
+                  {{ $currentAssignedMember?->officialRecord ? '' : 'hidden' }}>
+                現在：<span data-match-selection-current-name>{{ $currentAssignedMember?->user?->name }}</span>
+                <span data-match-selection-current-tate>{{ $currentAssignedMember?->officialRecord?->tate_no }}</span>立目
+            </span>
+        </div>
+
+        <div class="match-record-select-positions">
+            @for($position = 1; $position <= $matchSelection['tate_size']; $position++)
+                @php
+                    $assignedMember = $assignedMembers->get($position);
+                    $assignedName = $assignedMember?->officialRecord ? $assignedMember->user?->name : null;
+                    $positionLabel = $matchPositionLabel($position, $matchSelection['tate_size']);
+                    $positionUrl = $basePath . '?' . http_build_query([
+                        'date' => $date,
+                        'month' => $month,
+                        'sheet_no' => $activeSheetNo,
+                        'match_team_id' => $matchSelection['team_id'],
+                        'match_tate_no' => $matchSelection['tate_no'],
+                        'match_position' => $position,
+                    ]);
+                @endphp
+                <a href="{{ $positionUrl }}"
+                   class="match-record-select-position {{ $position === $matchSelection['position'] ? 'active' : '' }} {{ $assignedMember?->officialRecord ? 'filled' : '' }}"
+                   data-match-select-position="{{ $position }}"
+                   data-position-url="{{ $positionUrl }}"
+                   data-assigned-record-id="{{ $assignedMember?->officialRecord?->id }}"
+                   data-assigned-user-name="{{ $assignedName }}"
+                   data-assigned-official-tate="{{ $assignedMember?->officialRecord?->tate_no }}"
+                   data-position-label="{{ $positionLabel }}"
+                   aria-label="{{ $positionLabel }}を選択{{ $assignedName ? '：' . $assignedName : '' }}"
+                   title="{{ $positionLabel }}を選択{{ $assignedName ? '：' . $assignedName : '' }}">
+                    <span class="match-record-select-number">{{ $positionLabel }}</span>
+                    @if($assignedName)
+                        <span class="match-record-select-name">{{ $assignedName }}</span>
+                    @endif
+                </a>
+            @endfor
+        </div>
+
+        <a href="{{ $matchSelection['back_url'] }}" class="btn btn-sm btn-outline-secondary">試合記録へ戻る</a>
+    </div>
+@endif
 
 @if($practiceType === 'match')
     <div class="match-control-layer">
@@ -178,9 +291,11 @@ window.groupRecordData = {
                                     ->where('tate_no', $sourceTateNo)
                                     ->firstWhere('user_id', $user->id);
                                 $attendance = ($matchAttendanceByUserId ?? collect())->get($user->id);
-                                $hasEnteredRecord = (($records[$team->id][$user->id] ?? collect()))
+                                $hasEnteredRecord = $saved?->officialRecord
+                                    ? $saved->officialRecord->shots->contains(fn($shot) => !is_null($shot->result) || !is_null($shot->numeric_score))
+                                    : (($records[$team->id][$user->id] ?? collect()))
                                     ->where('tate_no', $sourceTateNo)
-                                    ->contains(fn($record) => $record->shots->contains(fn($shot) => !is_null($shot->result)));
+                                    ->contains(fn($record) => $record->shots->contains(fn($shot) => !is_null($shot->result) || !is_null($shot->numeric_score)));
                             @endphp
                             <div class="source-member"
                                  data-user-id="{{ $user->id }}"
@@ -334,7 +449,7 @@ window.groupRecordData = {
 
             <div class="official-sheet-tabs">
                 @foreach($sheetNos as $sheetNo)
-                    <a href="{{ $basePath }}?date={{ $date }}&month={{ $month }}&sheet_no={{ $sheetNo }}"
+                    <a href="{{ $basePath }}?date={{ $date }}&month={{ $month }}&sheet_no={{ $sheetNo }}{{ $matchSelectionQuery }}"
                        class="{{ (int) $sheetNo === (int) $activeSheetNo ? 'active' : '' }}">
                         {{ $sheetNo }}
                     </a>
@@ -466,74 +581,87 @@ window.groupRecordData = {
         @foreach($teamTates as $tateNo)
             @php
                 $slots = $teamSlots->get($tateNo, collect());
-                $tateTotalHits = 0;
-
-                foreach ($slots as $slotForHits) {
-                    if (!$slotForHits->is_empty && $slotForHits->user) {
-                        $hitRecord = ($records[$team->id][$slotForHits->user->id] ?? collect())
-                            ->where('tate_no', $tateNo)
-                            ->first();
-
-                        if ($hitRecord) {
-                            $tateTotalHits += $hitRecord->shots->where('result', 'hit')->count();
-                        }
-                    }
-                }
-
                 $tateMeta = optional($matchTateMetas->get($team->id))->get($tateNo);
                 $matchScoringMode = $tateMeta?->scoring_mode ?? 'hit_miss';
+                $hasOfficialLinkedRecords = collect($slots)->contains(fn($slot) => ($slot->record_source ?? null) === 'official');
+                $tateUsesNumeric = collect($slots)->contains(fn($slot) => ($slot->scoring_mode ?? null) === 'numeric')
+                    || (!$hasOfficialLinkedRecords && $matchScoringMode === 'numeric');
+                $tateTotalHits = 0;
                 $tateNumericTotal = 0;
 
-                foreach ($slots as $slotForNumericTotal) {
-                    if (!$slotForNumericTotal->is_empty && $slotForNumericTotal->user) {
-                        $numericRecord = ($records[$team->id][$slotForNumericTotal->user->id] ?? collect())
-                            ->where('tate_no', $tateNo)
-                            ->first();
+                foreach ($slots as $slotForHits) {
+                    if (!$slotForHits->is_empty && $slotForHits->user && $slotForHits->record) {
+                        $hitRecord = $slotForHits->record;
 
-                        if ($numericRecord) {
-                            $tateNumericTotal += $numericRecord->shots->sum(fn($shot) => (int) ($shot->numeric_score ?? 0));
-                        }
+                        $tateTotalHits += $hitRecord->shots->where('result', 'hit')->count();
+                        $tateNumericTotal += $hitRecord->shots->sum(fn($shot) => (int) ($shot->numeric_score ?? 0));
                     }
                 }
 
                 $elapsedSeconds = (int) $tateMeta?->elapsed_seconds;
+                $timerStartedAt = $tateMeta?->timer_started_at
+                    ? \Carbon\Carbon::parse($tateMeta->timer_started_at)
+                    : null;
+                $isTimerRunning = (bool) (($tateMeta?->is_timer_running ?? false) && $timerStartedAt);
+
+                if ($isTimerRunning) {
+                    $elapsedSeconds += max(0, now()->timestamp - $timerStartedAt->timestamp);
+                }
+
                 $elapsedLabel = sprintf('%02d:%02d', floor($elapsedSeconds / 60), $elapsedSeconds % 60);
+                $isSelectedMatchTate = (int) ($selectedTeam?->id ?? 0) === (int) $team->id
+                    && (int) $selectedTateNo === (int) $tateNo;
+                $shouldScrollToMatchTate = request()->filled('tate_no') && $isSelectedMatchTate;
             @endphp
 
-            <div class="match-vertical-tate">
+            <div class="match-vertical-tate {{ $isSelectedMatchTate ? 'selected' : '' }}"
+                 data-match-team-id="{{ $team->id }}"
+                 data-match-tate-no="{{ $tateNo }}"
+                 @if($shouldScrollToMatchTate) data-selected-match-tate="1" @endif>
                 <div class="match-vertical-tate-head">
                     <div>
                         <strong>{{ $tateNo }}立目</strong>
                         <span class="match-tate-hit-total" data-tate-hit-counter="{{ $team->id }}-{{ $tateNo }}">
-                            {{ $matchScoringMode === 'numeric' ? $tateNumericTotal . '点' : $tateTotalHits . '中' }}
+                            {{ $tateUsesNumeric ? $tateNumericTotal . '点' : $tateTotalHits . '中' }}
                         </span>
                     </div>
                     <div class="match-tate-tools">
-                        <label class="record-mode-switch small-switch">
-                            <input type="checkbox"
-                                   data-mode-toggle="match"
-                                   data-team-id="{{ $team->id }}"
-                                   data-date="{{ $date }}"
-                                   data-tate-no="{{ $tateNo }}"
-                                   {{ $matchScoringMode === 'numeric' ? 'checked' : '' }}
-                                   onchange="toggleScoringMode(this)">
-                            <span>数字</span>
-                        </label>
+                        @if(!$hasOfficialLinkedRecords)
+                            <label class="record-mode-switch small-switch">
+                                <input type="checkbox"
+                                       data-mode-toggle="match"
+                                       data-team-id="{{ $team->id }}"
+                                       data-date="{{ $date }}"
+                                       data-tate-no="{{ $tateNo }}"
+                                       {{ $matchScoringMode === 'numeric' ? 'checked' : '' }}
+                                       onchange="toggleScoringMode(this)">
+                                <span>数字</span>
+                            </label>
+                        @endif
                         <div class="match-timer"
                              data-team-id="{{ $team->id }}"
                              data-date="{{ $date }}"
                              data-tate-no="{{ $tateNo }}"
-                             data-elapsed="{{ $elapsedSeconds }}">
+                             data-elapsed="{{ $elapsedSeconds }}"
+                             data-running="{{ $isTimerRunning ? 1 : 0 }}">
                             <span class="match-timer-display">{{ $elapsedLabel }}</span>
-                            <button type="button" class="btn btn-sm btn-outline-success" onclick="toggleMatchTimer(this)">開始</button>
+                            <button type="button"
+                                    class="btn btn-sm {{ $isTimerRunning ? 'btn-outline-danger' : 'btn-outline-success' }}"
+                                    onclick="toggleMatchTimer(this)">
+                                {{ $isTimerRunning ? '停止' : '開始' }}
+                            </button>
                             <button type="button" class="btn btn-sm btn-outline-secondary" onclick="resetMatchTimer(this)">リセット</button>
                         </div>
-                        <button type="button"
-                                class="btn btn-sm btn-outline-secondary"
-                                onclick="openMatchLineupModal({{ $team->id }}, {{ $tateNo }})"
-                                {{ $team->trashed() ? 'disabled' : '' }}>
-                            立順編集
-                        </button>
+                        @if($team->trashed())
+                            <button type="button" class="btn btn-sm btn-outline-secondary" disabled>
+                                立順編集
+                            </button>
+                        @else
+                            <a href="/group/{{ $group->id }}/records?date={{ $date }}&month={{ $month }}&match_team_id={{ $team->id }}&match_tate_no={{ $tateNo }}&match_position=1"
+                               class="btn btn-sm btn-outline-secondary">
+                                立順編集
+                            </a>
+                        @endif
                     </div>
                 </div>
 
@@ -549,8 +677,8 @@ window.groupRecordData = {
                         @else
                             @php
                                 $user = $slot->user;
-                                $userRecords = $records[$team->id][$user->id] ?? collect();
-                                $record = $userRecords->where('tate_no', $tateNo)->first();
+                                $record = $slot->record ?? null;
+                                $recordScoringMode = ($slot->scoring_mode ?? null) ?: $matchScoringMode;
                                 $tateHitCount = $record
                                     ? $record->shots->where('result', 'hit')->count()
                                     : 0;
@@ -570,19 +698,19 @@ window.groupRecordData = {
                                     <div class="shot-btn
                                         {{ $shot?->result=='hit'?'shot-hit':'' }}
                                         {{ $shot?->result=='miss'?'shot-miss':'' }}
-                                        {{ !$shot || ($shot->result==null && !(($matchScoringMode === 'numeric') && !is_null($shot?->numeric_score)))?'shot-none':'' }}
-                                        {{ $matchScoringMode === 'numeric' && !is_null($shot?->numeric_score) ? 'shot-numeric' : '' }}"
-                                        style="{{ $matchScoringMode === 'numeric' ? $numericShotStyle($shot) : '' }}"
+                                        {{ !$shot || ($shot->result==null && !(($recordScoringMode === 'numeric') && !is_null($shot?->numeric_score)))?'shot-none':'' }}
+                                        {{ $recordScoringMode === 'numeric' && !is_null($shot?->numeric_score) ? 'shot-numeric' : '' }}"
+                                        style="{{ $recordScoringMode === 'numeric' ? $numericShotStyle($shot) : '' }}"
                                         data-id="{{ $shot->id ?? '' }}"
                                         data-record-id="{{ $record?->id }}"
                                         data-tate-counter="{{ $team->id }}-{{ $tateNo }}"
                                         data-user="{{ $user->id }}"
                                         data-result="{{ $shot?->result ?? '' }}"
                                         data-numeric-score="{{ $shot?->numeric_score }}"
-                                        data-scoring-mode="{{ $matchScoringMode }}"
+                                        data-scoring-mode="{{ $recordScoringMode }}"
                                         onclick="updateShot(this)">
 
-                                        @if($matchScoringMode === 'numeric' && !is_null($shot?->numeric_score))
+                                        @if($recordScoringMode === 'numeric' && !is_null($shot?->numeric_score))
                                             {{ $shot->numeric_score }}
                                         @elseif($shot?->result=='hit')
                                             <i class="fa-regular fa-circle"></i>
@@ -598,8 +726,11 @@ window.groupRecordData = {
                                     <span>{{ $slot->position }}</span>
                                     {{ $user->name }}
                                     <strong data-shot-counter="{{ $record?->id }}">
-                                        {{ $matchScoringMode === 'numeric' ? $tatePointCount . '点' : $tateHitCount . '中' }}
+                                        {{ $recordScoringMode === 'numeric' ? $tatePointCount . '点' : $tateHitCount . '中' }}
                                     </strong>
+                                    @if(($slot->record_source ?? null) === 'official')
+                                        <small>{{ $slot->official_tate_no }}立</small>
+                                    @endif
                                 </div>
                             </div>
                         @endif
@@ -687,9 +818,28 @@ window.groupRecordData = {
                     $user = $slot->user;
                     $userRecords = $records[$user->id] ?? collect();
                     $record = $userRecords->where('tate_no', $tateNo)->first();
+                    $assignedRecordMember = ($matchSelection && $record)
+                        ? $matchSelection['assigned_members']->first(fn($member) => (int) $member->official_record_id === (int) $record->id)
+                        : null;
+                    $isMatchRecordChoice = (bool) ($matchSelection && $record);
+                    $isCurrentMatchRecordChoice = (bool) ($assignedRecordMember && (int) $assignedRecordMember->position === (int) $matchSelection['position']);
+                    $assignedPositionLabel = $assignedRecordMember
+                        ? $matchPositionLabel((int) $assignedRecordMember->position, $matchSelection['tate_size'])
+                        : null;
                 @endphp
 
-                <div class="user-column {{ (($loop->index + 1) % $rowTateSize == 0) ? 'tate-border' : '' }}">
+                <div class="user-column {{ (($loop->index + 1) % $rowTateSize == 0) ? 'tate-border' : '' }} {{ $isMatchRecordChoice ? 'match-record-choice' : '' }} {{ $assignedRecordMember ? 'assigned' : '' }} {{ $isCurrentMatchRecordChoice ? 'current' : '' }}"
+                     @if($isMatchRecordChoice)
+                         data-match-record-id="{{ $record->id }}"
+                         data-match-user-name="{{ $user->name }}"
+                         data-match-official-tate="{{ $record->tate_no }}"
+                         title="{{ $matchSelection['team_name'] }} {{ $matchSelection['tate_no'] }}立目 {{ $currentMatchPositionLabel }}に割り当て"
+                         onclick="selectOfficialRecordForMatch(this, event)"
+                     @endif>
+
+                    @if($assignedPositionLabel)
+                        <span class="match-record-choice-position-label">{{ $assignedPositionLabel }}</span>
+                    @endif
 
                     @for($i=1;$i<=4;$i++)
                         @php
@@ -709,7 +859,7 @@ window.groupRecordData = {
                             data-result="{{ $shot?->result ?? '' }}"
                             data-numeric-score="{{ $shot?->numeric_score }}"
                             data-scoring-mode="{{ $activeSheetScoringMode ?? 'hit_miss' }}"
-                            {{ $canEditGroupRecords ? 'onclick=updateShot(this)' : '' }}>
+                            {{ !$matchSelection && $canEditGroupRecords ? 'onclick=updateShot(this)' : '' }}>
 
                             @if(($activeSheetScoringMode ?? 'hit_miss') === 'numeric' && !is_null($shot?->numeric_score))
                                 {{ $shot->numeric_score }}
@@ -778,14 +928,10 @@ window.groupRecordData = {
                 $tateTotalHits = 0;
 
                 foreach ($slots as $slotForPrintTotal) {
-                    if (!$slotForPrintTotal->is_empty && $slotForPrintTotal->user) {
-                        $printTotalRecord = ($records[$printTeam->id][$slotForPrintTotal->user->id] ?? collect())
-                            ->where('tate_no', $tateNo)
-                            ->first();
+                    if (!$slotForPrintTotal->is_empty && $slotForPrintTotal->user && $slotForPrintTotal->record) {
+                        $printTotalRecord = $slotForPrintTotal->record;
 
-                        if ($printTotalRecord) {
-                            $tateTotalHits += $printTotalRecord->shots->where('result', 'hit')->count();
-                        }
+                        $tateTotalHits += $printTotalRecord->shots->where('result', 'hit')->count();
                     }
                 }
             @endphp
@@ -802,9 +948,7 @@ window.groupRecordData = {
                     @foreach($slots as $slot)
                         @php
                             $printUser = $slot->user;
-                            $printRecord = $printUser
-                                ? ($records[$printTeam->id][$printUser->id] ?? collect())->where('tate_no', $tateNo)->first()
-                                : null;
+                            $printRecord = $printUser ? ($slot->record ?? null) : null;
                             $printHitCount = $printRecord
                                 ? $printRecord->shots->where('result', 'hit')->count()
                                 : 0;
@@ -822,9 +966,7 @@ window.groupRecordData = {
                         @foreach($slots as $slot)
                             @php
                                 $user = $slot->user;
-                                $record = $user
-                                    ? ($records[$printTeam->id][$user->id] ?? collect())->where('tate_no', $tateNo)->first()
-                                    : null;
+                                $record = $user ? ($slot->record ?? null) : null;
                             @endphp
 
                             <div class="print-user-column {{ (($loop->index + 1) % $printTeam->tate_size == 0) ? 'print-tate-border' : '' }}">

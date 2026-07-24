@@ -105,6 +105,7 @@ Route::middleware([ 'verified'])->group(function () {
     Route::patch('/match-teams/{team}', [MatchLineupController::class, 'updateTeam']);
     Route::delete('/match-teams/{team}', [MatchLineupController::class, 'destroy']);
     Route::post('/match-teams/{team}/tate', [MatchLineupController::class, 'saveTate']);
+    Route::post('/match-teams/{team}/official-record', [GroupRecordController::class, 'assignMatchOfficialRecord']);
     Route::post('/match-teams/{team}/tate-timer', [MatchLineupController::class, 'saveTateTimer']);
     Route::post('/match-teams/{team}/tate-scoring-mode', [MatchLineupController::class, 'saveTateScoringMode']);
     //　立順作成ページ
@@ -148,6 +149,9 @@ Route::middleware([ 'verified'])->group(function () {
     //タブレット設定時指定ページに飛ばす処理
     Route::get('/dashboard', function () {
         if (auth()->check() && auth()->user()->is_admin) {
+                if (request()->filled('group_id') && request()->filled('user_id')) {
+                    return app(\App\Http\Controllers\RecordController::class)->dashboard(request());
+                }
 
                 $groupId = auth()->user()->groups->first()->id ?? null;
 

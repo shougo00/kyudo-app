@@ -16,6 +16,10 @@ window.addEventListener('load', () => {
 
         printAfterReady();
     }
+
+    initMatchSelectionScrollBridge();
+    initRecordPageOuterScroll();
+    initMatchSelectionPositionLinks();
 });
 
 function waitForPendingShotUpdates() {
@@ -38,6 +42,477 @@ async function printAfterReady() {
     await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
     setTimeout(() => window.print(), 250);
 }
+
+let matchOfficialRecordSelecting = false;
+let matchSelectionTouchMoved = false;
+
+function selectOfficialRecordForMatch(el, event) {
+    if (event) {
+        event.preventDefault();
+    }
+
+    if (event && matchSelectionTouchMoved) {
+        matchSelectionTouchMoved = false;
+        return;
+    }
+
+    const selection = window.groupRecordData?.matchSelection;
+    const recordId = el?.dataset?.matchRecordId;
+    const assignedPosition = Number(selection?.position || 0);
+
+    if (!selection || !recordId || !assignedPosition || matchOfficialRecordSelecting) {
+        return;
+    }
+
+    matchOfficialRecordSelecting = true;
+    el.classList.add('saving');
+
+    fetch(`/match-teams/${selection.teamId}/official-record`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+        },
+        body: JSON.stringify({
+            date: new URL(window.location.href).searchParams.get('date'),
+            tate_no: selection.tateNo,
+            position: assignedPosition,
+            record_id: recordId,
+        }),
+    })
+        .then(res => res.json().then(data => ({ ok: res.ok, data })))
+        .then(({ ok, data }) => {
+            if (!ok || !data?.ok) {
+                throw new Error(data?.message || '割り当てに失敗しました');
+            }
+
+            applyMatchOfficialRecordAssignment(el, {
+                position: assignedPosition,
+                recordId,
+                userName: data.assigned?.user_name || el.dataset.matchUserName || '',
+                officialTateNo: data.assigned?.official_tate_no || el.dataset.matchOfficialTate || '',
+                nextPosition: data.next_position,
+            });
+        })
+        .catch(error => {
+            alert(error.message || '割り当てに失敗しました');
+        })
+        .finally(() => {
+            matchOfficialRecordSelecting = false;
+            el.classList.remove('saving');
+        });
+}
+
+function initMatchSelectionPositionLinks() {
+    if (!window.groupRecordData?.matchSelection) {
+        return;
+    }
+
+    document.querySelectorAll('[data-match-select-position]').forEach(link => {
+        link.addEventListener('click', event => {
+            if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button) {
+                return;
+            }
+
+            event.preventDefault();
+
+            if (matchOfficialRecordSelecting) {
+                return;
+            }
+
+            setMatchSelectionPosition(Number(link.dataset.matchSelectPosition || 0));
+        });
+    });
+
+    syncMatchSelectionUi();
+}
+
+function applyMatchOfficialRecordAssignment(el, assignment) {
+    const selectedPosition = Number(assignment.position || 0);
+    const recordId = String(assignment.recordId || '');
+    const positionLink = findMatchSelectionPositionLink(selectedPosition);
+
+    if (!positionLink || !recordId) {
+        return;
+    }
+
+    const oldRecordId = positionLink.dataset.assignedRecordId || '';
+
+    document.querySelectorAll('[data-match-select-position]').forEach(link => {
+        if (
+            link !== positionLink &&
+            link.dataset.assignedRecordId &&
+            String(link.dataset.assignedRecordId) === recordId
+        ) {
+            setMatchSelectionPositionAssignment(link, null);
+        }
+    });
+
+    setMatchSelectionPositionAssignment(positionLink, {
+        recordId,
+        userName: assignment.userName,
+        officialTateNo: assignment.officialTateNo,
+    });
+
+    if (oldRecordId && oldRecordId !== recordId) {
+        syncMatchRecordChoiceClasses();
+    }
+
+    const nextPosition = assignment.nextPosition
+        ? Number(assignment.nextPosition)
+        : selectedPosition;
+
+    setMatchSelectionPosition(nextPosition, { replaceUrl: true });
+}
+
+function setMatchSelectionPosition(position, options = {}) {
+    const selection = window.groupRecordData?.matchSelection;
+
+    if (!selection || !position) {
+        return;
+    }
+
+    const nextPosition = Math.max(1, Math.min(Number(selection.tateSize || 1), Number(position)));
+    selection.position = nextPosition;
+
+    if (options.replaceUrl !== false) {
+        const url = new URL(window.location.href);
+        url.searchParams.set('match_position', nextPosition);
+        history.replaceState(null, '', url.toString());
+    }
+
+    syncMatchSelectionUi();
+}
+
+function syncMatchSelectionUi() {
+    const selection = window.groupRecordData?.matchSelection;
+
+    if (!selection) {
+        return;
+    }
+
+    const activePosition = Number(selection.position || 1);
+    const heading = document.querySelector('[data-match-selection-heading]');
+    const activePositionLabel = getMatchPositionLabel(activePosition);
+
+    if (heading) {
+        heading.textContent = `${selection.teamName} / ${selection.tateNo}立目 / ${activePositionLabel}`;
+    }
+
+    document.querySelectorAll('[data-match-select-position]').forEach(link => {
+        const position = Number(link.dataset.matchSelectPosition || 0);
+        link.classList.toggle('active', position === activePosition);
+
+        const url = new URL(window.location.href);
+        url.searchParams.set('match_position', position);
+        link.href = url.toString();
+        link.dataset.positionUrl = url.toString();
+    });
+
+    document.querySelectorAll('.official-sheet-tabs a').forEach(link => {
+        const url = new URL(link.href);
+        url.searchParams.set('match_position', activePosition);
+        link.href = url.toString();
+    });
+
+    syncMatchSelectionCurrentText();
+    syncMatchRecordChoiceClasses();
+}
+
+function syncMatchSelectionCurrentText() {
+    const activeLink = findMatchSelectionPositionLink(window.groupRecordData?.matchSelection?.position);
+    const current = document.querySelector('[data-match-selection-current]');
+
+    if (!current) {
+        return;
+    }
+
+    const name = activeLink?.dataset.assignedUserName || '';
+    const officialTate = activeLink?.dataset.assignedOfficialTate || '';
+
+    current.hidden = !name;
+
+    const nameEl = current.querySelector('[data-match-selection-current-name]');
+    const tateEl = current.querySelector('[data-match-selection-current-tate]');
+
+    if (nameEl) {
+        nameEl.textContent = name;
+    }
+
+    if (tateEl) {
+        tateEl.textContent = officialTate;
+    }
+}
+
+function syncMatchRecordChoiceClasses() {
+    const selection = window.groupRecordData?.matchSelection;
+
+    if (!selection) {
+        return;
+    }
+
+    const assignedRecordIds = new Set(
+        Array.from(document.querySelectorAll('[data-match-select-position]'))
+            .map(link => link.dataset.assignedRecordId)
+            .filter(Boolean)
+            .map(String)
+    );
+    const assignedRecordLabels = new Map(
+        Array.from(document.querySelectorAll('[data-match-select-position]'))
+            .filter(link => link.dataset.assignedRecordId)
+            .map(link => [String(link.dataset.assignedRecordId), link.dataset.positionLabel || getMatchPositionLabel(link.dataset.matchSelectPosition)])
+    );
+    const activeRecordId = findMatchSelectionPositionLink(selection.position)?.dataset.assignedRecordId || '';
+
+    document.querySelectorAll('.user-column.match-record-choice').forEach(column => {
+        const recordId = String(column.dataset.matchRecordId || '');
+        const assignedLabel = assignedRecordLabels.get(recordId) || '';
+
+        column.classList.toggle('assigned', assignedRecordIds.has(recordId));
+        column.classList.toggle('current', !!activeRecordId && recordId === String(activeRecordId));
+        column.title = `${selection.teamName} ${selection.tateNo}立目 ${getMatchPositionLabel(selection.position)}に割り当て`;
+        updateMatchRecordChoicePositionLabel(column, assignedLabel);
+    });
+}
+
+function setMatchSelectionPositionAssignment(link, assignment) {
+    const position = Number(link.dataset.matchSelectPosition || 0);
+    const name = assignment?.userName || '';
+    const positionLabel = link.dataset.positionLabel || getMatchPositionLabel(position);
+
+    link.classList.toggle('filled', !!assignment?.recordId);
+    link.dataset.assignedRecordId = assignment?.recordId || '';
+    link.dataset.assignedUserName = name;
+    link.dataset.assignedOfficialTate = assignment?.officialTateNo || '';
+
+    let nameEl = link.querySelector('.match-record-select-name');
+
+    if (name) {
+        if (!nameEl) {
+            nameEl = document.createElement('span');
+            nameEl.className = 'match-record-select-name';
+            link.appendChild(nameEl);
+        }
+
+        nameEl.textContent = name;
+    } else if (nameEl) {
+        nameEl.remove();
+    }
+
+    const label = `${positionLabel}を選択${name ? `：${name}` : ''}`;
+    link.setAttribute('aria-label', label);
+    link.title = label;
+}
+
+function updateMatchRecordChoicePositionLabel(column, label) {
+    let labelEl = column.querySelector('.match-record-choice-position-label');
+
+    if (label) {
+        if (!labelEl) {
+            labelEl = document.createElement('span');
+            labelEl.className = 'match-record-choice-position-label';
+            column.prepend(labelEl);
+        }
+
+        labelEl.textContent = label;
+    } else if (labelEl) {
+        labelEl.remove();
+    }
+}
+
+function getMatchPositionLabel(position) {
+    const labels = window.groupRecordData?.matchSelection?.positionLabels || {};
+    const key = String(position || '');
+
+    return labels[key] || labels[position] || `${position}番`;
+}
+
+function findMatchSelectionPositionLink(position) {
+    const targetPosition = Number(position || 0);
+
+    return Array.from(document.querySelectorAll('[data-match-select-position]'))
+        .find(link => Number(link.dataset.matchSelectPosition || 0) === targetPosition) || null;
+}
+
+function initMatchSelectionScrollBridge() {
+    const page = document.querySelector('.record-page.match-selection-mode');
+    const scrollArea = document.querySelector('.score-scroll');
+
+    if (!page || !scrollArea) {
+        return;
+    }
+
+    let lastX = 0;
+    let lastY = 0;
+    let startX = 0;
+    let startY = 0;
+
+    scrollArea.addEventListener('wheel', event => {
+        const isHorizontal = Math.abs(event.deltaX) > Math.abs(event.deltaY) || event.shiftKey;
+
+        if (isHorizontal) {
+            return;
+        }
+
+        if (canScrollElementVertically(scrollArea, event.deltaY)) {
+            return;
+        }
+
+        window.scrollBy({
+            top: event.deltaY,
+            left: 0,
+            behavior: 'auto',
+        });
+        event.preventDefault();
+    }, { passive: false });
+
+    scrollArea.addEventListener('touchstart', event => {
+        if (event.touches.length !== 1) {
+            return;
+        }
+
+        startX = event.touches[0].clientX;
+        startY = event.touches[0].clientY;
+        lastX = startX;
+        lastY = startY;
+        matchSelectionTouchMoved = false;
+    }, { passive: true });
+
+    scrollArea.addEventListener('touchmove', event => {
+        if (event.touches.length !== 1) {
+            return;
+        }
+
+        const x = event.touches[0].clientX;
+        const y = event.touches[0].clientY;
+        const totalX = x - startX;
+        const totalY = y - startY;
+        const isVertical = Math.abs(totalY) > Math.abs(totalX) + 6;
+
+        if (Math.abs(totalX) > 8 || Math.abs(totalY) > 8) {
+            matchSelectionTouchMoved = true;
+        }
+
+        if (!isVertical) {
+            lastX = x;
+            lastY = y;
+            return;
+        }
+
+        const deltaY = lastY - y;
+
+        if (canScrollElementVertically(scrollArea, deltaY)) {
+            lastX = x;
+            lastY = y;
+            return;
+        }
+
+        window.scrollBy({
+            top: deltaY,
+            left: 0,
+            behavior: 'auto',
+        });
+
+        lastX = x;
+        lastY = y;
+        event.preventDefault();
+    }, { passive: false });
+
+    scrollArea.addEventListener('touchend', () => {
+        if (matchSelectionTouchMoved) {
+            setTimeout(() => {
+                matchSelectionTouchMoved = false;
+            }, 120);
+        }
+    }, { passive: true });
+}
+
+function canScrollElementVertically(element, deltaY) {
+    const maxScrollTop = element.scrollHeight - element.clientHeight;
+
+    if (maxScrollTop <= 1 || deltaY === 0) {
+        return false;
+    }
+
+    if (deltaY > 0) {
+        return element.scrollTop < maxScrollTop - 1;
+    }
+
+    return element.scrollTop > 1;
+}
+
+function initRecordPageOuterScroll() {
+    const page = document.querySelector('.record-page');
+
+    if (!page) {
+        return;
+    }
+
+    const innerScrollSelector = [
+        '.score-scroll',
+        '.match-score-scroll',
+        '.official-sheet-tabs',
+        '.calendar-wrapper',
+        '.match-lineup-modal',
+        '.match-lineup-dialog',
+        '.inline-match-pool',
+        '.match-team-board',
+    ].join(',');
+
+    page.addEventListener('wheel', event => {
+        if (event.target.closest(innerScrollSelector)) {
+            return;
+        }
+
+        const isHorizontal = Math.abs(event.deltaX) > Math.abs(event.deltaY) || event.shiftKey;
+
+        if (isHorizontal) {
+            window.scrollBy({
+                top: 0,
+                left: event.deltaX || event.deltaY,
+                behavior: 'auto',
+            });
+            event.preventDefault();
+            return;
+        }
+
+        window.scrollBy({
+            top: event.deltaY,
+            left: 0,
+            behavior: 'auto',
+        });
+        event.preventDefault();
+    }, { passive: false });
+
+    let lastY = 0;
+    let startTarget = null;
+
+    page.addEventListener('touchstart', event => {
+        if (event.touches.length !== 1) {
+            return;
+        }
+
+        startTarget = event.target;
+        lastY = event.touches[0].clientY;
+    }, { passive: true });
+
+    page.addEventListener('touchmove', event => {
+        if (event.touches.length !== 1 || startTarget?.closest(innerScrollSelector)) {
+            return;
+        }
+
+        const y = event.touches[0].clientY;
+
+        window.scrollBy({
+            top: lastY - y,
+            left: 0,
+            behavior: 'auto',
+        });
+
+        lastY = y;
+        event.preventDefault();
+    }, { passive: false });
+}
     
 function updateShot(el){
     if (window.groupRecordData && window.groupRecordData.canEdit === false) {
@@ -46,7 +521,7 @@ function updateShot(el){
 
     const id = el.dataset.id;
     if(!id){
-        alert('先に立順を設定してください');
+        alert('立順編集から正規連の1立を選択してください');
         return;
     }
 
@@ -224,13 +699,26 @@ function scrollRight() {
     if (!el) return;
 
     if (el.classList.contains('match-score-scroll')) {
+        const selectedMatchTate = document.querySelector('[data-selected-match-tate="1"]');
+
+        if (selectedMatchTate) {
+            sessionStorage.removeItem('matchAddTateScrollLeft');
+            sessionStorage.removeItem('matchAddTateScrollTop');
+            window.matchAddTateRestorePosition = null;
+
+            requestAnimationFrame(() => {
+                scrollMatchTateColumnIntoView(el, selectedMatchTate);
+            });
+            return;
+        }
+
         if (window.matchAddTateRestorePosition === undefined) {
             const savedLeft = sessionStorage.getItem('matchAddTateScrollLeft');
             const savedTop = sessionStorage.getItem('matchAddTateScrollTop');
             window.matchAddTateRestorePosition = savedLeft !== null || savedTop !== null
                 ? {
                     left: savedLeft !== null ? (parseInt(savedLeft, 10) || 0) : 0,
-                    top: savedTop !== null ? (parseInt(savedTop, 10) || 0) : 0,
+                    top: 0,
                 }
                 : null;
             sessionStorage.removeItem('matchAddTateScrollLeft');
@@ -254,6 +742,14 @@ function scrollRight() {
     el.scrollTop = el.scrollHeight;
 }
 
+function scrollMatchTateColumnIntoView(scrollArea, element) {
+    const areaRect = scrollArea.getBoundingClientRect();
+    const elementRect = element.getBoundingClientRect();
+
+    scrollArea.scrollLeft += elementRect.left - areaRect.left - 12;
+    scrollArea.scrollTop = 0;
+}
+
 window.addEventListener('load', () => {
     const url = new URL(window.location.href);
 
@@ -272,7 +768,7 @@ document.querySelectorAll('[data-match-add-tate-form]').forEach(form => {
 
         if (scrollArea) {
             sessionStorage.setItem('matchAddTateScrollLeft', String(scrollArea.scrollLeft));
-            sessionStorage.setItem('matchAddTateScrollTop', String(scrollArea.scrollTop));
+            sessionStorage.removeItem('matchAddTateScrollTop');
         }
     });
 });
@@ -287,6 +783,7 @@ function toggleCalendar(event) {
     box.style.display = box.style.display === 'block' ? 'none' : 'block';
 }
 window.updateShot = updateShot;
+window.selectOfficialRecordForMatch = selectOfficialRecordForMatch;
 window.toggleCalendar = toggleCalendar;
 window.reloadAndPrint = reloadAndPrint;
 window.scrollRight = scrollRight;
@@ -773,7 +1270,7 @@ function closeMatchLineupModal() {
 
         if (scrollArea) {
             sessionStorage.setItem('matchAddTateScrollLeft', String(scrollArea.scrollLeft));
-            sessionStorage.setItem('matchAddTateScrollTop', String(scrollArea.scrollTop));
+            sessionStorage.removeItem('matchAddTateScrollTop');
         }
 
         window.location.reload();
@@ -846,11 +1343,18 @@ function getTimerBox(button) {
     return button.closest('.match-timer');
 }
 
-function saveMatchTimer(box) {
+function matchTimerKey(box) {
+    return `${box.dataset.teamId}-${box.dataset.date}-${box.dataset.tateNo}`;
+}
+
+function saveMatchTimer(box, isRunning = false) {
     if (!box) return;
+
+    box.dataset.running = isRunning ? '1' : '0';
 
     fetch(`/match-teams/${box.dataset.teamId}/tate-timer`, {
         method: 'POST',
+        keepalive: true,
         headers: {
             'Content-Type': 'application/json',
             'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
@@ -859,29 +1363,28 @@ function saveMatchTimer(box) {
             date: box.dataset.date,
             tate_no: box.dataset.tateNo,
             elapsed_seconds: parseInt(box.dataset.elapsed || '0'),
+            is_running: isRunning,
         })
     });
 }
 
-function toggleMatchTimer(button) {
-    const box = getTimerBox(button);
+function startMatchTimer(box) {
     if (!box) return;
 
-    const key = `${box.dataset.teamId}-${box.dataset.date}-${box.dataset.tateNo}`;
+    const key = matchTimerKey(box);
+    const button = box.querySelector('.btn-outline-success, .btn-outline-danger');
 
     if (matchTimerIntervals.has(key)) {
-        clearInterval(matchTimerIntervals.get(key));
-        matchTimerIntervals.delete(key);
-        button.innerText = '開始';
-        button.classList.remove('btn-outline-danger');
-        button.classList.add('btn-outline-success');
-        saveMatchTimer(box);
         return;
     }
 
-    button.innerText = '停止';
-    button.classList.remove('btn-outline-success');
-    button.classList.add('btn-outline-danger');
+    box.dataset.running = '1';
+
+    if (button) {
+        button.innerText = '停止';
+        button.classList.remove('btn-outline-success');
+        button.classList.add('btn-outline-danger');
+    }
 
     matchTimerIntervals.set(key, setInterval(() => {
         const elapsed = parseInt(box.dataset.elapsed || '0') + 1;
@@ -891,29 +1394,61 @@ function toggleMatchTimer(button) {
     }, 1000));
 }
 
-function resetMatchTimer(button) {
-    const box = getTimerBox(button);
+function stopMatchTimer(box) {
     if (!box) return;
 
-    const key = `${box.dataset.teamId}-${box.dataset.date}-${box.dataset.tateNo}`;
+    const key = matchTimerKey(box);
+    const button = box.querySelector('.btn-outline-danger, .btn-outline-success');
+
     if (matchTimerIntervals.has(key)) {
         clearInterval(matchTimerIntervals.get(key));
         matchTimerIntervals.delete(key);
     }
 
-    box.dataset.elapsed = 0;
-    const display = box.querySelector('.match-timer-display');
-    const startButton = box.querySelector('.btn-outline-danger, .btn-outline-success');
+    box.dataset.running = '0';
 
-    if (display) display.innerText = '00:00';
-    if (startButton) {
-        startButton.innerText = '開始';
-        startButton.classList.remove('btn-outline-danger');
-        startButton.classList.add('btn-outline-success');
+    if (button) {
+        button.innerText = '開始';
+        button.classList.remove('btn-outline-danger');
+        button.classList.add('btn-outline-success');
     }
-
-    saveMatchTimer(box);
 }
 
+function toggleMatchTimer(button) {
+    const box = getTimerBox(button);
+    if (!box) return;
+
+    const key = matchTimerKey(box);
+
+    if (matchTimerIntervals.has(key)) {
+        stopMatchTimer(box);
+        saveMatchTimer(box, false);
+        return;
+    }
+
+    startMatchTimer(box);
+    saveMatchTimer(box, true);
+}
+
+function resetMatchTimer(button) {
+    const box = getTimerBox(button);
+    if (!box) return;
+
+    stopMatchTimer(box);
+    box.dataset.elapsed = 0;
+    const display = box.querySelector('.match-timer-display');
+
+    if (display) display.innerText = '00:00';
+
+    saveMatchTimer(box, false);
+}
+
+function initMatchTimers() {
+    document.querySelectorAll('.match-timer[data-running="1"]').forEach(box => {
+        startMatchTimer(box);
+    });
+}
+
+window.addEventListener('load', initMatchTimers);
 window.toggleMatchTimer = toggleMatchTimer;
 window.resetMatchTimer = resetMatchTimer;

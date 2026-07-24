@@ -128,15 +128,6 @@ class MatchLineupController extends Controller
             ]);
         }
 
-        $this->ensureRecordsWithShots(
-            collect($validated['members'] ?? [])
-                ->filter(fn($member) => !($member['absent'] ?? false) && !($member['late'] ?? false) && !empty($member['position']))
-                ->pluck('user_id'),
-            $team,
-            $validated['date'],
-            $validated['tate_no']
-        );
-
         return response()->json(['ok' => true]);
     }
 
@@ -157,7 +148,9 @@ class MatchLineupController extends Controller
             'date' => ['required', 'date'],
             'tate_no' => ['required', 'integer', 'min:1'],
             'elapsed_seconds' => ['required', 'integer', 'min:0'],
+            'is_running' => ['nullable', 'boolean'],
         ]);
+        $isRunning = $request->boolean('is_running');
 
         MatchTateMeta::updateOrCreate(
             [
@@ -167,6 +160,8 @@ class MatchLineupController extends Controller
             ],
             [
                 'elapsed_seconds' => $validated['elapsed_seconds'],
+                'is_timer_running' => $isRunning,
+                'timer_started_at' => $isRunning ? now() : null,
             ]
         );
 

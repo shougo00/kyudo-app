@@ -12,6 +12,7 @@ class MatchTeamMember extends Model
         'user_id',
         'tate_no',
         'position',
+        'official_record_id',
         'is_absent',
         'is_late',
     ];
@@ -24,5 +25,10 @@ class MatchTeamMember extends Model
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function officialRecord()
+    {
+        return $this->belongsTo(Record::class, 'official_record_id');
     }
 }

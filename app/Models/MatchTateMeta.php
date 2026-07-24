@@ -11,7 +11,14 @@ class MatchTateMeta extends Model
         'date',
         'tate_no',
         'elapsed_seconds',
+        'is_timer_running',
+        'timer_started_at',
         'scoring_mode',
+    ];
+
+    protected $casts = [
+        'is_timer_running' => 'boolean',
+        'timer_started_at' => 'datetime',
     ];
 
     public function team()
