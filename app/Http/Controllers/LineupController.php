@@ -21,6 +21,7 @@ class LineupController extends Controller
         }])->findOrFail($groupId);
         $canEditLineup = $this->canEditGroupRecords($group);
         $date = $request->date ?? date('Y-m-d');
+        $month = $request->month ?? \Carbon\Carbon::parse($date)->format('Y-m');
 
         $lineup = Lineup::firstOrCreate(
             [
@@ -52,22 +53,35 @@ class LineupController extends Controller
         })
         ->get();
 
-        $latestOfficialSheetNo = max(
-            1,
-            (int) Record::whereIn('user_id', $activeUserIds)
-                ->where('date', $date)
-                ->where('practice_type', 'official')
-                ->max('official_sheet_no'),
-            (int) DB::table('official_record_sheets')
+        $officialSheetNos = Record::whereIn('user_id', $activeUserIds)
+            ->where('date', $date)
+            ->where('practice_type', 'official')
+            ->pluck('official_sheet_no')
+            ->filter()
+            ->merge(DB::table('official_record_sheets')
                 ->where('group_id', $groupId)
                 ->where('date', $date)
-                ->max('sheet_no')
-        );
+                ->pluck('sheet_no'))
+            ->push(1)
+            ->map(fn($sheetNo) => (int) $sheetNo)
+            ->unique()
+            ->sort()
+            ->values();
+
+        $activeOfficialSheetNo = (int) ($request->sheet_no ?? $officialSheetNos->max() ?? 1);
+
+        if ($activeOfficialSheetNo < 1) {
+            $activeOfficialSheetNo = 1;
+        }
+
+        if (!$officialSheetNos->contains($activeOfficialSheetNo)) {
+            $activeOfficialSheetNo = (int) ($officialSheetNos->max() ?? 1);
+        }
 
         $recordedUserIds = Record::whereIn('user_id', $members->pluck('user_id'))
             ->where('date', $date)
             ->where('practice_type', 'official')
-            ->where('official_sheet_no', $latestOfficialSheetNo)
+            ->where('official_sheet_no', $activeOfficialSheetNo)
             ->whereHas('shots', function ($q) {
                 $q->whereNotNull('result')
                     ->orWhereNotNull('numeric_score');
@@ -78,7 +92,7 @@ class LineupController extends Controller
 
         $latestMatchUserIds = $this->latestMatchUserIds($group, $date);
 
-        return view('lineup.index', compact('group', 'lineup', 'members', 'date', 'recordedUserIds', 'latestMatchUserIds', 'canEditLineup'));
+        return view('lineup.index', compact('group', 'lineup', 'members', 'date', 'month', 'recordedUserIds', 'latestMatchUserIds', 'canEditLineup', 'activeOfficialSheetNo'));
     }
 
     public function save(Request $request, $lineupId)
@@ -159,19 +173,10 @@ class LineupController extends Controller
 
     private function syncLineupMembers(Lineup $lineup, Group $group): void
     {
-        $members = $lineup->members()->get();
-        $existingUserIds = $members->pluck('user_id')->toArray();
-
-        foreach ($group->users as $user) {
-            if (!in_array($user->id, $existingUserIds)) {
-                LineupMember::create([
-                    'lineup_id' => $lineup->id,
-                    'user_id' => $user->id,
-                    'position' => null,
-                    'is_absent' => $user->isDefaultAbsentForDate($lineup->date),
-                ]);
-            }
-        }
+        LineupMember::ensureForLineupUsers(
+            $lineup,
+            $group->users->where('is_admin', false)
+        );
     }
 
     private function latestMatchUserIds(Group $group, string $date)

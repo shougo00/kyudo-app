@@ -45,18 +45,8 @@ class AttendanceController extends Controller
     );
 
     if ($isHost) {
-        $attendanceMembers = $group->users->map(function ($memberUser) use ($lineup, $date) {
-            $lineupMember = LineupMember::firstOrCreate(
-                [
-                    'lineup_id' => $lineup->id,
-                    'user_id' => $memberUser->id,
-                ],
-                [
-                    'position' => null,
-                    'is_absent' => $memberUser->isDefaultAbsentForDate($date),
-                    'is_late' => false,
-                ]
-            );
+        $attendanceMembers = $group->users->map(function ($memberUser) use ($lineup) {
+            $lineupMember = LineupMember::ensureForLineupUser($lineup, $memberUser);
 
             return [
                 'user' => $memberUser,
@@ -74,17 +64,7 @@ class AttendanceController extends Controller
         ));
     }
 
-    $member = LineupMember::firstOrCreate(
-        [
-            'lineup_id' => $lineup->id,
-            'user_id' => $user->id,
-        ],
-        [
-            'position' => null,
-            'is_absent' => $user->isDefaultAbsentForDate($date),
-            'is_late' => false,
-        ]
-    );
+    $member = LineupMember::ensureForLineupUser($lineup, $user);
 
     return view('attendance.index', compact(
         'group',
@@ -135,17 +115,7 @@ class AttendanceController extends Controller
             ]
         );
 
-        $member = LineupMember::firstOrCreate(
-            [
-                'lineup_id' => $lineup->id,
-                'user_id' => $targetUser->id,
-            ],
-            [
-                'position' => null,
-                'is_absent' => $targetUser->isDefaultAbsentForDate($date),
-                'is_late' => false,
-            ]
-        );
+        $member = LineupMember::ensureForLineupUser($lineup, $targetUser);
 
         $member->update([
             'is_absent' => $request->status === 'absent',
@@ -200,17 +170,7 @@ class AttendanceController extends Controller
                 ]
             );
 
-            $member = LineupMember::firstOrCreate(
-                [
-                    'lineup_id' => $lineup->id,
-                    'user_id' => $targetUser->id,
-                ],
-                [
-                    'position' => null,
-                    'is_absent' => $targetUser->isDefaultAbsentForDate($request->date),
-                    'is_late' => false,
-                ]
-            );
+            $member = LineupMember::ensureForLineupUser($lineup, $targetUser);
 
             $member->update([
                 'is_absent' => $request->boolean('all_absent'),
@@ -282,17 +242,7 @@ class AttendanceController extends Controller
                 ]
             );
 
-            $member = LineupMember::firstOrCreate(
-                [
-                    'lineup_id' => $lineup->id,
-                    'user_id' => $targetUser->id,
-                ],
-                [
-                    'position' => null,
-                    'is_absent' => $targetUser->isDefaultAbsentForDate($date),
-                    'is_late' => false,
-                ]
-            );
+            $member = LineupMember::ensureForLineupUser($lineup, $targetUser);
 
             $member->update([
                 'is_absent' => $targetUser->isDefaultAbsentForDate($date),

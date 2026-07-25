@@ -159,7 +159,7 @@ window.groupRecordData = {
                 印刷
             </button>
             @if($practiceType !== 'match' && $isCurrentSheet)
-                <a href="/group/{{ $group->id }}/lineup?date={{ $date }}" class="btn btn-secondary">
+                <a href="/group/{{ $group->id }}/lineup?date={{ $date }}&month={{ $month }}&sheet_no={{ $activeSheetNo }}" class="btn btn-secondary">
                     立順
                 </a>
             @endif

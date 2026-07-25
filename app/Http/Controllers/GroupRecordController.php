@@ -1216,19 +1216,10 @@ class GroupRecordController extends Controller
 
     private function syncLineupMembers(Lineup $lineup, Group $group): void
     {
-        $existingUserIds = $lineup->members->pluck('user_id')->toArray();
-
-        foreach ($group->users as $user) {
-            if (!in_array($user->id, $existingUserIds)) {
-                LineupMember::create([
-                    'lineup_id' => $lineup->id,
-                    'user_id' => $user->id,
-                    'position' => null,
-                    'is_absent' => $user->isDefaultAbsentForDate($lineup->date),
-                    'is_late' => false,
-                ]);
-            }
-        }
+        LineupMember::ensureForLineupUsers(
+            $lineup,
+            $group->users->where('is_admin', false)
+        );
     }
 
     private function officialSheetNos($groupId, string $date, $groupUserIds)

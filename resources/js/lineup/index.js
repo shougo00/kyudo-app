@@ -184,7 +184,7 @@ function confirmRemoveRecordedMember(member) {
         return true;
     }
 
-    return window.confirm('記録が入っている人を選択外に移動すると、記録が一覧に残らなくなります。よろしいですか？');
+    return window.confirm('現在の記録ページに的中が入っている人を選択外に移動すると、記録が一覧に残らなくなります。よろしいですか？');
 }
 
 function selectMember(member) {
@@ -613,7 +613,7 @@ function clearAll() {
         .filter(hasEnteredRecord);
 
     if (recordedMembers.length > 0
-        && !confirm('記録が入っている人を選択外に移動すると、記録が一覧に残らなくなります。よろしいですか？')) {
+        && !confirm('現在の記録ページに的中が入っている人を選択外に移動すると、記録が一覧に残らなくなります。よろしいですか？')) {
         return;
     }
 

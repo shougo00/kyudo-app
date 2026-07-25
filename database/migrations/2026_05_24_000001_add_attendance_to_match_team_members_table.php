@@ -19,7 +19,9 @@ return new class extends Migration
             }
         });
 
-        DB::statement('ALTER TABLE match_team_members MODIFY position INT NULL');
+        if (DB::getDriverName() !== 'sqlite') {
+            DB::statement('ALTER TABLE match_team_members MODIFY position INT NULL');
+        }
     }
 
     public function down(): void
@@ -28,7 +30,9 @@ return new class extends Migration
             ->whereNull('position')
             ->delete();
 
-        DB::statement('ALTER TABLE match_team_members MODIFY position INT NOT NULL');
+        if (DB::getDriverName() !== 'sqlite') {
+            DB::statement('ALTER TABLE match_team_members MODIFY position INT NOT NULL');
+        }
 
         Schema::table('match_team_members', function (Blueprint $table) {
             if (Schema::hasColumn('match_team_members', 'is_late')) {

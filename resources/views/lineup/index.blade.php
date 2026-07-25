@@ -31,6 +31,8 @@
     $lineupPoolHeightLevel = max(1, min(10, (int) (auth()->user()?->lineup_pool_height_level ?? 5)));
     $lineupPoolMaxHeight = 14 + ($lineupPoolHeightLevel * 4);
     $canEditLineup = (bool) ($canEditLineup ?? true);
+    $activeOfficialSheetNo = (int) ($activeOfficialSheetNo ?? 1);
+    $month = $month ?? \Carbon\Carbon::parse($date)->format('Y-m');
 @endphp
 <div class="container py-3" style="--lineup-pool-max-height: {{ $lineupPoolMaxHeight }}dvh;">
 
@@ -39,7 +41,7 @@
         {{ $group->name }}｜立順設定
     </h4>
 
-    <a href="/group/{{ $group->id }}/records?date={{ $date }}"
+    <a href="/group/{{ $group->id }}/records?date={{ $date }}&month={{ $month }}&sheet_no={{ $activeOfficialSheetNo }}"
        class="btn btn-success">
         記録に戻る
     </a>

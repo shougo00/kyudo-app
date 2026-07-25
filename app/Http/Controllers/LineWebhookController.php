@@ -98,17 +98,7 @@ class LineWebhookController extends Controller
                 ]
             );
 
-            $member = LineupMember::firstOrCreate(
-                [
-                    'lineup_id' => $lineup->id,
-                    'user_id' => $user->id,
-                ],
-                [
-                    'position' => null,
-                    'is_absent' => false,
-                    'is_late' => false,
-                ]
-            );
+            $member = LineupMember::ensureForLineupUser($lineup, $user);
 
             $member->update([
                 'is_absent' => false,
@@ -147,17 +137,7 @@ class LineWebhookController extends Controller
                     ]
                 );
 
-                $member = LineupMember::firstOrCreate(
-                    [
-                        'lineup_id' => $lineup->id,
-                        'user_id' => $user->id,
-                    ],
-                    [
-                        'position' => null,
-                        'is_absent' => false,
-                        'is_late' => false,
-                    ]
-                );
+                $member = LineupMember::ensureForLineupUser($lineup, $user);
 
                 $member->update([
                     'is_absent' => true,

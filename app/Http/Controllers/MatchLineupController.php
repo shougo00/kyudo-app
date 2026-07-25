@@ -234,19 +234,7 @@ class MatchLineupController extends Controller
             ]
         );
 
-        $existingUserIds = $lineup->members()->pluck('user_id')->toArray();
-
-        foreach ($group->users as $user) {
-            if (!in_array($user->id, $existingUserIds, true)) {
-                LineupMember::create([
-                    'lineup_id' => $lineup->id,
-                    'user_id' => $user->id,
-                    'position' => null,
-                    'is_absent' => $user->isDefaultAbsentForDate($date),
-                    'is_late' => false,
-                ]);
-            }
-        }
+        LineupMember::ensureForLineupUsers($lineup, $group->users);
 
         return $lineup->members()
             ->whereHas('user', fn($q) => $q->where('is_admin', false))
