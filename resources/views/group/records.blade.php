@@ -16,6 +16,7 @@
     $otherRecordPath = $otherRecordPath ?? "/group/{$group->id}/match-records";
     $otherRecordLabel = $otherRecordLabel ?? '試合用記録';
     $practiceType = $practiceType ?? 'official';
+    $otherRecordButtonClass = $practiceType === 'match' ? 'btn-outline-success' : 'btn-warning';
     $canEditGroupRecords = (bool) ($canEditGroupRecords ?? true);
     $activeSheetNo = $activeSheetNo ?? 1;
     $sheetNos = $sheetNos ?? collect([1]);
@@ -147,7 +148,7 @@ window.groupRecordData = {
 
     @unless($matchSelection)
         <div class="record-title-actions">
-            <a href="{{ $otherRecordPath }}?date={{ $date }}&month={{ $month }}" class="btn btn-outline-success">
+            <a href="{{ $otherRecordPath }}?date={{ $date }}&month={{ $month }}" class="btn {{ $otherRecordButtonClass }}">
                 {{ $otherRecordLabel }}
             </a>
             @if($practiceType === 'match')
