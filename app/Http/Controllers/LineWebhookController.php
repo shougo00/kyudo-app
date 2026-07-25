@@ -53,7 +53,7 @@ class LineWebhookController extends Controller
                         'messages' => [
                             [
                                 'type' => 'text',
-                                'text' => "LINE連携が完了しました！\nこのグループで「休みます」の単語でその日の出欠が欠席として登録されます。",
+                                'text' => "LINE連携が完了しました！\nこのグループで「休みます」「遅れます」の単語でその日の出欠が欠席・遅刻として登録されます。",
                             ],
                         ],
                     ]);
