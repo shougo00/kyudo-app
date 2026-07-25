@@ -51,7 +51,9 @@ class LineupController extends Controller
                 ->orderBy('lineup_users.name')
                 ->select('lineup_members.*');
         })
-        ->get();
+        ->get()
+        ->unique('user_id')
+        ->values();
 
         $officialSheetNos = Record::whereIn('user_id', $activeUserIds)
             ->where('date', $date)
@@ -131,6 +133,7 @@ class LineupController extends Controller
             $q->where('is_admin', false);
         })
         ->get()
+        ->unique('user_id')
         ->shuffle()
         ->values();
 
@@ -229,7 +232,7 @@ class LineupController extends Controller
             'tate_size' => $previous->tate_size,
         ]);
 
-        $previousMembers = $previous->members()->get();
+        $previousMembers = $previous->members()->get()->unique('user_id');
 
         foreach ($previousMembers as $prevMember) {
 

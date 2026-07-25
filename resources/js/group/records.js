@@ -20,6 +20,7 @@ window.addEventListener('load', () => {
     initMatchSelectionScrollBridge();
     initRecordPageOuterScroll();
     initMatchSelectionPositionLinks();
+    initOfficialMatchTeamControls();
 });
 
 function waitForPendingShotUpdates() {
@@ -30,6 +31,52 @@ function waitForPendingShotUpdates() {
     }
 
     return Promise.allSettled(Array.from(pendingUpdates));
+}
+
+function updateOfficialMatchTeamHitCounters(counterKeys, delta) {
+    if (!counterKeys || !delta) {
+        return;
+    }
+
+    String(counterKeys)
+        .split(',')
+        .map(key => key.trim())
+        .filter(Boolean)
+        .forEach(key => {
+            document.querySelectorAll(`[data-official-match-team-hit-counter="${key}"]`).forEach(counterEl => {
+                let count = parseInt(counterEl.innerText) || 0;
+                count += delta;
+                if (count < 0) count = 0;
+                counterEl.innerText = count + '中';
+            });
+        });
+}
+
+function officialMatchTeamControlsStorageKey() {
+    const url = new URL(window.location.href);
+    const groupId = window.groupRecordData?.groupId || 'unknown';
+    const date = url.searchParams.get('date') || '';
+
+    return `officialMatchTeamControlsOpen:${groupId}:${date}`;
+}
+
+function initOfficialMatchTeamControls() {
+    const controls = document.getElementById('official-match-team-controls');
+
+    if (!controls) {
+        return;
+    }
+
+    const url = new URL(window.location.href);
+    const storageKey = officialMatchTeamControlsStorageKey();
+    const shouldOpen = url.hash === '#official-match-team-controls'
+        || sessionStorage.getItem(storageKey) === '1';
+
+    controls.open = shouldOpen;
+
+    controls.addEventListener('toggle', () => {
+        sessionStorage.setItem(storageKey, controls.open ? '1' : '0');
+    });
 }
 
 async function printAfterReady() {
@@ -78,6 +125,8 @@ function selectOfficialRecordForMatch(el, event) {
             tate_no: selection.tateNo,
             position: assignedPosition,
             record_id: recordId,
+            return_to: selection.returnTo,
+            sheet_no: new URL(window.location.href).searchParams.get('sheet_no'),
         }),
     })
         .then(res => res.json().then(data => ({ ok: res.ok, data })))
@@ -597,6 +646,11 @@ function updateShot(el){
         }
     }
 
+    updateOfficialMatchTeamHitCounters(
+        el.dataset.officialMatchTeamCounters,
+        (current !== 'hit' && next === 'hit') ? 1 : ((current === 'hit' && next !== 'hit') ? -1 : 0)
+    );
+
     window.groupRecordPendingShotUpdates = window.groupRecordPendingShotUpdates || new Set();
 
     const request = fetch(`/group/shot/${id}`,{
@@ -694,6 +748,28 @@ function updateNumericShot(el, id, userId, recordId, tateCounterKey) {
 
     window.groupRecordPendingShotUpdates.add(request);
 }
+
+function saveMatchAddTateScrollPosition() {
+    const scrollArea = document.querySelector('.match-score-scroll') || document.querySelector('.score-scroll');
+
+    if (!scrollArea) {
+        return;
+    }
+
+    sessionStorage.setItem('matchAddTateScrollLeft', String(scrollArea.scrollLeft));
+    sessionStorage.setItem('matchAddTateScrollTop', String(scrollArea.scrollTop));
+    sessionStorage.setItem(
+        'matchAddTateScrollMode',
+        scrollArea.classList.contains('match-score-scroll') ? 'match' : 'official'
+    );
+}
+
+function clearMatchAddTateScrollPosition() {
+    sessionStorage.removeItem('matchAddTateScrollLeft');
+    sessionStorage.removeItem('matchAddTateScrollTop');
+    sessionStorage.removeItem('matchAddTateScrollMode');
+}
+
 function scrollRight() {
     const el = document.querySelector('.score-scroll');
     if (!el) return;
@@ -702,8 +778,7 @@ function scrollRight() {
         const selectedMatchTate = document.querySelector('[data-selected-match-tate="1"]');
 
         if (selectedMatchTate) {
-            sessionStorage.removeItem('matchAddTateScrollLeft');
-            sessionStorage.removeItem('matchAddTateScrollTop');
+            clearMatchAddTateScrollPosition();
             window.matchAddTateRestorePosition = null;
 
             requestAnimationFrame(() => {
@@ -715,14 +790,14 @@ function scrollRight() {
         if (window.matchAddTateRestorePosition === undefined) {
             const savedLeft = sessionStorage.getItem('matchAddTateScrollLeft');
             const savedTop = sessionStorage.getItem('matchAddTateScrollTop');
+            const savedMode = sessionStorage.getItem('matchAddTateScrollMode');
             window.matchAddTateRestorePosition = savedLeft !== null || savedTop !== null
                 ? {
                     left: savedLeft !== null ? (parseInt(savedLeft, 10) || 0) : 0,
-                    top: 0,
+                    top: savedMode === 'match' ? 0 : (parseInt(savedTop || '0', 10) || 0),
                 }
                 : null;
-            sessionStorage.removeItem('matchAddTateScrollLeft');
-            sessionStorage.removeItem('matchAddTateScrollTop');
+            clearMatchAddTateScrollPosition();
         }
 
         if (window.matchAddTateRestorePosition !== null) {
@@ -735,6 +810,31 @@ function scrollRight() {
 
         el.scrollLeft = 0;
         el.scrollTop = 0;
+        return;
+    }
+
+    if (window.matchAddTateRestorePosition === undefined) {
+        const savedLeft = sessionStorage.getItem('matchAddTateScrollLeft');
+        const savedTop = sessionStorage.getItem('matchAddTateScrollTop');
+        const savedMode = sessionStorage.getItem('matchAddTateScrollMode');
+
+        window.matchAddTateRestorePosition = savedMode === 'official' && (savedLeft !== null || savedTop !== null)
+            ? {
+                left: parseInt(savedLeft || '0', 10) || 0,
+                top: parseInt(savedTop || '0', 10) || 0,
+            }
+            : null;
+
+        if (savedMode === 'official') {
+            clearMatchAddTateScrollPosition();
+        }
+    }
+
+    if (window.matchAddTateRestorePosition !== null) {
+        requestAnimationFrame(() => {
+            el.scrollLeft = window.matchAddTateRestorePosition.left;
+            el.scrollTop = window.matchAddTateRestorePosition.top;
+        });
         return;
     }
 
@@ -764,12 +864,7 @@ window.addEventListener('load', () => {
 
 document.querySelectorAll('[data-match-add-tate-form]').forEach(form => {
     form.addEventListener('submit', () => {
-        const scrollArea = document.querySelector('.match-score-scroll');
-
-        if (scrollArea) {
-            sessionStorage.setItem('matchAddTateScrollLeft', String(scrollArea.scrollLeft));
-            sessionStorage.removeItem('matchAddTateScrollTop');
-        }
+        saveMatchAddTateScrollPosition();
     });
 });
 
@@ -1266,13 +1361,7 @@ function closeMatchLineupModal() {
     document.body.classList.remove('modal-open');
 
     if (shouldReload) {
-        const scrollArea = document.querySelector('.match-score-scroll');
-
-        if (scrollArea) {
-            sessionStorage.setItem('matchAddTateScrollLeft', String(scrollArea.scrollLeft));
-            sessionStorage.removeItem('matchAddTateScrollTop');
-        }
-
+        saveMatchAddTateScrollPosition();
         window.location.reload();
     }
 }

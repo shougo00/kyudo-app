@@ -20,7 +20,6 @@ class GroupHistoryController extends Controller
         $availableScoreTypes = [
             'official' => '正規練',
             'self' => '自主練',
-            'match' => '試合',
         ];
 
         $scoreTypes = $request->input('score_types');
@@ -64,6 +63,7 @@ class GroupHistoryController extends Controller
         $rankingSourceRecords = Record::with('shots')
             ->whereIn('user_id', $memberIds)
             ->whereBetween('date', [$start, $end])
+            ->whereIn('practice_type', array_keys($availableScoreTypes))
             ->get()
             ->groupBy('user_id');
 
@@ -79,7 +79,6 @@ class GroupHistoryController extends Controller
                 'all' => $this->calc($records),
                 'official' => $this->calc($records->where('practice_type', 'official')),
                 'self' => $this->calc($records->where('practice_type', 'self')),
-                'match' => $this->calc($records->where('practice_type', 'match')),
             ];
         });
 
@@ -166,6 +165,7 @@ class GroupHistoryController extends Controller
             ->whereIn('user_id', $memberIds)
             ->whereYear('date', $currentMonth->year)
             ->whereMonth('date', $currentMonth->month)
+            ->whereIn('practice_type', ['official', 'self'])
             ->get();
 
         return $monthlyMembers
@@ -178,7 +178,6 @@ class GroupHistoryController extends Controller
                     'all' => $this->calc($records),
                     'official' => $this->calc($records->where('practice_type', 'official')),
                     'self' => $this->calc($records->where('practice_type', 'self')),
-                    'match' => $this->calc($records->where('practice_type', 'match')),
                 ];
             })
             ->values();
@@ -228,7 +227,6 @@ class GroupHistoryController extends Controller
                 'grade' => $row['user']->grade_level ? $row['user']->grade_level . '学年' : '',
                 'official' => $row['official'],
                 'self' => $row['self'],
-                'match' => $row['match'],
                 'all' => $row['all'],
             ]);
 
@@ -270,9 +268,6 @@ class GroupHistoryController extends Controller
                 '自主練 射数',
                 '自主練 的中数',
                 '自主練 的中率',
-                '試合 射数',
-                '試合 的中数',
-                '試合 的中率',
                 '総合 射数',
                 '総合 的中数',
                 '総合 的中率',
@@ -288,9 +283,6 @@ class GroupHistoryController extends Controller
                     $row['self']['shots'],
                     $row['self']['hits'],
                     $row['self']['rate'] . '%',
-                    $row['match']['shots'],
-                    $row['match']['hits'],
-                    $row['match']['rate'] . '%',
                     $row['all']['shots'],
                     $row['all']['hits'],
                     $row['all']['rate'] . '%',

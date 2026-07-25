@@ -49,6 +49,9 @@ class GroupRecordController extends Controller
             if ($selectionTeam) {
                 $selectionTateNo = max(1, $request->integer('match_tate_no'));
                 $selectionPosition = max(1, min($selectionTeam->tate_size, $request->integer('match_position')));
+                $selectionReturnToOfficial = $request->input('return_to') === 'official';
+                $selectionMonth = $request->month ?? \Carbon\Carbon::parse($date)->format('Y-m');
+                $selectionSheetNo = max(1, (int) ($request->input('sheet_no') ?? 1));
                 $assignedMembers = MatchTeamMember::with(['user', 'officialRecord'])
                     ->where('match_team_id', $selectionTeam->id)
                     ->where('date', $date)
@@ -65,7 +68,11 @@ class GroupRecordController extends Controller
                     'position' => $selectionPosition,
                     'tate_size' => $selectionTeam->tate_size,
                     'assigned_members' => $assignedMembers,
-                    'back_url' => "/group/{$groupId}/match-records?date={$date}&team_id={$selectionTeam->id}#match-team-{$selectionTeam->id}",
+                    'return_to' => $selectionReturnToOfficial ? 'official' : 'match',
+                    'back_url' => $selectionReturnToOfficial
+                        ? "/group/{$groupId}/records?date={$date}&month={$selectionMonth}&sheet_no={$selectionSheetNo}#official-match-team-controls"
+                        : "/group/{$groupId}/match-records?date={$date}&team_id={$selectionTeam->id}#match-team-{$selectionTeam->id}",
+                    'back_label' => $selectionReturnToOfficial ? '正規連記録へ戻る' : '試合記録へ戻る',
                 ];
             }
         }
@@ -95,6 +102,7 @@ class GroupRecordController extends Controller
                 ->where('is_absent', false)
                 ->filter(fn($m) => !is_null($m->position))
                 ->sortBy('position')
+                ->unique('user_id')
                 ->values();
 
             $users = $placedMembers->pluck('user')->filter()->values();
@@ -309,6 +317,8 @@ class GroupRecordController extends Controller
             : "/group/{$groupId}/match-records";
         $otherRecordLabel = $practiceType === 'match' ? '正規連用記録' : '試合用記録';
         $canSwitchOfficialSheet = $hasEnteredOfficialShots;
+        $latestMatchAssignmentsByRecordId = $this->latestMatchAssignmentsByRecordId($group, $date);
+        $officialMatchTeamControls = $this->officialMatchTeamControls($group, $date);
 
         return view('group.records', compact(
             'group',
@@ -341,7 +351,9 @@ class GroupRecordController extends Controller
             'activeSheetScoringMode',
             'canSwitchOfficialSheet',
             'canEditGroupRecords',
-            'matchSelection'
+            'matchSelection',
+            'latestMatchAssignmentsByRecordId',
+            'officialMatchTeamControls'
         ));
     }
 
@@ -770,8 +782,11 @@ class GroupRecordController extends Controller
         $previousMeta = null;
 
         if (!$sourceTate) {
-            return redirect("/group/{$groupId}/match-records?date={$date}&month={$month}&team_id={$team->id}&tate_no=1#match-team-{$team->id}")
-                ->with('error', '先に1立目でメンバーを選択してから、＋立を押してください。');
+            $message = '先に1立目でメンバーを選択してから、＋立を押してください。';
+
+            return redirect($this->matchAddTateReturnUrl($request, $groupId, $date, $month, $team->id, 1))
+                ->with('error', $message)
+                ->with('error_alert', $message);
         }
 
         if ($sourceTate) {
@@ -788,7 +803,7 @@ class GroupRecordController extends Controller
             $sourceMembers = $team->members()
                 ->where('date', $date)
                 ->where('tate_no', $sourceTate)
-                ->with(['officialRecord', 'user'])
+                ->with(['officialRecord.shots', 'user'])
                 ->get();
             $activeSourceMembers = $sourceMembers
                 ->filter(fn($member) => !is_null($member->position)
@@ -796,8 +811,32 @@ class GroupRecordController extends Controller
                     && !$member->is_late);
 
             if ($activeSourceMembers->isEmpty()) {
-                return redirect("/group/{$groupId}/match-records?date={$date}&month={$month}&team_id={$team->id}&tate_no={$sourceTate}#match-team-{$team->id}")
-                    ->with('error', "{$sourceTate}立目にメンバーが選択されていません。先にメンバーを選択してから、＋立を押してください。");
+                $message = "{$sourceTate}立目にメンバーが選択されていません。先にメンバーを選択してから、＋立を押してください。";
+
+                return redirect($this->matchAddTateReturnUrl($request, $groupId, $date, $month, $team->id, $sourceTate))
+                    ->with('error', $message)
+                    ->with('error_alert', $message);
+            }
+
+            $hasEnteredSourceTateScore = $activeSourceMembers
+                ->contains(fn($member) => $member->officialRecord
+                    && $member->officialRecord->shots->contains(fn($shot) => !is_null($shot->result) || !is_null($shot->numeric_score)));
+            $hasEnteredLegacySourceTateScore = Record::where('match_team_id', $team->id)
+                ->where('date', $date)
+                ->where('practice_type', 'match')
+                ->where('tate_no', $sourceTate)
+                ->whereHas('shots', function ($query) {
+                    $query->whereNotNull('result')
+                        ->orWhereNotNull('numeric_score');
+                })
+                ->exists();
+
+            if (!$hasEnteredSourceTateScore && !$hasEnteredLegacySourceTateScore) {
+                $message = "{$sourceTate}立目の的中を入力してから、＋立を押してください。";
+
+                return redirect($this->matchAddTateReturnUrl($request, $groupId, $date, $month, $team->id, $sourceTate))
+                    ->with('error', $message)
+                    ->with('error_alert', $message);
             }
 
             $missingNextOfficialMembers = collect();
@@ -836,8 +875,9 @@ class GroupRecordController extends Controller
                     ? "{$names} の次に連動できる正規連がありません。5立目以降に進む場合は、正規連で次ページを追加してからもう一度＋立を押してください。"
                     : '次に連動できる正規連がありません。5立目以降に進む場合は、正規連で次ページを追加してからもう一度＋立を押してください。';
 
-                return redirect("/group/{$groupId}/match-records?date={$date}&month={$month}&team_id={$team->id}&tate_no={$sourceTate}#match-team-{$team->id}")
-                    ->with('error', $message);
+                return redirect($this->matchAddTateReturnUrl($request, $groupId, $date, $month, $team->id, $sourceTate))
+                    ->with('error', $message)
+                    ->with('error_alert', $message);
             }
 
             $memberInserts = $plannedMembers
@@ -884,7 +924,7 @@ class GroupRecordController extends Controller
             ]
         );
 
-        return redirect("/group/{$groupId}/match-records?date={$date}&month={$month}&team_id={$team->id}&tate_no={$newTate}#match-team-{$team->id}");
+        return redirect($this->matchAddTateReturnUrl($request, $groupId, $date, $month, $team->id, $newTate));
     }
 
     public function updateOfficialScoringMode(Request $request, $groupId)
@@ -1007,9 +1047,13 @@ class GroupRecordController extends Controller
             ? (int) $validated['position'] + 1
             : null;
         $nextSheetNo = max(1, (int) ($record->official_sheet_no ?? 1));
+        $returnToOfficial = $request->input('return_to') === 'official';
+        $returnToQuery = $returnToOfficial ? '&return_to=official' : '';
         $nextUrl = $nextPosition
-            ? "/group/{$team->group_id}/records?date={$validated['date']}&month={$month}&sheet_no={$nextSheetNo}&match_team_id={$team->id}&match_tate_no={$validated['tate_no']}&match_position={$nextPosition}"
-            : "/group/{$team->group_id}/match-records?date={$validated['date']}&month={$month}&team_id={$team->id}#match-team-{$team->id}";
+            ? "/group/{$team->group_id}/records?date={$validated['date']}&month={$month}&sheet_no={$nextSheetNo}&match_team_id={$team->id}&match_tate_no={$validated['tate_no']}&match_position={$nextPosition}{$returnToQuery}"
+            : ($returnToOfficial
+                ? "/group/{$team->group_id}/records?date={$validated['date']}&month={$month}&sheet_no={$nextSheetNo}#official-match-team-controls"
+                : "/group/{$team->group_id}/match-records?date={$validated['date']}&month={$month}&team_id={$team->id}#match-team-{$team->id}");
 
         return response()->json([
             'ok' => true,
@@ -1058,6 +1102,8 @@ class GroupRecordController extends Controller
             ->whereIn('user_id', $activeGroupUserIds)
             ->where('is_absent', false)
             ->filter(fn($m) => !is_null($m->position))
+            ->sortBy('position')
+            ->unique('user_id')
             ->values();
         $users = $placedMembers
             ->sortBy('position')
@@ -1222,6 +1268,155 @@ class GroupRecordController extends Controller
         );
     }
 
+    private function latestMatchAssignmentsByRecordId(Group $group, string $date)
+    {
+        $teamColors = [
+            '#dc3545',
+            '#0d6efd',
+            '#198754',
+            '#fd7e14',
+            '#6f42c1',
+            '#0aa2c0',
+            '#d63384',
+            '#6c757d',
+        ];
+
+        return MatchTeam::withTrashed()
+            ->with(['members' => fn($query) => $query->where('date', $date)])
+            ->where('group_id', $group->id)
+            ->whereHas('members', fn($query) => $query->where('date', $date))
+            ->orderBy('id')
+            ->get()
+            ->values()
+            ->flatMap(function ($team, int $teamIndex) use ($teamColors) {
+                $latestTateNo = $team->members
+                    ->pluck('tate_no')
+                    ->filter()
+                    ->max();
+
+                if (!$latestTateNo) {
+                    return collect();
+                }
+
+                return $team->members
+                    ->where('tate_no', $latestTateNo)
+                    ->whereNotNull('position')
+                    ->whereNotNull('official_record_id')
+                    ->where('is_absent', false)
+                    ->where('is_late', false)
+                    ->sortBy('position')
+                    ->map(fn($member) => [
+                        'official_record_id' => (int) $member->official_record_id,
+                        'user_id' => (int) $member->user_id,
+                        'team_id' => (int) $team->id,
+                        'team_name' => $team->name,
+                        'tate_no' => (int) $latestTateNo,
+                        'position' => (int) $member->position,
+                        'tate_size' => (int) $team->tate_size,
+                        'color' => $teamColors[$teamIndex % count($teamColors)],
+                    ]);
+            })
+            ->groupBy('official_record_id')
+            ->map(fn($assignments) => $assignments->values());
+    }
+
+    private function officialMatchTeamControls(Group $group, string $date)
+    {
+        $teamColors = [
+            '#dc3545',
+            '#0d6efd',
+            '#198754',
+            '#fd7e14',
+            '#6f42c1',
+            '#0aa2c0',
+            '#d63384',
+            '#6c757d',
+        ];
+
+        $teams = MatchTeam::with([
+                'members' => fn($query) => $query->where('date', $date)->with('officialRecord.shots'),
+                'tateMetas' => fn($query) => $query->where('date', $date),
+            ])
+            ->where('group_id', $group->id)
+            ->whereNull('deleted_at')
+            ->orderBy('id')
+            ->get()
+            ->values();
+
+        if ($teams->isEmpty()) {
+            return collect();
+        }
+
+        $legacyMaxTates = Record::where('date', $date)
+            ->where('practice_type', 'match')
+            ->whereIn('match_team_id', $teams->pluck('id'))
+            ->select('match_team_id', DB::raw('MAX(tate_no) as max_tate_no'))
+            ->groupBy('match_team_id')
+            ->pluck('max_tate_no', 'match_team_id');
+        $legacyRecords = Record::with('shots')
+            ->where('date', $date)
+            ->where('practice_type', 'match')
+            ->whereIn('match_team_id', $teams->pluck('id'))
+            ->get()
+            ->groupBy('match_team_id');
+
+        return $teams->map(function ($team, int $teamIndex) use ($teamColors, $legacyMaxTates, $legacyRecords) {
+            $latestTateNo = max(
+                1,
+                (int) ($team->members->pluck('tate_no')->filter()->max() ?? 0),
+                (int) ($team->tateMetas->pluck('tate_no')->filter()->max() ?? 0),
+                (int) ($legacyMaxTates->get($team->id) ?? 0),
+            );
+            $meta = $team->tateMetas->firstWhere('tate_no', $latestTateNo);
+            $timerStartedAt = $meta?->timer_started_at
+                ? \Carbon\Carbon::parse($meta->timer_started_at)
+                : null;
+            $isTimerRunning = (bool) (($meta?->is_timer_running ?? false) && $timerStartedAt);
+            $elapsedSeconds = (int) ($meta?->elapsed_seconds ?? 0);
+
+            if ($isTimerRunning) {
+                $elapsedSeconds += max(0, now()->timestamp - $timerStartedAt->timestamp);
+            }
+
+            $officialRecords = $team->members
+                ->where('tate_no', $latestTateNo)
+                ->whereNotNull('position')
+                ->where('is_absent', false)
+                ->where('is_late', false)
+                ->pluck('officialRecord')
+                ->filter();
+            $teamLegacyRecords = ($legacyRecords->get($team->id, collect()))
+                ->where('tate_no', $latestTateNo);
+            $hitCount = $officialRecords
+                ->merge($teamLegacyRecords)
+                ->unique('id')
+                ->sum(fn($record) => $record->shots->where('result', 'hit')->count());
+
+            return (object) [
+                'team' => $team,
+                'team_id' => (int) $team->id,
+                'team_name' => $team->name,
+                'tate_no' => $latestTateNo,
+                'hit_count' => $hitCount,
+                'elapsed_seconds' => $elapsedSeconds,
+                'elapsed_label' => sprintf('%02d:%02d', floor($elapsedSeconds / 60), $elapsedSeconds % 60),
+                'is_timer_running' => $isTimerRunning,
+                'color' => $teamColors[$teamIndex % count($teamColors)],
+            ];
+        });
+    }
+
+    private function matchAddTateReturnUrl(Request $request, int $groupId, string $date, string $month, int $teamId, int $tateNo): string
+    {
+        if ($request->input('return_to') === 'official') {
+            $sheetNo = max(1, (int) ($request->input('sheet_no') ?? 1));
+
+            return "/group/{$groupId}/records?date={$date}&month={$month}&sheet_no={$sheetNo}#official-match-team-controls";
+        }
+
+        return "/group/{$groupId}/match-records?date={$date}&month={$month}&team_id={$teamId}&tate_no={$tateNo}#match-team-{$teamId}";
+    }
+
     private function officialSheetNos($groupId, string $date, $groupUserIds)
     {
         $recordSheetNos = Record::whereIn('user_id', $groupUserIds)
@@ -1348,6 +1543,8 @@ class GroupRecordController extends Controller
             ->whereIn('user_id', $activeGroupUserIds)
             ->where('is_absent', false)
             ->filter(fn($member) => !is_null($member->position))
+            ->sortBy('position')
+            ->unique('user_id')
             ->values();
 
         if ($placedMembers->isEmpty()) {

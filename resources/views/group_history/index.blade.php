@@ -229,15 +229,6 @@
                         </span>
                     </div>
 
-                    <div class="score-line">
-                        <span>試合</span>
-                        <span>
-                            {{ $row['match']['shots'] }}射
-                            {{ $row['match']['hits'] }}中
-                            {{ $row['match']['rate'] }}%
-                        </span>
-                    </div>
-
                 </div>
             </div>
         @endforeach
@@ -255,14 +246,9 @@
                         <th rowspan="2">学年</th>
                         <th colspan="3">正規練</th>
                         <th colspan="3">自主練</th>
-                        <th colspan="3">試合</th>
                         <th colspan="3">総合</th>
                     </tr>
                     <tr>
-                        <th>射数</th>
-                        <th>的中数</th>
-                        <th>的中率</th>
-
                         <th>射数</th>
                         <th>的中数</th>
                         <th>的中率</th>
@@ -290,10 +276,6 @@
                             <td>{{ $row['self']['shots'] }}</td>
                             <td>{{ $row['self']['hits'] }}</td>
                             <td>{{ $row['self']['rate'] }}%</td>
-
-                            <td>{{ $row['match']['shots'] }}</td>
-                            <td>{{ $row['match']['hits'] }}</td>
-                            <td>{{ $row['match']['rate'] }}%</td>
 
                             <td>{{ $row['all']['shots'] }}</td>
                             <td>{{ $row['all']['hits'] }}</td>

@@ -3,6 +3,9 @@
 use App\Models\Group;
 use App\Models\Lineup;
 use App\Models\LineupMember;
+use App\Models\MatchTeam;
+use App\Models\MatchTeamMember;
+use App\Models\MatchTateMeta;
 use App\Models\Record;
 use App\Models\Shot;
 use App\Models\User;
@@ -174,4 +177,417 @@ it('keeps the active official sheet number when linking from records to lineup',
         "/group/{$group->id}/lineup?date={$date}&month=2026-07&sheet_no=2",
         false
     );
+});
+
+it('shows latest match tate assignments only on the selected official record column', function () {
+    $date = '2026-07-25';
+    $host = User::factory()->create([
+        'username' => 'host-match-marker',
+        'is_admin' => true,
+    ]);
+    $olderMember = User::factory()->create([
+        'name' => 'Older Member',
+        'username' => 'older-match-marker',
+        'is_admin' => false,
+    ]);
+    $latestMember = User::factory()->create([
+        'name' => 'Latest Member',
+        'username' => 'latest-match-marker',
+        'is_admin' => false,
+    ]);
+    $group = Group::create([
+        'name' => 'Test Group',
+        'host_user_id' => $host->id,
+        'invite_code' => '3456',
+    ]);
+
+    $group->users()->attach([$host->id, $olderMember->id, $latestMember->id]);
+
+    $lineup = Lineup::create([
+        'group_id' => $group->id,
+        'date' => $date,
+        'tate_size' => 2,
+    ]);
+    LineupMember::create([
+        'lineup_id' => $lineup->id,
+        'user_id' => $olderMember->id,
+        'position' => 1,
+        'is_absent' => false,
+        'is_late' => false,
+    ]);
+    LineupMember::create([
+        'lineup_id' => $lineup->id,
+        'user_id' => $latestMember->id,
+        'position' => 2,
+        'is_absent' => false,
+        'is_late' => false,
+    ]);
+
+    $selectedRecord = null;
+
+    foreach (range(1, 5) as $tateNo) {
+        $record = Record::create([
+            'user_id' => $latestMember->id,
+            'date' => $date,
+            'tate_no' => $tateNo,
+            'practice_type' => 'official',
+            'official_sheet_no' => 1,
+            'lineup_position' => 2,
+            'lineup_tate_size' => 2,
+        ]);
+
+        if ($tateNo === 3) {
+            $selectedRecord = $record;
+        }
+    }
+
+    $team = MatchTeam::create([
+        'group_id' => $group->id,
+        'date' => $date,
+        'name' => 'Aチーム',
+        'division' => 'mixed',
+        'tate_size' => 2,
+    ]);
+    MatchTeamMember::create([
+        'match_team_id' => $team->id,
+        'date' => $date,
+        'user_id' => $olderMember->id,
+        'tate_no' => 1,
+        'position' => 1,
+        'is_absent' => false,
+        'is_late' => false,
+    ]);
+    MatchTeamMember::create([
+        'match_team_id' => $team->id,
+        'date' => $date,
+        'user_id' => $latestMember->id,
+        'tate_no' => 2,
+        'position' => 2,
+        'official_record_id' => $selectedRecord->id,
+        'is_absent' => false,
+        'is_late' => false,
+    ]);
+
+    $response = $this->actingAs($host)
+        ->get("/group/{$group->id}/records?date={$date}");
+
+    $response->assertOk();
+    $response->assertSee('official-match-assigned', false);
+    $response->assertSee('official-match-frame-label', false);
+    $response->assertSee('Aチーム 2立目 落', false);
+    $response->assertDontSee('Aチーム 1立目 大前', false);
+    expect(substr_count($response->getContent(), 'official-match-assigned'))->toBe(1);
+});
+
+it('shows match team timer and add tate controls on the official record screen', function () {
+    $date = '2026-07-25';
+    $host = User::factory()->create([
+        'username' => 'host-official-match-controls',
+        'is_admin' => true,
+    ]);
+    $member = User::factory()->create([
+        'username' => 'member-official-match-controls',
+        'is_admin' => false,
+    ]);
+    $group = Group::create([
+        'name' => 'Test Group',
+        'host_user_id' => $host->id,
+        'invite_code' => '4567',
+    ]);
+    $group->users()->attach([$host->id, $member->id]);
+
+    $lineup = Lineup::create([
+        'group_id' => $group->id,
+        'date' => $date,
+        'tate_size' => 1,
+    ]);
+    LineupMember::create([
+        'lineup_id' => $lineup->id,
+        'user_id' => $member->id,
+        'position' => 1,
+        'is_absent' => false,
+        'is_late' => false,
+    ]);
+
+    $team = MatchTeam::create([
+        'group_id' => $group->id,
+        'date' => '2026-07-20',
+        'name' => 'Aチーム',
+        'division' => 'mixed',
+        'tate_size' => 1,
+    ]);
+    MatchTeam::create([
+        'group_id' => $group->id,
+        'date' => '2026-07-20',
+        'name' => 'Bチーム',
+        'division' => 'mixed',
+        'tate_size' => 1,
+    ]);
+    $record = Record::create([
+        'user_id' => $member->id,
+        'date' => $date,
+        'tate_no' => 1,
+        'practice_type' => 'official',
+        'official_sheet_no' => 1,
+        'lineup_position' => 1,
+        'lineup_tate_size' => 1,
+    ]);
+    Shot::create([
+        'record_id' => $record->id,
+        'shot_no' => 1,
+        'result' => 'hit',
+    ]);
+    Shot::create([
+        'record_id' => $record->id,
+        'shot_no' => 2,
+        'result' => 'miss',
+    ]);
+    Shot::create([
+        'record_id' => $record->id,
+        'shot_no' => 3,
+        'result' => 'hit',
+    ]);
+    MatchTeamMember::create([
+        'match_team_id' => $team->id,
+        'date' => $date,
+        'user_id' => $member->id,
+        'tate_no' => 1,
+        'position' => 1,
+        'official_record_id' => $record->id,
+        'is_absent' => false,
+        'is_late' => false,
+    ]);
+    MatchTateMeta::create([
+        'match_team_id' => $team->id,
+        'date' => $date,
+        'tate_no' => 1,
+        'elapsed_seconds' => 90,
+        'is_timer_running' => false,
+        'timer_started_at' => null,
+        'scoring_mode' => 'hit_miss',
+    ]);
+
+    $response = $this->actingAs($host)
+        ->get("/group/{$group->id}/records?date={$date}");
+
+    $response->assertOk();
+    $response->assertSee('official-match-team-controls', false);
+    $response->assertSee('試合操作', false);
+    $response->assertSee('Aチーム', false);
+    $response->assertSee('Bチーム', false);
+    $response->assertSee('1立目', false);
+    $response->assertSee('2中', false);
+    $response->assertSee('official-match-team-hit-count', false);
+    $response->assertSee('official-match-team-tate-label', false);
+    $response->assertSee("data-official-match-team-hit-counter=\"{$team->id}-1\"", false);
+    $response->assertSee("data-official-match-team-counters=\"{$team->id}-1\"", false);
+    $response->assertSee("match_team_id={$team->id}&match_tate_no=1&match_position=1", false);
+    $response->assertSee('return_to=official', false);
+    $response->assertSee('編集', false);
+    $response->assertSee('01:30', false);
+    $response->assertSee('return_to', false);
+    $response->assertSee('official', false);
+    $response->assertSee("/group/{$group->id}/match-add-tate", false);
+
+    $editResponse = $this->actingAs($host)
+        ->get("/group/{$group->id}/records?date={$date}&month=2026-07&sheet_no=1&match_team_id={$team->id}&match_tate_no=1&match_position=1&return_to=official");
+
+    $editResponse->assertOk();
+    $editResponse->assertSee('正規連記録へ戻る', false);
+    $editResponse->assertSee("/group/{$group->id}/records?date={$date}&amp;month=2026-07&amp;sheet_no=1#official-match-team-controls", false);
+
+    $responseWithTeamId = $this->actingAs($host)
+        ->get("/group/{$group->id}/records?date={$date}&team_id={$team->id}");
+
+    $responseWithTeamId->assertOk();
+    $responseWithTeamId->assertSee('Aチーム', false);
+    $responseWithTeamId->assertSee('Bチーム', false);
+});
+
+it('does not carry the selected match team when switching from match records to official records', function () {
+    $date = '2026-07-25';
+    $host = User::factory()->create([
+        'username' => 'host-match-switch-team',
+        'is_admin' => true,
+    ]);
+    $group = Group::create([
+        'name' => 'Test Group',
+        'host_user_id' => $host->id,
+        'invite_code' => '6789',
+    ]);
+    $group->users()->attach($host->id);
+    MatchTeam::create([
+        'group_id' => $group->id,
+        'date' => $date,
+        'name' => 'Aチーム',
+        'division' => 'mixed',
+        'tate_size' => 1,
+    ]);
+    $selectedTeam = MatchTeam::create([
+        'group_id' => $group->id,
+        'date' => $date,
+        'name' => 'Bチーム',
+        'division' => 'mixed',
+        'tate_size' => 1,
+    ]);
+
+    $response = $this->actingAs($host)
+        ->get("/group/{$group->id}/match-records?date={$date}&team_id={$selectedTeam->id}");
+
+    $response->assertOk();
+    $response->assertSee("href=\"/group/{$group->id}/records?date={$date}&month=2026-07\"", false);
+    $response->assertDontSee("href=\"/group/{$group->id}/records?date={$date}&month=2026-07&team_id={$selectedTeam->id}\"", false);
+    $response->assertSee('style="--match-team-color:', false);
+    $response->assertSee('match-team-color-dot', false);
+});
+
+it('returns to the official record screen after adding a match tate from the official controls', function () {
+    $date = '2026-07-25';
+    $host = User::factory()->create([
+        'username' => 'host-official-match-add',
+        'is_admin' => true,
+    ]);
+    $member = User::factory()->create([
+        'username' => 'member-official-match-add',
+        'is_admin' => false,
+    ]);
+    $group = Group::create([
+        'name' => 'Test Group',
+        'host_user_id' => $host->id,
+        'invite_code' => '5678',
+    ]);
+    $group->users()->attach([$host->id, $member->id]);
+
+    $firstRecord = Record::create([
+        'user_id' => $member->id,
+        'date' => $date,
+        'tate_no' => 1,
+        'practice_type' => 'official',
+        'official_sheet_no' => 1,
+        'lineup_position' => 1,
+        'lineup_tate_size' => 1,
+    ]);
+    $secondRecord = Record::create([
+        'user_id' => $member->id,
+        'date' => $date,
+        'tate_no' => 2,
+        'practice_type' => 'official',
+        'official_sheet_no' => 1,
+        'lineup_position' => 1,
+        'lineup_tate_size' => 1,
+    ]);
+    $team = MatchTeam::create([
+        'group_id' => $group->id,
+        'date' => $date,
+        'name' => 'Aチーム',
+        'division' => 'mixed',
+        'tate_size' => 1,
+    ]);
+    MatchTeamMember::create([
+        'match_team_id' => $team->id,
+        'date' => $date,
+        'user_id' => $member->id,
+        'tate_no' => 1,
+        'position' => 1,
+        'official_record_id' => $firstRecord->id,
+        'is_absent' => false,
+        'is_late' => false,
+    ]);
+    Shot::create([
+        'record_id' => $firstRecord->id,
+        'shot_no' => 1,
+        'result' => 'hit',
+    ]);
+
+    $response = $this->actingAs($host)
+        ->post("/group/{$group->id}/match-add-tate", [
+            'date' => $date,
+            'month' => '2026-07',
+            'team_id' => $team->id,
+            'sheet_no' => 1,
+            'return_to' => 'official',
+        ]);
+
+    $response->assertRedirect("/group/{$group->id}/records?date={$date}&month=2026-07&sheet_no=1#official-match-team-controls");
+    $this->assertDatabaseHas('match_team_members', [
+        'match_team_id' => $team->id,
+        'date' => $date,
+        'user_id' => $member->id,
+        'tate_no' => 2,
+        'position' => 1,
+        'official_record_id' => $secondRecord->id,
+    ]);
+});
+
+it('does not add a match tate before the current team tate has any score entered', function () {
+    $date = '2026-07-25';
+    $host = User::factory()->create([
+        'username' => 'host-match-add-no-score',
+        'is_admin' => true,
+    ]);
+    $member = User::factory()->create([
+        'username' => 'member-match-add-no-score',
+        'is_admin' => false,
+    ]);
+    $group = Group::create([
+        'name' => 'Test Group',
+        'host_user_id' => $host->id,
+        'invite_code' => '7890',
+    ]);
+    $group->users()->attach([$host->id, $member->id]);
+
+    $firstRecord = Record::create([
+        'user_id' => $member->id,
+        'date' => $date,
+        'tate_no' => 1,
+        'practice_type' => 'official',
+        'official_sheet_no' => 1,
+        'lineup_position' => 1,
+        'lineup_tate_size' => 1,
+    ]);
+    Record::create([
+        'user_id' => $member->id,
+        'date' => $date,
+        'tate_no' => 2,
+        'practice_type' => 'official',
+        'official_sheet_no' => 1,
+        'lineup_position' => 1,
+        'lineup_tate_size' => 1,
+    ]);
+    $team = MatchTeam::create([
+        'group_id' => $group->id,
+        'date' => $date,
+        'name' => 'Aチーム',
+        'division' => 'mixed',
+        'tate_size' => 1,
+    ]);
+    MatchTeamMember::create([
+        'match_team_id' => $team->id,
+        'date' => $date,
+        'user_id' => $member->id,
+        'tate_no' => 1,
+        'position' => 1,
+        'official_record_id' => $firstRecord->id,
+        'is_absent' => false,
+        'is_late' => false,
+    ]);
+
+    $response = $this->actingAs($host)
+        ->post("/group/{$group->id}/match-add-tate", [
+            'date' => $date,
+            'month' => '2026-07',
+            'team_id' => $team->id,
+            'sheet_no' => 1,
+            'return_to' => 'official',
+        ]);
+
+    $response->assertRedirect("/group/{$group->id}/records?date={$date}&month=2026-07&sheet_no=1#official-match-team-controls");
+    $response->assertSessionHas('error', '1立目の的中を入力してから、＋立を押してください。');
+    $response->assertSessionHas('error_alert', '1立目の的中を入力してから、＋立を押してください。');
+    $this->assertDatabaseMissing('match_team_members', [
+        'match_team_id' => $team->id,
+        'date' => $date,
+        'user_id' => $member->id,
+        'tate_no' => 2,
+    ]);
 });

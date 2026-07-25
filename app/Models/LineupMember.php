@@ -25,10 +25,27 @@ class LineupMember extends Model
 
     public static function ensureForLineupUsers(Lineup $lineup, iterable $users): void
     {
-        $now = now();
-        $rows = collect($users)
+        $users = collect($users)
             ->filter(fn($user) => $user instanceof User && $user->id)
             ->unique(fn(User $user) => (int) $user->id)
+            ->values();
+
+        if ($users->isEmpty()) {
+            return;
+        }
+
+        $userIds = $users->pluck('id')->map(fn($id) => (int) $id)->all();
+
+        $existingUserIds = static::query()
+            ->where('lineup_id', $lineup->id)
+            ->whereIn('user_id', $userIds)
+            ->pluck('user_id')
+            ->map(fn($id) => (int) $id)
+            ->all();
+
+        $now = now();
+        $rows = $users
+            ->reject(fn(User $user) => in_array((int) $user->id, $existingUserIds, true))
             ->map(fn(User $user) => [
                 'lineup_id' => $lineup->id,
                 'user_id' => $user->id,

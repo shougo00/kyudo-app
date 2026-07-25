@@ -16,8 +16,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const recordUrlTemplate = container.dataset.recordUrl || '/records/__ID__';
 
     function updateBackground() {
-        container.classList.remove('self-bg', 'official-bg', 'match-bg');
-        container.classList.add(type === 'match' ? 'match-bg' : (type === 'self' ? 'self-bg' : 'official-bg'));
+        container.classList.remove('self-bg', 'official-bg');
+        container.classList.add(type === 'self' ? 'self-bg' : 'official-bg');
     }
 
     function initShotButtons() {

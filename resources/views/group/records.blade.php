@@ -30,11 +30,17 @@
     $matchSelectionQuery = '';
 
     if ($matchSelection) {
-        $matchSelectionQuery = '&' . http_build_query([
+        $matchSelectionQueryParams = [
             'match_team_id' => $matchSelection['team_id'],
             'match_tate_no' => $matchSelection['tate_no'],
             'match_position' => $matchSelection['position'],
-        ]);
+        ];
+
+        if (($matchSelection['return_to'] ?? null) === 'official') {
+            $matchSelectionQueryParams['return_to'] = 'official';
+        }
+
+        $matchSelectionQuery = '&' . http_build_query($matchSelectionQueryParams);
     }
 
     $pageTateRangeLabel = '';
@@ -56,6 +62,16 @@
         'value' => (int) ($option['value'] ?? 0),
         'color' => $option['color'] ?? '#dbeafe',
     ])->values();
+    $matchTeamColorPalette = [
+        '#dc3545',
+        '#0d6efd',
+        '#198754',
+        '#fd7e14',
+        '#6f42c1',
+        '#0aa2c0',
+        '#d63384',
+        '#6c757d',
+    ];
     $numericScoreColorMap = $numericScoreOptions->mapWithKeys(fn($option) => [$option['value'] => $option['color']]);
     $gradeTextColor = function (?string $color) {
         if (!$color || !preg_match('/^#[0-9A-Fa-f]{6}$/', $color)) {
@@ -129,8 +145,11 @@
         'position' => $matchSelection['position'],
         'tateSize' => $matchSelection['tate_size'],
         'positionLabels' => $matchPositionLabels,
+        'returnTo' => $matchSelection['return_to'] ?? 'match',
         'backUrl' => $matchSelection['back_url'],
     ] : null;
+    $latestMatchAssignmentsByRecordId = $latestMatchAssignmentsByRecordId ?? collect();
+    $officialMatchTeamControls = $officialMatchTeamControls ?? collect();
 @endphp
 
 <script>
@@ -151,6 +170,65 @@ window.groupRecordData = {
             <a href="{{ $otherRecordPath }}?date={{ $date }}&month={{ $month }}" class="btn {{ $otherRecordButtonClass }}">
                 {{ $otherRecordLabel }}
             </a>
+            @if($practiceType !== 'match' && $officialMatchTeamControls->isNotEmpty())
+                <details class="official-match-team-controls" id="official-match-team-controls">
+                    <summary class="btn btn-outline-success">試合操作</summary>
+                    <div class="official-match-team-control-panel" aria-label="試合チーム操作">
+                        @foreach($officialMatchTeamControls as $teamControl)
+                            <div class="official-match-team-control-card" style="--latest-match-color: {{ $teamControl->color }};">
+                                <div class="official-match-team-control-main">
+                                    <strong>{{ $teamControl->team_name }}</strong>
+                                    <span>
+                                        <span class="official-match-team-tate-label">{{ $teamControl->tate_no }}立目</span> /
+                                        <span class="official-match-team-hit-count"
+                                              data-official-match-team-hit-counter="{{ $teamControl->team_id }}-{{ $teamControl->tate_no }}">
+                                            {{ $teamControl->hit_count }}中
+                                        </span>
+                                    </span>
+                                </div>
+
+                                <div class="official-match-team-control-actions">
+                                    <div class="match-timer official-match-timer"
+                                         data-team-id="{{ $teamControl->team_id }}"
+                                         data-date="{{ $date }}"
+                                         data-tate-no="{{ $teamControl->tate_no }}"
+                                         data-elapsed="{{ $teamControl->elapsed_seconds }}"
+                                         data-running="{{ $teamControl->is_timer_running ? 1 : 0 }}">
+                                        <span class="match-timer-display">{{ $teamControl->elapsed_label }}</span>
+                                        <button type="button"
+                                                class="btn btn-sm {{ $teamControl->is_timer_running ? 'btn-outline-danger' : 'btn-outline-success' }}"
+                                                onclick="toggleMatchTimer(this)"
+                                                {{ $canEditGroupRecords ? '' : 'disabled' }}>
+                                            {{ $teamControl->is_timer_running ? '停止' : '開始' }}
+                                        </button>
+                                        <button type="button"
+                                                class="btn btn-sm btn-outline-secondary"
+                                                onclick="resetMatchTimer(this)"
+                                                {{ $canEditGroupRecords ? '' : 'disabled' }}>
+                                            リセット
+                                        </button>
+                                    </div>
+
+                                    <form method="POST" action="/group/{{ $group->id }}/match-add-tate" data-match-add-tate-form>
+                                        @csrf
+                                        <input type="hidden" name="date" value="{{ $date }}">
+                                        <input type="hidden" name="month" value="{{ $month }}">
+                                        <input type="hidden" name="team_id" value="{{ $teamControl->team_id }}">
+                                        <input type="hidden" name="sheet_no" value="{{ $activeSheetNo }}">
+                                        <input type="hidden" name="return_to" value="official">
+                                        <button class="btn btn-sm btn-primary" {{ $canEditGroupRecords ? '' : 'disabled' }}>＋立</button>
+                                    </form>
+
+                                    <a href="/group/{{ $group->id }}/records?date={{ $date }}&month={{ $month }}&sheet_no={{ $activeSheetNo }}&match_team_id={{ $teamControl->team_id }}&match_tate_no={{ $teamControl->tate_no }}&match_position=1&return_to=official"
+                                       class="btn btn-sm btn-outline-secondary">
+                                        編集
+                                    </a>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                </details>
+            @endif
             @if($practiceType === 'match')
                 <button type="button" class="btn btn-primary" onclick="openMatchTeamCreateModal()">
                     ＋ チーム作成
@@ -169,10 +247,18 @@ window.groupRecordData = {
 
 </div>
 
-@if(session('error'))
+@if(session('error') && !session('error_alert'))
     <div class="alert alert-danger">
         {{ session('error') }}
     </div>
+@endif
+
+@if(session('error_alert'))
+    <script>
+        window.addEventListener('load', () => {
+            alert(@json(session('error_alert')));
+        });
+    </script>
 @endif
 
 @if($matchSelection)
@@ -199,14 +285,20 @@ window.groupRecordData = {
                     $assignedMember = $assignedMembers->get($position);
                     $assignedName = $assignedMember?->officialRecord ? $assignedMember->user?->name : null;
                     $positionLabel = $matchPositionLabel($position, $matchSelection['tate_size']);
-                    $positionUrl = $basePath . '?' . http_build_query([
+                    $positionUrlParams = [
                         'date' => $date,
                         'month' => $month,
                         'sheet_no' => $activeSheetNo,
                         'match_team_id' => $matchSelection['team_id'],
                         'match_tate_no' => $matchSelection['tate_no'],
                         'match_position' => $position,
-                    ]);
+                    ];
+
+                    if (($matchSelection['return_to'] ?? null) === 'official') {
+                        $positionUrlParams['return_to'] = 'official';
+                    }
+
+                    $positionUrl = $basePath . '?' . http_build_query($positionUrlParams);
                 @endphp
                 <a href="{{ $positionUrl }}"
                    class="match-record-select-position {{ $position === $matchSelection['position'] ? 'active' : '' }} {{ $assignedMember?->officialRecord ? 'filled' : '' }}"
@@ -226,7 +318,7 @@ window.groupRecordData = {
             @endfor
         </div>
 
-        <a href="{{ $matchSelection['back_url'] }}" class="btn btn-sm btn-outline-secondary">試合記録へ戻る</a>
+        <a href="{{ $matchSelection['back_url'] }}" class="btn btn-sm btn-outline-secondary">{{ $matchSelection['back_label'] ?? '試合記録へ戻る' }}</a>
     </div>
 @endif
 
@@ -541,12 +633,13 @@ window.groupRecordData = {
     @php
         $teamTates = $matchTeamTates->get($team->id, collect());
         $teamSlots = $matchTeamSlots->get($team->id, collect());
+        $matchTeamColor = $matchTeamColorPalette[$loop->index % count($matchTeamColorPalette)];
     @endphp
 
-    <section class="match-team-panel" id="match-team-{{ $team->id }}">
+    <section class="match-team-panel" id="match-team-{{ $team->id }}" style="--match-team-color: {{ $matchTeamColor }};">
         <div class="match-team-panel-head">
             <div>
-                <h5>{{ $team->name }}</h5>
+                <h5><span class="match-team-color-dot"></span>{{ $team->name }}</h5>
                 <p>
                     {{ $divisionLabels[$team->division] ?? '混合の部' }} / {{ $team->tate_size }}人立
                     @if($team->trashed())
@@ -827,19 +920,45 @@ window.groupRecordData = {
                     $assignedPositionLabel = $assignedRecordMember
                         ? $matchPositionLabel((int) $assignedRecordMember->position, $matchSelection['tate_size'])
                         : null;
+                    $latestMatchAssignments = (!$matchSelection && $record)
+                        ? $latestMatchAssignmentsByRecordId->get($record->id, collect())
+                        : collect();
+                    $latestMatchPrimary = $latestMatchAssignments->first();
+                    $latestMatchTitle = $latestMatchAssignments
+                        ->map(fn($assignment) => $assignment['team_name'] . ' ' . $assignment['tate_no'] . '立目 ' . $matchPositionLabel((int) $assignment['position'], (int) $assignment['tate_size']))
+                        ->implode(' / ');
                 @endphp
 
-                <div class="user-column {{ (($loop->index + 1) % $rowTateSize == 0) ? 'tate-border' : '' }} {{ $isMatchRecordChoice ? 'match-record-choice' : '' }} {{ $assignedRecordMember ? 'assigned' : '' }} {{ $isCurrentMatchRecordChoice ? 'current' : '' }}"
+                <div class="user-column {{ (($loop->index + 1) % $rowTateSize == 0) ? 'tate-border' : '' }} {{ $isMatchRecordChoice ? 'match-record-choice' : '' }} {{ $assignedRecordMember ? 'assigned' : '' }} {{ $isCurrentMatchRecordChoice ? 'current' : '' }} {{ $latestMatchAssignments->isNotEmpty() ? 'official-match-assigned' : '' }}"
+                     @if($latestMatchPrimary)
+                         style="--latest-match-color: {{ $latestMatchPrimary['color'] }};"
+                     @endif
                      @if($isMatchRecordChoice)
                          data-match-record-id="{{ $record->id }}"
                          data-match-user-name="{{ $user->name }}"
                          data-match-official-tate="{{ $record->tate_no }}"
                          title="{{ $matchSelection['team_name'] }} {{ $matchSelection['tate_no'] }}立目 {{ $currentMatchPositionLabel }}に割り当て"
                          onclick="selectOfficialRecordForMatch(this, event)"
+                     @elseif($latestMatchTitle)
+                         title="{{ $latestMatchTitle }}"
                      @endif>
 
                     @if($assignedPositionLabel)
                         <span class="match-record-choice-position-label">{{ $assignedPositionLabel }}</span>
+                    @endif
+
+                    @if($latestMatchAssignments->isNotEmpty())
+                        <span class="official-match-frame-labels">
+                            @foreach($latestMatchAssignments as $assignment)
+                                @php
+                                    $latestMatchPositionLabel = $matchPositionLabel((int) $assignment['position'], (int) $assignment['tate_size']);
+                                @endphp
+                                <span class="official-match-frame-label"
+                                      style="--latest-match-label-color: {{ $assignment['color'] }};">
+                                    {{ $latestMatchPositionLabel }}
+                                </span>
+                            @endforeach
+                        </span>
                     @endif
 
                     @for($i=1;$i<=4;$i++)
@@ -860,6 +979,9 @@ window.groupRecordData = {
                             data-result="{{ $shot?->result ?? '' }}"
                             data-numeric-score="{{ $shot?->numeric_score }}"
                             data-scoring-mode="{{ $activeSheetScoringMode ?? 'hit_miss' }}"
+                            @if($latestMatchAssignments->isNotEmpty())
+                                data-official-match-team-counters="{{ $latestMatchAssignments->map(fn($assignment) => $assignment['team_id'] . '-' . $assignment['tate_no'])->implode(',') }}"
+                            @endif
                             {{ !$matchSelection && $canEditGroupRecords ? 'onclick=updateShot(this)' : '' }}>
 
                             @if(($activeSheetScoringMode ?? 'hit_miss') === 'numeric' && !is_null($shot?->numeric_score))

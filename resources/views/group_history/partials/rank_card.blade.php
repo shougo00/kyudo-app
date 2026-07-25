@@ -60,13 +60,5 @@
             </span>
         </div>
 
-        <div class="score-line {{ !$allSelected && in_array('match', $scoreTypes, true) ? 'active-score-subtle' : '' }}">
-            <span>試合</span>
-            <span>
-                {{ $row['match']['shots'] }}射
-                {{ $row['match']['hits'] }}中
-                {{ $row['match']['rate'] }}%
-            </span>
-        </div>
     </div>
 </div>

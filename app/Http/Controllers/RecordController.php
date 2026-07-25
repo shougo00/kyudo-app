@@ -20,6 +20,9 @@ class RecordController extends Controller
         // リクエストから日付と練習タイプを取得、なければデフォルトを設定
         $date = $request->date ?? date('Y-m-d');
         $type = $request->type ?? 'official'; // デフォルトは正規練
+        if (!in_array($type, ['official', 'self'], true)) {
+            $type = 'official';
+        }
 
         // 該当ユーザーのレコードを取得（shotsリレーションも読み込む）
         $records = Record::with('shots')
@@ -72,6 +75,9 @@ class RecordController extends Controller
     {
         $date = $request->date;
         $practiceType = $request->practice_type; // 正規練 / 自主練
+        if (!in_array($practiceType, ['official', 'self'], true)) {
+            $practiceType = 'official';
+        }
 
         // その日のその練習タイプの最大立番号を取得
         $maxTate = Record::where('user_id', auth()->id())
@@ -190,6 +196,7 @@ class RecordController extends Controller
         $records = Record::with('shots')
             ->where('user_id', $userId)
             ->whereBetween('date', [$start, $end])
+            ->whereIn('practice_type', ['official', 'self'])
             ->get();
 
         // 共通計算
@@ -205,14 +212,15 @@ class RecordController extends Controller
         $todayRecords = Record::with('shots')
             ->where('user_id', $userId)
             ->where('date', $today)
+            ->whereIn('practice_type', ['official', 'self'])
             ->get();
 
-        $todayOfficial = $calc($todayRecords->whereIn('practice_type',['official', 'match']));
+        $todayOfficial = $calc($todayRecords->where('practice_type','official'));
         $todaySelf     = $calc($todayRecords->where('practice_type','self'));
         $todayAll      = $calc($todayRecords);
 
         // ===== 月間 =====
-        $monthOfficial = $calc($records->whereIn('practice_type',['official', 'match']));
+        $monthOfficial = $calc($records->where('practice_type','official'));
         $monthSelf     = $calc($records->where('practice_type','self'));
         $monthAll      = $calc($records);
 
@@ -224,9 +232,10 @@ class RecordController extends Controller
         $yearRecords = Record::with('shots')
             ->where('user_id', $userId)
             ->whereBetween('date', [$yearStart, $yearEnd])
+            ->whereIn('practice_type', ['official', 'self'])
             ->get();
 
-        $yearOfficial = $calc($yearRecords->whereIn('practice_type',['official', 'match']));
+        $yearOfficial = $calc($yearRecords->where('practice_type','official'));
         $yearSelf     = $calc($yearRecords->where('practice_type','self'));
         $yearAll      = $calc($yearRecords);
 
@@ -234,7 +243,7 @@ class RecordController extends Controller
         $calendar = [];
         foreach ($records->groupBy('date') as $date => $dayRecords) {
             $calendar[$date] = [
-                'official' => $calc($dayRecords->whereIn('practice_type',['official', 'match'])),
+                'official' => $calc($dayRecords->where('practice_type','official')),
                 'self'     => $calc($dayRecords->where('practice_type','self')),
                 'all'      => $calc($dayRecords),
             ];
