@@ -27,6 +27,11 @@
     $matchRecordHeightExtra = max(0, min(120, (int) ($matchRecordHeightExtra ?? 60)));
     $isPageFull = $practiceType !== 'match' && isset($tates) && $tates->count() >= $maxTatesPerPage;
     $matchSelection = $matchSelection ?? null;
+    $officialCompactEmptySlots = (bool) ($officialCompactEmptySlots ?? true);
+    $officialCompactEmptySlotsExplicit = (bool) ($officialCompactEmptySlotsExplicit ?? request()->has('compact_empty_slots'));
+    $officialCompactEmptySlotsQuery = $practiceType !== 'match' && $officialCompactEmptySlotsExplicit
+        ? '&compact_empty_slots=' . ($officialCompactEmptySlots ? 1 : 0)
+        : '';
     $matchSelectionQuery = '';
 
     if ($matchSelection) {
@@ -38,6 +43,10 @@
 
         if (($matchSelection['return_to'] ?? null) === 'official') {
             $matchSelectionQueryParams['return_to'] = 'official';
+        }
+
+        if ($practiceType !== 'match' && $officialCompactEmptySlotsExplicit) {
+            $matchSelectionQueryParams['compact_empty_slots'] = $officialCompactEmptySlots ? 1 : 0;
         }
 
         $matchSelectionQuery = '&' . http_build_query($matchSelectionQueryParams);
@@ -216,10 +225,13 @@ window.groupRecordData = {
                                         <input type="hidden" name="team_id" value="{{ $teamControl->team_id }}">
                                         <input type="hidden" name="sheet_no" value="{{ $activeSheetNo }}">
                                         <input type="hidden" name="return_to" value="official">
+                                        @if($officialCompactEmptySlotsExplicit)
+                                            <input type="hidden" name="compact_empty_slots" value="{{ $officialCompactEmptySlots ? 1 : 0 }}">
+                                        @endif
                                         <button class="btn btn-sm btn-primary" {{ $canEditGroupRecords ? '' : 'disabled' }}>＋立</button>
                                     </form>
 
-                                    <a href="/group/{{ $group->id }}/records?date={{ $date }}&month={{ $month }}&sheet_no={{ $activeSheetNo }}&match_team_id={{ $teamControl->team_id }}&match_tate_no={{ $teamControl->tate_no }}&match_position=1&return_to=official"
+                                    <a href="/group/{{ $group->id }}/records?date={{ $date }}&month={{ $month }}&sheet_no={{ $activeSheetNo }}&match_team_id={{ $teamControl->team_id }}&match_tate_no={{ $teamControl->tate_no }}&match_position=1&return_to=official{{ $officialCompactEmptySlotsQuery }}"
                                        class="btn btn-sm btn-outline-secondary">
                                         編集
                                     </a>
@@ -238,7 +250,7 @@ window.groupRecordData = {
                 印刷
             </button>
             @if($practiceType !== 'match' && $isCurrentSheet)
-                <a href="/group/{{ $group->id }}/lineup?date={{ $date }}&month={{ $month }}&sheet_no={{ $activeSheetNo }}" class="btn btn-secondary">
+                <a href="/group/{{ $group->id }}/lineup?date={{ $date }}&month={{ $month }}&sheet_no={{ $activeSheetNo }}{{ $officialCompactEmptySlotsQuery }}" class="btn btn-secondary">
                     立順
                 </a>
             @endif
@@ -296,6 +308,10 @@ window.groupRecordData = {
 
                     if (($matchSelection['return_to'] ?? null) === 'official') {
                         $positionUrlParams['return_to'] = 'official';
+                    }
+
+                    if ($practiceType !== 'match' && $officialCompactEmptySlotsExplicit) {
+                        $positionUrlParams['compact_empty_slots'] = $officialCompactEmptySlots ? 1 : 0;
                     }
 
                     $positionUrl = $basePath . '?' . http_build_query($positionUrlParams);
@@ -436,7 +452,7 @@ window.groupRecordData = {
     <form method="GET" action="{{ $basePath }}" class="mb-2 text-center">
         <div class="d-flex justify-content-center align-items-center gap-3">
 
-            <a href="{{ $basePath }}?date={{ \Carbon\Carbon::parse($date)->subDay()->format('Y-m-d') }}&month={{ \Carbon\Carbon::parse($date)->subDay()->format('Y-m') }}"
+            <a href="{{ $basePath }}?date={{ \Carbon\Carbon::parse($date)->subDay()->format('Y-m-d') }}&month={{ \Carbon\Carbon::parse($date)->subDay()->format('Y-m') }}{{ $officialCompactEmptySlotsQuery }}"
             class="btn btn-outline-secondary">
                 ＜
             </a>
@@ -448,7 +464,7 @@ window.groupRecordData = {
                 class="form-control text-center"
                 style="max-width:180px; cursor:pointer; background:white;">
 
-            <a href="{{ $basePath }}?date={{ \Carbon\Carbon::parse($date)->addDay()->format('Y-m-d') }}&month={{ \Carbon\Carbon::parse($date)->addDay()->format('Y-m') }}"
+            <a href="{{ $basePath }}?date={{ \Carbon\Carbon::parse($date)->addDay()->format('Y-m-d') }}&month={{ \Carbon\Carbon::parse($date)->addDay()->format('Y-m') }}{{ $officialCompactEmptySlotsQuery }}"
             class="btn btn-outline-secondary">
                 ＞
             </a>
@@ -460,12 +476,12 @@ window.groupRecordData = {
     <div id="calendarBox" style="{{ request('open') ? 'display:block;' : 'display:none;' }}">
 
         <div class="month-nav">
-            <a href="{{ $basePath }}?date={{ \Carbon\Carbon::parse($prevMonth . '-01')->format('Y-m-d') }}&month={{ $prevMonth }}&open=1"
+            <a href="{{ $basePath }}?date={{ \Carbon\Carbon::parse($prevMonth . '-01')->format('Y-m-d') }}&month={{ $prevMonth }}&open=1{{ $officialCompactEmptySlotsQuery }}"
             class="btn btn-sm btn-outline-secondary">＜</a>
 
             <strong>{{ \Carbon\Carbon::parse($month . '-01')->format('Y年n月') }}</strong>
 
-            <a href="{{ $basePath }}?date={{ \Carbon\Carbon::parse($nextMonth . '-01')->format('Y-m-d') }}&month={{ $nextMonth }}&open=1"
+            <a href="{{ $basePath }}?date={{ \Carbon\Carbon::parse($nextMonth . '-01')->format('Y-m-d') }}&month={{ $nextMonth }}&open=1{{ $officialCompactEmptySlotsQuery }}"
             class="btn btn-sm btn-outline-secondary">＞</a>
         </div>
 
@@ -500,7 +516,7 @@ window.groupRecordData = {
                         $hasLineup = in_array($dayDate, $lineupDates ?? []);
                     @endphp
 
-                    <a href="{{ $basePath }}?date={{ $dayDate }}&month={{ $month }}"
+                    <a href="{{ $basePath }}?date={{ $dayDate }}&month={{ $month }}{{ $officialCompactEmptySlotsQuery }}"
                     class="day {{ $dayClass }} {{ $hasLineup ? 'has-lineup' : '' }}">
                         <div class="date">{{ $i }}</div>
 
@@ -542,7 +558,7 @@ window.groupRecordData = {
 
             <div class="official-sheet-tabs">
                 @foreach($sheetNos as $sheetNo)
-                    <a href="{{ $basePath }}?date={{ $date }}&month={{ $month }}&sheet_no={{ $sheetNo }}{{ $matchSelectionQuery }}"
+                    <a href="{{ $basePath }}?date={{ $date }}&month={{ $month }}&sheet_no={{ $sheetNo }}{{ $matchSelectionQuery ?: $officialCompactEmptySlotsQuery }}"
                        class="{{ (int) $sheetNo === (int) $activeSheetNo ? 'active' : '' }}">
                         {{ $sheetNo }}
                     </a>
@@ -557,6 +573,9 @@ window.groupRecordData = {
                         @csrf
                         <input type="hidden" name="date" value="{{ $date }}">
                         <input type="hidden" name="sheet_no" value="{{ $activeSheetNo }}">
+                        @if($officialCompactEmptySlotsExplicit)
+                            <input type="hidden" name="compact_empty_slots" value="{{ $officialCompactEmptySlots ? 1 : 0 }}">
+                        @endif
                         <button class="btn btn-outline-primary">
                             <i class="fa-solid fa-file-arrow-up"></i>
                             次ページへ
@@ -857,12 +876,13 @@ window.groupRecordData = {
         @foreach($nameSlots as $slot)
             @php
                 $headerUser = $slot->user;
+                $isTateBreak = (bool) ($slot->display_tate_break ?? (($loop->index + 1) % $nameTateSize == 0));
                 $headerNumericCount = $headerUser
                     ? (($records[$headerUser->id] ?? collect())
                         ->sum(fn($record) => $record->shots->sum(fn($shot) => (int) ($shot->numeric_score ?? 0))))
                     : 0;
             @endphp
-            <div class="score {{ (($loop->index + 1) % $nameTateSize == 0) ? 'tate-border' : '' }}"
+            <div class="score {{ $isTateBreak ? 'tate-border' : '' }}"
                  data-user-id="{{ $headerUser?->id }}">
                 @if($headerUser)
                     {{ ($activeSheetScoringMode ?? 'hit_miss') === 'numeric'
@@ -893,10 +913,13 @@ window.groupRecordData = {
         </div>
 
         @foreach($rowSlots as $slot)
+            @php
+                $isTateBreak = (bool) ($slot->display_tate_break ?? (($loop->index + 1) % $rowTateSize == 0));
+            @endphp
 
             @if($slot->is_empty)
 
-                <div class="user-column empty-column {{ (($loop->index + 1) % $rowTateSize == 0) ? 'tate-border' : '' }}">
+                <div class="user-column empty-column {{ $isTateBreak ? 'tate-border' : '' }}">
                     @for($i=1;$i<=4;$i++)
                         <div class="shot-btn empty-shot">空</div>
 
@@ -929,7 +952,7 @@ window.groupRecordData = {
                         ->implode(' / ');
                 @endphp
 
-                <div class="user-column {{ (($loop->index + 1) % $rowTateSize == 0) ? 'tate-border' : '' }} {{ $isMatchRecordChoice ? 'match-record-choice' : '' }} {{ $assignedRecordMember ? 'assigned' : '' }} {{ $isCurrentMatchRecordChoice ? 'current' : '' }} {{ $latestMatchAssignments->isNotEmpty() ? 'official-match-assigned' : '' }}"
+                <div class="user-column {{ $isTateBreak ? 'tate-border' : '' }} {{ $isMatchRecordChoice ? 'match-record-choice' : '' }} {{ $assignedRecordMember ? 'assigned' : '' }} {{ $isCurrentMatchRecordChoice ? 'current' : '' }} {{ $latestMatchAssignments->isNotEmpty() ? 'official-match-assigned' : '' }}"
                      @if($latestMatchPrimary)
                          style="--latest-match-color: {{ $latestMatchPrimary['color'] }};"
                      @endif
@@ -1015,7 +1038,10 @@ window.groupRecordData = {
     <div class="name-row official-name-row">
         <div class="tate-label name-row-label">名前</div>
         @foreach($nameSlots as $slot)
-            <div class="tate-user-name {{ $slot->is_empty ? 'empty-name' : '' }} {{ (($loop->index + 1) % $nameTateSize == 0) ? 'tate-border' : '' }}"
+            @php
+                $isTateBreak = (bool) ($slot->display_tate_break ?? (($loop->index + 1) % $nameTateSize == 0));
+            @endphp
+            <div class="tate-user-name {{ $slot->is_empty ? 'empty-name' : '' }} {{ $isTateBreak ? 'tate-border' : '' }}"
                  style="{{ !$slot->is_empty ? $gradeStyleFor($slot->user) : '' }}">
                 <span>{{ $slot->position }}</span>
                 {{ $slot->is_empty ? '空き' : $slot->user->name }}
@@ -1153,6 +1179,7 @@ window.groupRecordData = {
                                 $user = $slot->user;
                                 $hitCount = 0;
                                 $slotPosition = (int) ($slot->position ?? $loop->iteration);
+                                $isPrintTateBreak = (bool) ($slot->display_tate_break ?? ($slotPosition % $printTateSize == 0));
 
                                 if ($user) {
                                     foreach ($printTatePage as $scoreTateNo) {
@@ -1167,7 +1194,7 @@ window.groupRecordData = {
                                 }
                             @endphp
 
-                            <div class="print-score {{ ($slotPosition % $printTateSize == 0) ? 'print-tate-border' : '' }}">
+                            <div class="print-score {{ $isPrintTateBreak ? 'print-tate-border' : '' }}">
                                 {{ $slot->is_empty ? '-' : $hitCount . '中' }}
                             </div>
                         @endforeach
@@ -1186,12 +1213,13 @@ window.groupRecordData = {
                                     @php
                                         $user = $slot->user;
                                         $slotPosition = (int) ($slot->position ?? $loop->iteration);
+                                        $isPrintTateBreak = (bool) ($slot->display_tate_break ?? ($slotPosition % $printTateSize == 0));
                                         $record = $user
                                             ? ($records[$user->id] ?? collect())->where('tate_no', $tateNo)->first()
                                             : null;
                                     @endphp
 
-                                    <div class="print-user-column {{ ($slotPosition % $printTateSize == 0) ? 'print-tate-border' : '' }}">
+                                    <div class="print-user-column {{ $isPrintTateBreak ? 'print-tate-border' : '' }}">
                                         @for($i=1;$i<=4;$i++)
                                             @php
                                                 $shot = $record
@@ -1219,8 +1247,9 @@ window.groupRecordData = {
                         @foreach($printSlots as $slot)
                             @php
                                 $slotPosition = (int) ($slot->position ?? $loop->iteration);
+                                $isPrintTateBreak = (bool) ($slot->display_tate_break ?? ($slotPosition % $printTateSize == 0));
                             @endphp
-                            <div class="print-name {{ ($slotPosition % $printTateSize == 0) ? 'print-tate-border' : '' }}">
+                            <div class="print-name {{ $isPrintTateBreak ? 'print-tate-border' : '' }}">
                                 {{ $slot->is_empty ? '空き' : $slot->user->name }}
                             </div>
                         @endforeach

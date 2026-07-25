@@ -11,6 +11,118 @@ use App\Models\Shot;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
+it('uses the lineup page compact setting when showing empty slots on official records', function () {
+    $date = '2026-07-25';
+    $host = User::factory()->create([
+        'username' => 'host-official-compact-slots',
+        'is_admin' => true,
+    ]);
+    $firstMember = User::factory()->create([
+        'name' => 'First Member',
+        'username' => 'first-official-compact-slots',
+        'is_admin' => false,
+    ]);
+    $secondMember = User::factory()->create([
+        'name' => 'Second Member',
+        'username' => 'second-official-compact-slots',
+        'is_admin' => false,
+    ]);
+
+    $group = Group::create([
+        'name' => 'Official Compact Slots Group',
+        'host_user_id' => $host->id,
+        'invite_code' => '2461',
+    ]);
+    $group->users()->attach([$host->id, $firstMember->id, $secondMember->id]);
+
+    $lineup = Lineup::create([
+        'group_id' => $group->id,
+        'date' => $date,
+        'tate_size' => 3,
+    ]);
+    LineupMember::create([
+        'lineup_id' => $lineup->id,
+        'user_id' => $firstMember->id,
+        'position' => 1,
+        'is_absent' => false,
+        'is_late' => false,
+    ]);
+    LineupMember::create([
+        'lineup_id' => $lineup->id,
+        'user_id' => $secondMember->id,
+        'position' => 3,
+        'is_absent' => false,
+        'is_late' => false,
+    ]);
+
+    $compactResponse = $this->actingAs($host)
+        ->get("/group/{$group->id}/records?date={$date}");
+
+    $compactResponse->assertOk();
+    $compactResponse->assertSee('empty-column', false);
+    $compactResponse->assertSee('空き');
+    $compactResponse->assertSee('First Member');
+    $compactResponse->assertSee('Second Member');
+    $this->assertMatchesRegularExpression(
+        '/First Member[\s\S]*?空き[\s\S]*?Second Member/',
+        $compactResponse->getContent()
+    );
+
+    $spacedResponse = $this->actingAs($host)
+        ->get("/group/{$group->id}/records?date={$date}&compact_empty_slots=0");
+
+    $spacedResponse->assertOk();
+    $spacedResponse->assertSee('empty-column', false);
+    $spacedResponse->assertSee('空き');
+    $spacedResponse->assertSee('compact_empty_slots=0', false);
+});
+
+it('uses the compacted member count as the official tate size when the last lineup slot is empty', function () {
+    $date = '2026-07-25';
+    $host = User::factory()->create([
+        'username' => 'host-official-nine-of-ten',
+        'is_admin' => true,
+    ]);
+    $members = collect(range(1, 9))->map(fn($index) => User::factory()->create([
+        'name' => "Member {$index}",
+        'username' => "member-nine-of-ten-{$index}",
+        'is_admin' => false,
+    ]));
+
+    $group = Group::create([
+        'name' => 'Official Nine Of Ten Group',
+        'host_user_id' => $host->id,
+        'invite_code' => '2462',
+    ]);
+    $group->users()->attach($members->pluck('id')->push($host->id)->all());
+
+    $lineup = Lineup::create([
+        'group_id' => $group->id,
+        'date' => $date,
+        'tate_size' => 10,
+    ]);
+
+    foreach ($members as $index => $member) {
+        LineupMember::create([
+            'lineup_id' => $lineup->id,
+            'user_id' => $member->id,
+            'position' => $index + 1,
+            'is_absent' => false,
+            'is_late' => false,
+        ]);
+    }
+
+    $response = $this->actingAs($host)
+        ->get("/group/{$group->id}/records?date={$date}");
+
+    $response->assertOk();
+    $response->assertDontSee('empty-column', false);
+    $this->assertMatchesRegularExpression(
+        '/class="tate-user-name\s+tate-border"[\s\S]*?<span>9<\/span>[\s\S]*?Member 9/',
+        $response->getContent()
+    );
+});
+
 it('uses the selected official sheet when marking lineup members with entered records', function () {
     $date = '2026-07-25';
     $host = User::factory()->create(['username' => 'host']);
@@ -177,6 +289,87 @@ it('keeps the active official sheet number when linking from records to lineup',
         "/group/{$group->id}/lineup?date={$date}&month=2026-07&sheet_no=2",
         false
     );
+});
+
+it('starts the next official sheet from the first unentered tate up to the page boundary', function () {
+    $date = '2026-07-25';
+    $host = User::factory()->create([
+        'username' => 'host-official-partial-sheet',
+        'is_admin' => true,
+    ]);
+    $member = User::factory()->create([
+        'username' => 'member-official-partial-sheet',
+        'is_admin' => false,
+    ]);
+    $group = Group::create([
+        'name' => 'Test Group',
+        'host_user_id' => $host->id,
+        'invite_code' => '1122',
+    ]);
+    $group->users()->attach([$host->id, $member->id]);
+
+    $lineup = Lineup::create([
+        'group_id' => $group->id,
+        'date' => $date,
+        'tate_size' => 1,
+    ]);
+    LineupMember::create([
+        'lineup_id' => $lineup->id,
+        'user_id' => $member->id,
+        'position' => 1,
+        'is_absent' => false,
+        'is_late' => false,
+    ]);
+
+    foreach (range(1, 5) as $tateNo) {
+        $record = Record::create([
+            'user_id' => $member->id,
+            'date' => $date,
+            'tate_no' => $tateNo,
+            'practice_type' => 'official',
+            'official_sheet_no' => 1,
+            'lineup_position' => 1,
+            'lineup_tate_size' => 1,
+        ]);
+
+        if ($tateNo <= 2) {
+            Shot::create([
+                'record_id' => $record->id,
+                'shot_no' => 1,
+                'result' => 'hit',
+            ]);
+        }
+    }
+
+    $response = $this->actingAs($host)
+        ->post("/group/{$group->id}/records/switch-sheet", [
+            'date' => $date,
+            'sheet_no' => 1,
+        ]);
+
+    $response->assertRedirect("/group/{$group->id}/records?date={$date}&sheet_no=2");
+    expect(Record::where('user_id', $member->id)
+        ->where('date', $date)
+        ->where('practice_type', 'official')
+        ->where('official_sheet_no', 1)
+        ->pluck('tate_no')
+        ->sort()
+        ->values()
+        ->all())->toBe([1, 2]);
+
+    $this->actingAs($host)
+        ->get("/group/{$group->id}/records?date={$date}&sheet_no=2")
+        ->assertOk();
+
+    expect(Record::where('user_id', $member->id)
+        ->where('date', $date)
+        ->where('practice_type', 'official')
+        ->where('official_sheet_no', 2)
+        ->pluck('tate_no')
+        ->unique()
+        ->sort()
+        ->values()
+        ->all())->toBe([3, 4, 5]);
 });
 
 it('shows latest match tate assignments only on the selected official record column', function () {

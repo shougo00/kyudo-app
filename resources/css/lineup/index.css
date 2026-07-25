@@ -59,10 +59,40 @@
     font-size: 13px;
 }
 
+.lineup-status-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    flex-wrap: wrap;
+}
+
 .selected-member-label {
     font-weight: 700;
     color: #0d6efd;
     text-align: right;
+}
+
+.status-compact {
+    margin: 0;
+    padding-left: 2.35em;
+    display: inline-flex;
+    align-items: center;
+    min-height: 20px;
+    color: #868e96;
+    opacity: 0.82;
+    white-space: nowrap;
+}
+
+.status-compact .form-check-input {
+    width: 2em;
+    height: 1em;
+    margin-top: 0;
+}
+
+.status-compact .form-check-label {
+    font-size: 12px;
+    line-height: 1;
 }
 
 .grid {

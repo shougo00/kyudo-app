@@ -8,6 +8,8 @@ const lineupSummary = document.getElementById('lineupSummary');
 const selectedMemberLabel = document.getElementById('selectedMemberLabel');
 const poolCount = document.getElementById('poolCount');
 const poolTools = document.getElementById('poolTools');
+const compactEmptyCellsToggle = document.getElementById('compactEmptyCellsToggle');
+const officialRecordsReturnLink = document.getElementById('officialRecordsReturnLink');
 const canEditLineup = window.lineupData?.canEdit !== false;
 
 let dragged = null;
@@ -253,6 +255,16 @@ function getRealMembers() {
     return Array.from(document.querySelectorAll('#grid .member, #pool .member'));
 }
 
+function updateOfficialRecordsReturnLink() {
+    if (!officialRecordsReturnLink || !compactEmptyCellsToggle) {
+        return;
+    }
+
+    const url = new URL(officialRecordsReturnLink.href, window.location.origin);
+    url.searchParams.set('compact_empty_slots', compactEmptyCellsToggle.checked ? '1' : '0');
+    officialRecordsReturnLink.href = `${url.pathname}${url.search}${url.hash}`;
+}
+
 function clearDragOver() {
     document.querySelectorAll('.drag-over').forEach(el => {
         el.classList.remove('drag-over');
@@ -496,9 +508,13 @@ if (canEditLineup) {
         rerenderKeepingMembers(currentTateSize, newSize);
 
         currentTateSize = newSize;
-
         autoSave();
     });
+}
+
+if (compactEmptyCellsToggle) {
+    updateOfficialRecordsReturnLink();
+    compactEmptyCellsToggle.addEventListener('change', updateOfficialRecordsReturnLink);
 }
 
 function randomize() {

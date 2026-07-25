@@ -172,8 +172,9 @@
 <style>
 .group-member-tabs {
     display: flex;
+    flex-wrap: wrap;
     gap: 6px;
-    overflow-x: auto;
+    overflow: visible;
     padding-bottom: 4px;
 }
 
@@ -249,10 +250,11 @@
 }
 
 .group-member-tab {
-    flex: 0 0 auto;
+    flex: 0 1 auto;
     display: inline-flex;
     align-items: center;
     gap: 4px;
+    max-width: 100%;
     min-height: 34px;
     padding: 6px 10px;
     border: 1px solid #9ec5fe;
@@ -262,6 +264,8 @@
     text-decoration: none;
     font-weight: 700;
     font-size: 15px;
+    overflow-wrap: anywhere;
+    word-break: break-word;
 }
 
 .group-member-tab small {

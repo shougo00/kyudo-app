@@ -35,6 +35,11 @@ class GroupRecordController extends Controller
         $recordHeightExtra = 60;
         $matchRecordHeightExtra = 60;
         $canEditGroupRecords = $practiceType === 'match' || $this->canEditGroupRecords($group);
+        $officialCompactEmptySlots = $request->boolean('compact_empty_slots', true);
+        $officialCompactEmptySlotsExplicit = $request->has('compact_empty_slots');
+        $officialCompactEmptySlotsQuery = $officialCompactEmptySlotsExplicit
+            ? '&compact_empty_slots=' . ($officialCompactEmptySlots ? '1' : '0')
+            : '';
         $matchSelection = null;
 
         if ($practiceType === 'match') {
@@ -70,7 +75,7 @@ class GroupRecordController extends Controller
                     'assigned_members' => $assignedMembers,
                     'return_to' => $selectionReturnToOfficial ? 'official' : 'match',
                     'back_url' => $selectionReturnToOfficial
-                        ? "/group/{$groupId}/records?date={$date}&month={$selectionMonth}&sheet_no={$selectionSheetNo}#official-match-team-controls"
+                        ? "/group/{$groupId}/records?date={$date}&month={$selectionMonth}&sheet_no={$selectionSheetNo}{$officialCompactEmptySlotsQuery}#official-match-team-controls"
                         : "/group/{$groupId}/match-records?date={$date}&team_id={$selectionTeam->id}#match-team-{$selectionTeam->id}",
                     'back_label' => $selectionReturnToOfficial ? '正規連記録へ戻る' : '試合記録へ戻る',
                 ];
@@ -243,11 +248,13 @@ class GroupRecordController extends Controller
 
         $officialTateSlots = collect();
         $officialTateSizes = collect();
+        $displayLineupSlots = $this->officialDisplaySlots($lineupSlots, $officialCompactEmptySlots, $tateSize);
+        $displayLineupTateSize = $this->officialDisplayTateSize($lineupSlots, $officialCompactEmptySlots, $tateSize);
 
         foreach ($tates as $tateNo) {
             if ($isCurrentSheet && $lineupSlots->isNotEmpty()) {
-                $officialTateSlots->put($tateNo, $lineupSlots);
-                $officialTateSizes->put($tateNo, $tateSize);
+                $officialTateSlots->put($tateNo, $displayLineupSlots);
+                $officialTateSizes->put($tateNo, $displayLineupTateSize);
                 continue;
             }
 
@@ -262,8 +269,8 @@ class GroupRecordController extends Controller
                 ->filter(fn($record) => !is_null($record->lineup_position));
 
             if ($tateRecords->isEmpty()) {
-                $officialTateSlots->put($tateNo, $lineupSlots);
-                $officialTateSizes->put($tateNo, $tateSize);
+                $officialTateSlots->put($tateNo, $displayLineupSlots);
+                $officialTateSizes->put($tateNo, $displayLineupTateSize);
                 continue;
             }
 
@@ -285,9 +292,10 @@ class GroupRecordController extends Controller
                 ]);
             }
 
-            $officialTateSlots->put($tateNo, $slots);
-            $officialTateSizes->put($tateNo, $snapshotTateSize);
+            $officialTateSlots->put($tateNo, $this->officialDisplaySlots($slots, $officialCompactEmptySlots, $snapshotTateSize));
+            $officialTateSizes->put($tateNo, $this->officialDisplayTateSize($slots, $officialCompactEmptySlots, $snapshotTateSize));
         }
+        $lineupSlots = $displayLineupSlots;
 
         $month = $request->month ?? \Carbon\Carbon::parse($date)->format('Y-m');
 
@@ -353,7 +361,9 @@ class GroupRecordController extends Controller
             'canEditGroupRecords',
             'matchSelection',
             'latestMatchAssignmentsByRecordId',
-            'officialMatchTeamControls'
+            'officialMatchTeamControls',
+            'officialCompactEmptySlots',
+            'officialCompactEmptySlotsExplicit'
         ));
     }
 
@@ -657,13 +667,16 @@ class GroupRecordController extends Controller
             return;
         }
 
-        $missingTateCount = $maxTatesPerPage - $currentSheetTates->count();
         $maxTate = Record::whereIn('user_id', $groupUserIds)
             ->where('date', $date)
             ->where('practice_type', 'official')
             ->max('tate_no');
         $startTate = $maxTate ? $maxTate + 1 : 1;
-        $tates = collect(range($startTate, $startTate + $missingTateCount - 1));
+        $endTate = (int) ceil($startTate / $maxTatesPerPage) * $maxTatesPerPage;
+        $remainingSlots = $maxTatesPerPage - $currentSheetTates->count();
+        $tates = collect(range($startTate, $endTate))
+            ->take($remainingSlots)
+            ->values();
 
         DB::table('official_record_sheets')->updateOrInsert(
             [
@@ -687,6 +700,41 @@ class GroupRecordController extends Controller
             true,
             $activeSheetNo
         );
+    }
+
+    private function trimEmptyOfficialTatesAfterLastEntered($groupUserIds, string $date, int $sheetNo): void
+    {
+        $latestEnteredTate = Record::whereIn('user_id', $groupUserIds)
+            ->where('date', $date)
+            ->where('practice_type', 'official')
+            ->where('official_sheet_no', $sheetNo)
+            ->whereHas('shots', function ($query) {
+                $query->whereNotNull('result')
+                    ->orWhereNotNull('numeric_score');
+            })
+            ->max('tate_no');
+
+        if (!$latestEnteredTate) {
+            return;
+        }
+
+        $recordIds = Record::whereIn('user_id', $groupUserIds)
+            ->where('date', $date)
+            ->where('practice_type', 'official')
+            ->where('official_sheet_no', $sheetNo)
+            ->where('tate_no', '>', $latestEnteredTate)
+            ->whereDoesntHave('shots', function ($query) {
+                $query->whereNotNull('result')
+                    ->orWhereNotNull('numeric_score');
+            })
+            ->pluck('id');
+
+        if ($recordIds->isEmpty()) {
+            return;
+        }
+
+        Shot::whereIn('record_id', $recordIds)->delete();
+        Record::whereIn('id', $recordIds)->delete();
     }
 
     private function deleteEmptyOfficialSheetRecords($groupUserIds, string $date, int $activeSheetNo): void
@@ -732,9 +780,14 @@ class GroupRecordController extends Controller
             ->exists();
 
         if (!$hasEnteredOfficialShots) {
-            return redirect("/group/{$groupId}/records?date={$date}&sheet_no={$activeSheetNo}");
+            $compactQuery = $request->has('compact_empty_slots')
+                ? '&compact_empty_slots=' . ($request->boolean('compact_empty_slots', true) ? '1' : '0')
+                : '';
+
+            return redirect("/group/{$groupId}/records?date={$date}&sheet_no={$activeSheetNo}{$compactQuery}");
         }
 
+        $this->trimEmptyOfficialTatesAfterLastEntered($activeGroupUserIds, $date, $activeSheetNo);
         $this->captureOfficialSheetLineup($group, $date, $activeSheetNo);
 
         $nextSheetNo = $activeSheetNo + 1;
@@ -751,7 +804,11 @@ class GroupRecordController extends Controller
             ]
         );
 
-        return redirect("/group/{$groupId}/records?date={$date}&sheet_no={$nextSheetNo}");
+        $compactQuery = $request->has('compact_empty_slots')
+            ? '&compact_empty_slots=' . ($request->boolean('compact_empty_slots', true) ? '1' : '0')
+            : '';
+
+        return redirect("/group/{$groupId}/records?date={$date}&sheet_no={$nextSheetNo}{$compactQuery}");
     }
 
     public function addMatchTate(Request $request, $groupId)
@@ -1049,10 +1106,13 @@ class GroupRecordController extends Controller
         $nextSheetNo = max(1, (int) ($record->official_sheet_no ?? 1));
         $returnToOfficial = $request->input('return_to') === 'official';
         $returnToQuery = $returnToOfficial ? '&return_to=official' : '';
+        $compactQuery = $request->has('compact_empty_slots')
+            ? '&compact_empty_slots=' . ($request->boolean('compact_empty_slots', true) ? '1' : '0')
+            : '';
         $nextUrl = $nextPosition
-            ? "/group/{$team->group_id}/records?date={$validated['date']}&month={$month}&sheet_no={$nextSheetNo}&match_team_id={$team->id}&match_tate_no={$validated['tate_no']}&match_position={$nextPosition}{$returnToQuery}"
+            ? "/group/{$team->group_id}/records?date={$validated['date']}&month={$month}&sheet_no={$nextSheetNo}&match_team_id={$team->id}&match_tate_no={$validated['tate_no']}&match_position={$nextPosition}{$returnToQuery}{$compactQuery}"
             : ($returnToOfficial
-                ? "/group/{$team->group_id}/records?date={$validated['date']}&month={$month}&sheet_no={$nextSheetNo}#official-match-team-controls"
+                ? "/group/{$team->group_id}/records?date={$validated['date']}&month={$month}&sheet_no={$nextSheetNo}{$compactQuery}#official-match-team-controls"
                 : "/group/{$team->group_id}/match-records?date={$validated['date']}&month={$month}&team_id={$team->id}#match-team-{$team->id}");
 
         return response()->json([
@@ -1080,6 +1140,9 @@ class GroupRecordController extends Controller
         $redirectPath = $practiceType === 'match'
             ? "/group/{$groupId}/match-records"
             : "/group/{$groupId}/records";
+        $compactQuery = $practiceType === 'official' && $request->has('compact_empty_slots')
+            ? '&compact_empty_slots=' . ($request->boolean('compact_empty_slots', true) ? '1' : '0')
+            : '';
 
         $lineup = Lineup::with('members.user')
             ->where('group_id', $groupId)
@@ -1087,7 +1150,7 @@ class GroupRecordController extends Controller
             ->first();
 
         if (!$lineup) {
-            return redirect("{$redirectPath}?date={$date}");
+            return redirect("{$redirectPath}?date={$date}{$compactQuery}");
         }
 
         $this->syncLineupMembers($lineup, $group);
@@ -1112,7 +1175,7 @@ class GroupRecordController extends Controller
             ->values();
 
         if ($users->isEmpty()) {
-            return redirect("{$redirectPath}?date={$date}");
+            return redirect("{$redirectPath}?date={$date}{$compactQuery}");
         }
 
         $userIds = $users->pluck('id');
@@ -1132,7 +1195,7 @@ class GroupRecordController extends Controller
             ->values();
 
         if ($practiceType === 'official' && $currentSheetTates->count() >= $maxTatesPerPage) {
-            return redirect("{$redirectPath}?date={$date}&sheet_no={$activeSheetNo}");
+            return redirect("{$redirectPath}?date={$date}&sheet_no={$activeSheetNo}{$compactQuery}");
         }
 
         $lineupSnapshotsByUserId = $placedMembers
@@ -1170,7 +1233,7 @@ class GroupRecordController extends Controller
 
         $sheetQuery = $practiceType === 'official' ? "&sheet_no={$activeSheetNo}" : '';
 
-        return redirect("{$redirectPath}?date={$date}{$sheetQuery}");
+        return redirect("{$redirectPath}?date={$date}{$sheetQuery}{$compactQuery}");
     }
 
     public function updateShot(Request $request, $id)
@@ -1410,8 +1473,11 @@ class GroupRecordController extends Controller
     {
         if ($request->input('return_to') === 'official') {
             $sheetNo = max(1, (int) ($request->input('sheet_no') ?? 1));
+            $compactQuery = $request->has('compact_empty_slots')
+                ? '&compact_empty_slots=' . ($request->boolean('compact_empty_slots', true) ? '1' : '0')
+                : '';
 
-            return "/group/{$groupId}/records?date={$date}&month={$month}&sheet_no={$sheetNo}#official-match-team-controls";
+            return "/group/{$groupId}/records?date={$date}&month={$month}&sheet_no={$sheetNo}{$compactQuery}#official-match-team-controls";
         }
 
         return "/group/{$groupId}/match-records?date={$date}&month={$month}&team_id={$teamId}&tate_no={$tateNo}#match-team-{$teamId}";
@@ -1437,6 +1503,81 @@ class GroupRecordController extends Controller
             ->unique()
             ->sort()
             ->values();
+    }
+
+    private function officialDisplaySlots($slots, bool $compactEmptySlots, int $tateSize)
+    {
+        $slots = collect($slots)->values();
+        $tateSize = max(1, $tateSize);
+
+        if (!$compactEmptySlots) {
+            return $slots->map(function ($slot, $index) use ($tateSize) {
+                $displaySlot = clone $slot;
+                $displaySlot->display_tate_break = (($index + 1) % $tateSize) === 0;
+
+                return $displaySlot;
+            });
+        }
+
+        $displayPosition = 1;
+
+        return $slots
+            ->chunk($tateSize)
+            ->flatMap(function ($tateSlots) use (&$displayPosition) {
+                $tateSlots = $tateSlots->values();
+                $lastFilledIndex = $tateSlots->search(fn($slot) => !$slot->is_empty && $slot->user);
+
+                if ($lastFilledIndex === false) {
+                    return collect();
+                }
+
+                foreach ($tateSlots as $index => $slot) {
+                    if (!$slot->is_empty && $slot->user) {
+                        $lastFilledIndex = $index;
+                    }
+                }
+
+                $displaySlots = $tateSlots->take($lastFilledIndex + 1)->values();
+
+                return $displaySlots->map(function ($slot, $index) use (&$displayPosition, $displaySlots) {
+                    $displaySlot = clone $slot;
+                    $displaySlot->position = $displayPosition++;
+                    $displaySlot->display_tate_break = ($index + 1) === $displaySlots->count();
+
+                    return $displaySlot;
+                });
+            })
+            ->values();
+    }
+
+    private function officialDisplayTateSize($slots, bool $compactEmptySlots, int $tateSize): int
+    {
+        $slots = collect($slots)->values();
+        $tateSize = max(1, $tateSize);
+
+        if (!$compactEmptySlots) {
+            return $tateSize;
+        }
+
+        return max(
+            1,
+            (int) $slots
+                ->chunk($tateSize)
+                ->map(function ($tateSlots) {
+                    $tateSlots = $tateSlots->values();
+                    $lastFilledIndex = false;
+
+                    foreach ($tateSlots as $index => $slot) {
+                        if (!$slot->is_empty && $slot->user) {
+                            $lastFilledIndex = $index;
+                        }
+                    }
+
+                    return $lastFilledIndex === false ? 0 : $lastFilledIndex + 1;
+                })
+                ->filter()
+                ->max()
+        );
     }
 
     private function officialTateDisplayOffset($groupUserIds, string $date, int $activeSheetNo, $tates): int

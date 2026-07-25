@@ -170,3 +170,34 @@ it('renders one lineup member when duplicate lineup member rows already exist', 
 
     expect(LineupMember::where('lineup_id', $lineup->id)->where('user_id', $member->id)->count())->toBe(2);
 });
+
+it('shows the official record compact empty cells switch on the lineup page', function () {
+    $date = '2026-07-25';
+    $host = User::factory()->create([
+        'name' => 'Host',
+        'username' => 'host-compact-toggle',
+        'is_admin' => true,
+    ]);
+    $member = User::factory()->create([
+        'name' => 'Member One',
+        'username' => 'member-compact-toggle',
+        'is_admin' => false,
+    ]);
+
+    $group = Group::create([
+        'name' => 'Compact Toggle Group',
+        'host_user_id' => $host->id,
+        'invite_code' => '8642',
+    ]);
+    $group->users()->attach([$host->id, $member->id]);
+
+    $response = $this->actingAs($host)
+        ->get("/group/{$group->id}/lineup?date={$date}");
+
+    $response->assertOk();
+    $response->assertSee('空マスを詰める');
+    $response->assertSee('id="compactEmptyCellsToggle"', false);
+    $response->assertSee('id="officialRecordsReturnLink"', false);
+    $response->assertSee('compact_empty_slots=1', false);
+    $response->assertSee('checked', false);
+});

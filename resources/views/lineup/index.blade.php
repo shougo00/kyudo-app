@@ -33,6 +33,7 @@
     $canEditLineup = (bool) ($canEditLineup ?? true);
     $activeOfficialSheetNo = (int) ($activeOfficialSheetNo ?? 1);
     $month = $month ?? \Carbon\Carbon::parse($date)->format('Y-m');
+    $officialCompactEmptySlots = (bool) ($officialCompactEmptySlots ?? true);
 @endphp
 <div class="container py-3" style="--lineup-pool-max-height: {{ $lineupPoolMaxHeight }}dvh;">
 
@@ -41,7 +42,8 @@
         {{ $group->name }}｜立順設定
     </h4>
 
-    <a href="/group/{{ $group->id }}/records?date={{ $date }}&month={{ $month }}&sheet_no={{ $activeOfficialSheetNo }}"
+    <a id="officialRecordsReturnLink"
+       href="/group/{{ $group->id }}/records?date={{ $date }}&month={{ $month }}&sheet_no={{ $activeOfficialSheetNo }}&compact_empty_slots={{ $officialCompactEmptySlots ? 1 : 0 }}"
        class="btn btn-success">
         記録に戻る
     </a>
@@ -95,7 +97,18 @@
 </div>
 
 <div class="lineup-status-bar">
-    <div id="lineupSummary" class="lineup-summary">配置 0 / 未配置 0</div>
+    <div class="lineup-status-left">
+        <div id="lineupSummary" class="lineup-summary">配置 0 / 未配置 0</div>
+        <label class="form-check form-switch status-compact">
+            <input type="checkbox"
+                   id="compactEmptyCellsToggle"
+                   class="form-check-input"
+                   role="switch"
+                   {{ $officialCompactEmptySlots ? 'checked' : '' }}
+                   {{ $canEditLineup ? '' : 'disabled' }}>
+            <span class="form-check-label">空マスを詰める</span>
+        </label>
+    </div>
     <div id="selectedMemberLabel" class="selected-member-label">選択なし</div>
 </div>
 

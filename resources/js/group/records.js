@@ -113,6 +113,19 @@ function selectOfficialRecordForMatch(el, event) {
 
     matchOfficialRecordSelecting = true;
     el.classList.add('saving');
+    const currentUrl = new URL(window.location.href);
+    const payload = {
+        date: currentUrl.searchParams.get('date'),
+        tate_no: selection.tateNo,
+        position: assignedPosition,
+        record_id: recordId,
+        return_to: selection.returnTo,
+        sheet_no: currentUrl.searchParams.get('sheet_no'),
+    };
+
+    if (currentUrl.searchParams.has('compact_empty_slots')) {
+        payload.compact_empty_slots = currentUrl.searchParams.get('compact_empty_slots');
+    }
 
     fetch(`/match-teams/${selection.teamId}/official-record`, {
         method: 'POST',
@@ -120,14 +133,7 @@ function selectOfficialRecordForMatch(el, event) {
             'Content-Type': 'application/json',
             'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
         },
-        body: JSON.stringify({
-            date: new URL(window.location.href).searchParams.get('date'),
-            tate_no: selection.tateNo,
-            position: assignedPosition,
-            record_id: recordId,
-            return_to: selection.returnTo,
-            sheet_no: new URL(window.location.href).searchParams.get('sheet_no'),
-        }),
+        body: JSON.stringify(payload),
     })
         .then(res => res.json().then(data => ({ ok: res.ok, data })))
         .then(({ ok, data }) => {

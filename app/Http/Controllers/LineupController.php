@@ -22,6 +22,7 @@ class LineupController extends Controller
         $canEditLineup = $this->canEditGroupRecords($group);
         $date = $request->date ?? date('Y-m-d');
         $month = $request->month ?? \Carbon\Carbon::parse($date)->format('Y-m');
+        $officialCompactEmptySlots = $request->boolean('compact_empty_slots', true);
 
         $lineup = Lineup::firstOrCreate(
             [
@@ -94,7 +95,7 @@ class LineupController extends Controller
 
         $latestMatchUserIds = $this->latestMatchUserIds($group, $date);
 
-        return view('lineup.index', compact('group', 'lineup', 'members', 'date', 'month', 'recordedUserIds', 'latestMatchUserIds', 'canEditLineup', 'activeOfficialSheetNo'));
+        return view('lineup.index', compact('group', 'lineup', 'members', 'date', 'month', 'recordedUserIds', 'latestMatchUserIds', 'canEditLineup', 'activeOfficialSheetNo', 'officialCompactEmptySlots'));
     }
 
     public function save(Request $request, $lineupId)
