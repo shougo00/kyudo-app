@@ -151,7 +151,13 @@ class GroupHistoryController extends Controller
     {
         $monthlyMembersQuery = $group->users()
             ->where('is_admin', false)
-            ->with('avatar');
+            ->with('avatar')
+            ->when($group->uses_grades, function ($query) {
+                $query
+                    ->orderByRaw('users.grade_level IS NULL')
+                    ->orderByDesc('users.grade_level');
+            })
+            ->orderBy('users.name');
 
         if ($keyword !== '') {
             $monthlyMembersQuery->where('users.name', 'like', '%' . $keyword . '%');
@@ -169,7 +175,6 @@ class GroupHistoryController extends Controller
             ->get();
 
         return $monthlyMembers
-            ->sortBy('name')
             ->map(function ($user) use ($monthlySourceRecords) {
                 $records = $monthlySourceRecords->where('user_id', $user->id);
 

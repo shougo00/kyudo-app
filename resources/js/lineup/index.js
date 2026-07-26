@@ -11,6 +11,7 @@ const poolTools = document.getElementById('poolTools');
 const compactEmptyCellsToggle = document.getElementById('compactEmptyCellsToggle');
 const officialRecordsReturnLink = document.getElementById('officialRecordsReturnLink');
 const canEditLineup = window.lineupData?.canEdit !== false;
+const canDragLineupMembers = false;
 
 let dragged = null;
 let selectedMember = null;
@@ -48,7 +49,7 @@ function makeMember(sourceEl) {
         div.classList.add('late');
     }
 
-    div.draggable = canEditLineup;
+    div.draggable = canEditLineup && canDragLineupMembers;
     div.dataset.id = sourceEl.dataset.id;
     div.dataset.hasRecord = sourceEl.dataset.hasRecord || '0';
     div.dataset.inLatestMatch = sourceEl.dataset.inLatestMatch || '0';
@@ -69,17 +70,19 @@ function makeMember(sourceEl) {
         return div;
     }
 
-    // ===== PCドラッグ =====
-    div.addEventListener('dragstart', () => {
-        dragged = div;
-        setTimeout(() => div.style.opacity = '0.5', 0);
-    });
+    if (canDragLineupMembers) {
+        // ===== PCドラッグ =====
+        div.addEventListener('dragstart', () => {
+            dragged = div;
+            setTimeout(() => div.style.opacity = '0.5', 0);
+        });
 
-    div.addEventListener('dragend', () => {
-        div.style.opacity = '1';
-        dragged = null;
-        clearDragOver();
-    });
+        div.addEventListener('dragend', () => {
+            div.style.opacity = '1';
+            dragged = null;
+            clearDragOver();
+        });
+    }
 
     // ===== スマホ長押し（欠席） =====
     div.addEventListener('touchstart', () => {
@@ -308,32 +311,34 @@ function renderGrid(minRows = 0) {
                 moveSelectedTo(cell);
             });
 
-            cell.addEventListener('dragover', e => {
-                e.preventDefault();
-                clearDragOver();
-                cell.classList.add('drag-over');
-            });
+            if (canDragLineupMembers) {
+                cell.addEventListener('dragover', e => {
+                    e.preventDefault();
+                    clearDragOver();
+                    cell.classList.add('drag-over');
+                });
 
-            cell.addEventListener('drop', e => {
-                e.preventDefault();
+                cell.addEventListener('drop', e => {
+                    e.preventDefault();
 
-                if (!dragged) return;
+                    if (!dragged) return;
 
-                const existing = cell.querySelector('.member');
+                    const existing = cell.querySelector('.member');
 
-                if (existing && existing !== dragged) {
-                    if (!swapMembers(dragged, existing)) {
-                        clearDragOver();
-                        return;
+                    if (existing && existing !== dragged) {
+                        if (!swapMembers(dragged, existing)) {
+                            clearDragOver();
+                            return;
+                        }
+                    } else {
+                        cell.appendChild(dragged);
                     }
-                } else {
-                    cell.appendChild(dragged);
-                }
 
-                clearDragOver();
-                updatePoolView();
-                autoSave();
-            });
+                    clearDragOver();
+                    updatePoolView();
+                    autoSave();
+                });
+            }
         }
 
         grid.appendChild(cell);
@@ -477,28 +482,30 @@ if (canEditLineup) {
         moveSelectedTo(pool);
     });
 
-    pool.addEventListener('dragover', e => {
-        e.preventDefault();
-        clearDragOver();
-        pool.classList.add('drag-over');
-    });
+    if (canDragLineupMembers) {
+        pool.addEventListener('dragover', e => {
+            e.preventDefault();
+            clearDragOver();
+            pool.classList.add('drag-over');
+        });
 
-    pool.addEventListener('drop', e => {
-        e.preventDefault();
+        pool.addEventListener('drop', e => {
+            e.preventDefault();
 
-        if (dragged) {
-            if (!confirmRemoveRecordedMember(dragged)) {
-                clearDragOver();
-                return;
+            if (dragged) {
+                if (!confirmRemoveRecordedMember(dragged)) {
+                    clearDragOver();
+                    return;
+                }
+
+                pool.appendChild(dragged);
             }
 
-            pool.appendChild(dragged);
-        }
-
-        clearDragOver();
-        updatePoolView();
-        autoSave();
-    });
+            clearDragOver();
+            updatePoolView();
+            autoSave();
+        });
+    }
 }
 
 if (canEditLineup) {

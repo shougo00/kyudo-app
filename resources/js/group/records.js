@@ -192,6 +192,7 @@ function applyMatchOfficialRecordAssignment(el, assignment) {
     }
 
     const oldRecordId = positionLink.dataset.assignedRecordId || '';
+    const wasPositionFilled = Boolean(oldRecordId) || positionLink.dataset.assignedMember === '1';
 
     document.querySelectorAll('[data-match-select-position]').forEach(link => {
         if (
@@ -213,7 +214,7 @@ function applyMatchOfficialRecordAssignment(el, assignment) {
         syncMatchRecordChoiceClasses();
     }
 
-    const nextPosition = assignment.nextPosition
+    const nextPosition = !wasPositionFilled && assignment.nextPosition
         ? Number(assignment.nextPosition)
         : selectedPosition;
 
@@ -336,6 +337,7 @@ function setMatchSelectionPositionAssignment(link, assignment) {
     const positionLabel = link.dataset.positionLabel || getMatchPositionLabel(position);
 
     link.classList.toggle('filled', !!assignment?.recordId);
+    link.dataset.assignedMember = assignment?.recordId ? '1' : '0';
     link.dataset.assignedRecordId = assignment?.recordId || '';
     link.dataset.assignedUserName = name;
     link.dataset.assignedOfficialTate = assignment?.officialTateNo || '';

@@ -285,7 +285,7 @@
     .filter-box,
     .month-nav,
     .rank-card,
-    .title-bar button {
+    .title-bar .btn {
         display: none !important;
     }
 

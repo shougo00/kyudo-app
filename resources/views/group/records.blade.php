@@ -320,6 +320,7 @@ window.groupRecordData = {
                    class="match-record-select-position {{ $position === $matchSelection['position'] ? 'active' : '' }} {{ $assignedMember?->officialRecord ? 'filled' : '' }}"
                    data-match-select-position="{{ $position }}"
                    data-position-url="{{ $positionUrl }}"
+                   data-assigned-member="{{ $assignedMember?->user_id ? 1 : 0 }}"
                    data-assigned-record-id="{{ $assignedMember?->officialRecord?->id }}"
                    data-assigned-user-name="{{ $assignedName }}"
                    data-assigned-official-tate="{{ $assignedMember?->officialRecord?->tate_no }}"
@@ -1071,25 +1072,79 @@ window.groupRecordData = {
 
 @if($practiceType === 'match')
     @foreach(($teams ?? collect()) as $printTeam)
-        @foreach(($matchTeamTates->get($printTeam->id, collect())) as $tateNo)
+        @php
+            $printTeamTates = $matchTeamTates->get($printTeam->id, collect());
+            $printTeamSlots = $matchTeamSlots->get($printTeam->id, collect());
+            $printTeamTotalHits = 0;
+            $printTeamTotalPoints = 0;
+            $printTeamUsesNumeric = false;
+
+            foreach ($printTeamTates as $printTotalTateNo) {
+                $printTotalSlots = $printTeamSlots->get($printTotalTateNo, collect());
+                $printTotalMeta = optional($matchTateMetas->get($printTeam->id))->get($printTotalTateNo);
+                $printTotalMode = $printTotalMeta?->scoring_mode ?? 'hit_miss';
+                $printTotalHasOfficial = collect($printTotalSlots)->contains(fn($slot) => ($slot->record_source ?? null) === 'official');
+                $printTotalUsesNumeric = collect($printTotalSlots)->contains(fn($slot) => ($slot->scoring_mode ?? null) === 'numeric')
+                    || (!$printTotalHasOfficial && $printTotalMode === 'numeric');
+
+                $printTeamUsesNumeric = $printTeamUsesNumeric || $printTotalUsesNumeric;
+
+                foreach ($printTotalSlots as $slotForPrintTotal) {
+                    if (!$slotForPrintTotal->is_empty && $slotForPrintTotal->user && $slotForPrintTotal->record) {
+                        $printTotalRecord = $slotForPrintTotal->record;
+                        $printTeamTotalHits += $printTotalRecord->shots->where('result', 'hit')->count();
+                        $printTeamTotalPoints += $printTotalRecord->shots->sum(fn($shot) => (int) ($shot->numeric_score ?? 0));
+                    }
+                }
+            }
+        @endphp
+
+        <section class="print-page match-print-team-page">
+            <div class="match-print-head">
+                <div>
+                    <div class="match-print-kicker">{{ $group->name }}（{{ $recordLabel }}）</div>
+                    <h2>{{ $printTeam->name }}</h2>
+                    <div class="match-print-meta">
+                        {{ $divisionLabels[$printTeam->division] ?? '混合の部' }}
+                        / {{ $printTeam->tate_size }}人立
+                        / {{ \Carbon\Carbon::parse($date)->locale('ja')->isoFormat('YYYY年M月D日（ddd）') }}
+                    </div>
+                </div>
+                <div class="match-print-total">
+                    <span>合計</span>
+                    <strong>{{ $printTeamTotalHits }}中@if($printTeamUsesNumeric) / {{ $printTeamTotalPoints }}点@endif</strong>
+                </div>
+            </div>
+
+            @if($printTeamTates->isEmpty())
+                <div class="match-print-empty">記録はありません。</div>
+            @endif
+
+        @foreach($printTeamTates as $tateNo)
             @php
-                $slots = $matchTeamSlots->get($printTeam->id, collect())->get($tateNo, collect());
+                $slots = $printTeamSlots->get($tateNo, collect());
+                $tateMeta = optional($matchTateMetas->get($printTeam->id))->get($tateNo);
+                $matchScoringMode = $tateMeta?->scoring_mode ?? 'hit_miss';
+                $hasOfficialLinkedRecords = collect($slots)->contains(fn($slot) => ($slot->record_source ?? null) === 'official');
+                $tateUsesNumeric = collect($slots)->contains(fn($slot) => ($slot->scoring_mode ?? null) === 'numeric')
+                    || (!$hasOfficialLinkedRecords && $matchScoringMode === 'numeric');
                 $tateTotalHits = 0;
+                $tateTotalPoints = 0;
 
                 foreach ($slots as $slotForPrintTotal) {
                     if (!$slotForPrintTotal->is_empty && $slotForPrintTotal->user && $slotForPrintTotal->record) {
                         $printTotalRecord = $slotForPrintTotal->record;
 
                         $tateTotalHits += $printTotalRecord->shots->where('result', 'hit')->count();
+                        $tateTotalPoints += $printTotalRecord->shots->sum(fn($shot) => (int) ($shot->numeric_score ?? 0));
                     }
                 }
             @endphp
 
-            <div class="print-page">
-                <div class="print-title">
-                    {{ $group->name }}（{{ $recordLabel }}）<br>
-                    {{ $printTeam->name }} / {{ $divisionLabels[$printTeam->division] ?? '混合の部' }} / {{ $printTeam->tate_size }}人立 / {{ $tateNo }}立目 / {{ $tateTotalHits }}中<br>
-                    {{ \Carbon\Carbon::parse($date)->locale('ja')->isoFormat('YYYY年M月D日（ddd）') }}
+            <div class="match-print-tate-block">
+                <div class="match-print-tate-title">
+                    <strong>{{ $tateNo }}立目</strong>
+                    <span>{{ $tateUsesNumeric ? $tateTotalPoints . '点' : $tateTotalHits . '中' }}</span>
                 </div>
 
                 <div class="print-score-header">
@@ -1098,13 +1153,17 @@ window.groupRecordData = {
                         @php
                             $printUser = $slot->user;
                             $printRecord = $printUser ? ($slot->record ?? null) : null;
+                            $printRecordScoringMode = ($slot->scoring_mode ?? null) ?: $matchScoringMode;
                             $printHitCount = $printRecord
                                 ? $printRecord->shots->where('result', 'hit')->count()
+                                : 0;
+                            $printPointCount = $printRecord
+                                ? $printRecord->shots->sum(fn($shot) => (int) ($shot->numeric_score ?? 0))
                                 : 0;
                         @endphp
 
                         <div class="print-score {{ (($loop->index + 1) % $printTeam->tate_size == 0) ? 'print-tate-border' : '' }}">
-                            {{ $slot->is_empty ? '-' : $printHitCount . '中' }}
+                            {{ $slot->is_empty ? '-' : ($printRecordScoringMode === 'numeric' ? $printPointCount . '点' : $printHitCount . '中') }}
                         </div>
                     @endforeach
                 </div>
@@ -1116,6 +1175,7 @@ window.groupRecordData = {
                             @php
                                 $user = $slot->user;
                                 $record = $user ? ($slot->record ?? null) : null;
+                                $recordScoringMode = ($slot->scoring_mode ?? null) ?: $matchScoringMode;
                             @endphp
 
                             <div class="print-user-column {{ (($loop->index + 1) % $printTeam->tate_size == 0) ? 'print-tate-border' : '' }}">
@@ -1126,7 +1186,9 @@ window.groupRecordData = {
                                             : null;
                                     @endphp
                                     <div class="print-shot">
-                                        @if($shot?->result=='hit')
+                                        @if($recordScoringMode === 'numeric' && !is_null($shot?->numeric_score))
+                                            {{ $shot->numeric_score }}
+                                        @elseif($shot?->result=='hit')
                                             ○
                                         @elseif($shot?->result=='miss')
                                             ×
@@ -1143,11 +1205,15 @@ window.groupRecordData = {
                     @foreach($slots as $slot)
                         <div class="print-name {{ (($loop->index + 1) % $printTeam->tate_size == 0) ? 'print-tate-border' : '' }}">
                             {{ $slot->is_empty ? '空き' : $slot->user->name }}
+                            @if(($slot->record_source ?? null) === 'official')
+                                <small>正{{ $slot->official_tate_no }}</small>
+                            @endif
                         </div>
                     @endforeach
                 </div>
             </div>
         @endforeach
+        </section>
     @endforeach
 @else
     @if($tates->isNotEmpty())

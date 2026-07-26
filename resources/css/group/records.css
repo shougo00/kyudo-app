@@ -1622,6 +1622,134 @@ body.modal-open {
         line-height: 1.25;
     }
 
+    .match-print-team-page {
+        overflow: visible;
+        padding: 0;
+    }
+
+    .match-print-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+        border-bottom: 2px solid #000;
+        margin-bottom: 7px;
+        padding-bottom: 5px;
+    }
+
+    .match-print-kicker {
+        font-size: 10px;
+        font-weight: 700;
+        line-height: 1.2;
+    }
+
+    .match-print-head h2 {
+        margin: 1px 0 2px;
+        font-size: 18px;
+        font-weight: 900;
+        line-height: 1.15;
+    }
+
+    .match-print-meta {
+        font-size: 11px;
+        font-weight: 700;
+        line-height: 1.2;
+    }
+
+    .match-print-total {
+        min-width: 86px;
+        border: 1px solid #000;
+        padding: 4px 7px;
+        text-align: center;
+        font-weight: 800;
+        line-height: 1.15;
+    }
+
+    .match-print-total span,
+    .match-print-total strong {
+        display: block;
+    }
+
+    .match-print-total span {
+        font-size: 10px;
+    }
+
+    .match-print-total strong {
+        font-size: 13px;
+    }
+
+    .match-print-empty {
+        border: 1px solid #888;
+        padding: 18px;
+        text-align: center;
+        font-weight: 700;
+    }
+
+    .match-print-tate-block {
+        width: max-content;
+        max-width: 100%;
+        margin: 0 auto 7px;
+        page-break-inside: avoid;
+        break-inside: avoid;
+    }
+
+    .match-print-tate-title {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border: 1px solid #333;
+        border-bottom: 0;
+        background: #f1f3f5 !important;
+        padding: 3px 6px;
+        font-size: 11px;
+        font-weight: 900;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    .match-print-team-page .print-shot {
+        width: 30px;
+        height: 27px;
+        font-size: 17px;
+    }
+
+    .match-print-team-page .print-user-column,
+    .match-print-team-page .print-score,
+    .match-print-team-page .print-name {
+        width: 30px;
+        min-width: 30px;
+    }
+
+    .match-print-team-page .print-score {
+        height: 20px;
+        line-height: 20px;
+        font-size: 9px;
+    }
+
+    .match-print-team-page .print-name {
+        height: 58px;
+        font-size: 10px;
+        line-height: 1.05;
+    }
+
+    .match-print-team-page .print-name small {
+        display: block;
+        font-size: 8px;
+        font-weight: 700;
+    }
+
+    .match-print-team-page .print-tate-label {
+        width: 24px;
+        min-width: 24px;
+        font-size: 10px;
+    }
+
+    .match-print-team-page .print-name-spacer {
+        width: 24px;
+        min-width: 24px;
+        height: 58px;
+    }
+
     .print-score-header,
     .print-tate-row,
     .print-name-row {
