@@ -185,7 +185,7 @@
 }
 
 .member.in-latest-match {
-    color: #dc3545 !important;
+    color: var(--latest-match-color, #dc3545) !important;
     font-weight: 900;
 }
 

@@ -157,13 +157,17 @@
 
 <div id="membersSource" style="display:none;">
 @foreach($members as $m)
+    @php
+        $latestMatchColor = ($latestMatchUserColors ?? collect())->get($m->user_id);
+    @endphp
     <div class="source-member
     {{ $m->is_absent ? 'absent' : '' }}
     {{ $m->is_late ? 'late' : '' }}"
          data-id="{{ $m->id }}"
          data-position="{{ $m->position }}"
          data-has-record="{{ ($recordedUserIds ?? collect())->contains($m->user_id) ? 1 : 0 }}"
-         data-in-latest-match="{{ ($latestMatchUserIds ?? collect())->contains($m->user_id) ? 1 : 0 }}"
+         data-in-latest-match="{{ $latestMatchColor ? 1 : 0 }}"
+         data-latest-match-color="{{ $latestMatchColor }}"
          data-gender="{{ $m->user->gender }}"
          data-grade-level="{{ $m->user->grade_level }}"
          data-grade-color="{{ $gradeColorFor($m->user) }}"

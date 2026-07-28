@@ -12,6 +12,17 @@ use Illuminate\Support\Facades\DB;
 
 class LineupController extends Controller
 {
+    private const MATCH_TEAM_COLORS = [
+        '#dc3545',
+        '#0d6efd',
+        '#198754',
+        '#fd7e14',
+        '#6f42c1',
+        '#0aa2c0',
+        '#d63384',
+        '#6c757d',
+    ];
+
     public function index(Request $request, $groupId)
     {
         $this->checkGroupAccess($groupId, true);
@@ -93,9 +104,9 @@ class LineupController extends Controller
             ->unique()
             ->values();
 
-        $latestMatchUserIds = $this->latestMatchUserIds($group, $date);
+        $latestMatchUserColors = $this->latestMatchUserColors($group, $date);
 
-        return view('lineup.index', compact('group', 'lineup', 'members', 'date', 'month', 'recordedUserIds', 'latestMatchUserIds', 'canEditLineup', 'activeOfficialSheetNo', 'officialCompactEmptySlots'));
+        return view('lineup.index', compact('group', 'lineup', 'members', 'date', 'month', 'recordedUserIds', 'latestMatchUserColors', 'canEditLineup', 'activeOfficialSheetNo', 'officialCompactEmptySlots'));
     }
 
     public function save(Request $request, $lineupId)
@@ -183,14 +194,18 @@ class LineupController extends Controller
         );
     }
 
-    private function latestMatchUserIds(Group $group, string $date)
+    private function latestMatchUserColors(Group $group, string $date)
     {
-        return MatchTeam::withTrashed()
+        $teams = MatchTeam::withTrashed()
             ->with(['members' => fn($query) => $query->where('date', $date)])
             ->where('group_id', $group->id)
             ->whereHas('members', fn($query) => $query->where('date', $date))
+            ->orderBy('id')
             ->get()
-            ->flatMap(function ($team) {
+            ->values();
+
+        return $teams
+            ->flatMap(function ($team, int $teamIndex) {
                 $latestTateNo = $team->members
                     ->pluck('tate_no')
                     ->filter()
@@ -200,15 +215,20 @@ class LineupController extends Controller
                     return collect();
                 }
 
+                $teamColor = self::MATCH_TEAM_COLORS[$teamIndex % count(self::MATCH_TEAM_COLORS)];
+
                 return $team->members
                     ->where('tate_no', $latestTateNo)
                     ->whereNotNull('position')
                     ->where('is_absent', false)
                     ->where('is_late', false)
-                    ->pluck('user_id');
+                    ->map(fn($member) => [
+                        'user_id' => (int) $member->user_id,
+                        'color' => $teamColor,
+                    ]);
             })
-            ->unique()
-            ->values();
+            ->groupBy('user_id')
+            ->map(fn($assignments) => $assignments->first()['color']);
     }
 
     public function copyPrevious(Lineup $lineup)

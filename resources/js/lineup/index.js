@@ -53,6 +53,7 @@ function makeMember(sourceEl) {
     div.dataset.id = sourceEl.dataset.id;
     div.dataset.hasRecord = sourceEl.dataset.hasRecord || '0';
     div.dataset.inLatestMatch = sourceEl.dataset.inLatestMatch || '0';
+    div.dataset.latestMatchColor = sourceEl.dataset.latestMatchColor || '';
     div.dataset.gender = sourceEl.dataset.gender || '';
     div.dataset.gradeLevel = sourceEl.dataset.gradeLevel || '';
     const memberName = sourceEl.textContent.trim();
@@ -64,6 +65,9 @@ function makeMember(sourceEl) {
     }
     if (div.dataset.inLatestMatch === '1') {
         div.classList.add('in-latest-match');
+        if (div.dataset.latestMatchColor) {
+            div.style.setProperty('--latest-match-color', div.dataset.latestMatchColor);
+        }
     }
 
     if (!canEditLineup) {
