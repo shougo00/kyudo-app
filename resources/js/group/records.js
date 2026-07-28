@@ -7,6 +7,7 @@ function reloadAndPrint() {
 }
 
 window.addEventListener('load', () => {
+    syncRecordShellOffset();
     const url = new URL(window.location.href);
     const isPrintRequest = url.searchParams.get('print') === '1';
 
@@ -22,6 +23,22 @@ window.addEventListener('load', () => {
     initMatchSelectionPositionLinks();
     initOfficialMatchTeamControls();
 });
+
+window.addEventListener('resize', syncRecordShellOffset);
+
+if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', syncRecordShellOffset);
+}
+
+function syncRecordShellOffset() {
+    if (!document.body.classList.contains('official-record-scroll-locked')) {
+        return;
+    }
+
+    const nav = document.querySelector('body > nav');
+    const navHeight = Math.ceil(nav?.getBoundingClientRect().height || 66);
+    document.documentElement.style.setProperty('--record-shell-offset', `${navHeight}px`);
+}
 
 function waitForPendingShotUpdates() {
     const pendingUpdates = window.groupRecordPendingShotUpdates;

@@ -5,7 +5,7 @@
 @vite(['resources/css/group/records.css', 'resources/js/group/records.js'])
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<div class="container-fluid py-3 record-page {{ ($matchSelection ?? null) ? 'match-selection-mode' : '' }}" style="--record-height-extra: {{ max(0, min(120, (int) ($recordHeightExtra ?? 60))) }}px; --match-record-height-extra: {{ max(0, min(120, (int) ($matchRecordHeightExtra ?? 60))) }}px;">
+<div class="container-fluid py-3 record-page {{ (($practiceType ?? 'official') !== 'match') ? 'official-record-page' : 'match-record-page' }} {{ ($matchSelection ?? null) ? 'match-selection-mode' : '' }}" style="--record-height-extra: {{ max(0, min(120, (int) ($recordHeightExtra ?? 60))) }}px; --match-record-height-extra: {{ max(0, min(120, (int) ($matchRecordHeightExtra ?? 60))) }}px;">
 
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
@@ -167,8 +167,15 @@ window.groupRecordData = {
     groupId: {{ $group->id }},
     usesGrades: @json($usesGrades),
     canEdit: @json($canEditGroupRecords),
+    practiceType: @json($practiceType),
     matchSelection: @json($matchSelectionPayload),
 };
+document.body.classList.toggle('official-record-scroll-locked', window.groupRecordData.practiceType !== 'match');
+document.documentElement.classList.toggle('official-record-scroll-locked', window.groupRecordData.practiceType !== 'match');
+if (window.groupRecordData.practiceType !== 'match') {
+    const recordNav = document.querySelector('body > nav');
+    document.documentElement.style.setProperty('--record-shell-offset', `${Math.ceil(recordNav?.getBoundingClientRect().height || 66)}px`);
+}
 </script>
 
 <div class="record-title-bar">

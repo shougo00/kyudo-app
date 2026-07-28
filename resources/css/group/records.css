@@ -433,6 +433,36 @@ body {
     }
 }
 
+html.official-record-scroll-locked,
+body.official-record-scroll-locked {
+    height: 100dvh;
+    overflow: hidden;
+    overscroll-behavior: none;
+}
+
+body.official-record-scroll-locked > main.container {
+    height: calc(100dvh - var(--record-shell-offset, 66px));
+    margin-bottom: 0 !important;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+body.official-record-scroll-locked .record-page.official-record-page {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+body.official-record-scroll-locked .record-page.official-record-page > .score-scroll:not(.match-score-scroll) {
+    flex: 1 1 auto;
+    height: auto;
+    min-height: 0;
+    overscroll-behavior: contain;
+}
+
 .match-control-layer {
     margin: 0;
 }
