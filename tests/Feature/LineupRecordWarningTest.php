@@ -784,3 +784,78 @@ it('does not add a match tate before the current team tate has any score entered
         'tate_no' => 2,
     ]);
 });
+
+it('keeps entered official records for members who left the group while hiding them from lineup settings', function () {
+    $date = '2026-07-25';
+    $host = User::factory()->create([
+        'name' => 'Host',
+        'username' => 'host-former-official-record',
+        'is_admin' => true,
+    ]);
+    $activeMember = User::factory()->create([
+        'name' => 'Active Member',
+        'username' => 'active-former-official-record',
+        'is_admin' => false,
+    ]);
+    $formerMember = User::factory()->create([
+        'name' => 'Former Member',
+        'username' => 'former-official-record',
+        'is_admin' => false,
+    ]);
+    $group = Group::create([
+        'name' => 'Former Record Group',
+        'host_user_id' => $host->id,
+        'invite_code' => '6420',
+    ]);
+    $group->users()->attach([$host->id, $activeMember->id, $formerMember->id]);
+
+    $lineup = Lineup::create([
+        'group_id' => $group->id,
+        'date' => $date,
+        'tate_size' => 2,
+    ]);
+    LineupMember::create([
+        'lineup_id' => $lineup->id,
+        'user_id' => $activeMember->id,
+        'position' => 1,
+        'is_absent' => false,
+        'is_late' => false,
+    ]);
+    LineupMember::create([
+        'lineup_id' => $lineup->id,
+        'user_id' => $formerMember->id,
+        'position' => 2,
+        'is_absent' => false,
+        'is_late' => false,
+    ]);
+
+    $record = Record::create([
+        'user_id' => $formerMember->id,
+        'date' => $date,
+        'tate_no' => 1,
+        'practice_type' => 'official',
+        'official_sheet_no' => 1,
+        'lineup_position' => 2,
+        'lineup_tate_size' => 2,
+    ]);
+    Shot::create([
+        'record_id' => $record->id,
+        'shot_no' => 1,
+        'result' => 'hit',
+    ]);
+
+    DB::table('group_user')
+        ->where('group_id', $group->id)
+        ->where('user_id', $formerMember->id)
+        ->update(['deleted_at' => now()]);
+
+    $this->actingAs($host)
+        ->get("/group/{$group->id}/records?date={$date}")
+        ->assertOk()
+        ->assertSee('Former Member');
+
+    $this->actingAs($host)
+        ->get("/group/{$group->id}/lineup?date={$date}")
+        ->assertOk()
+        ->assertDontSee('Former Member');
+});

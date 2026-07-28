@@ -95,12 +95,23 @@ class GroupRecordController extends Controller
             ->where('is_admin', false)
             ->pluck('id')
             ->values();
+        $officialRecordUserIds = $activeGroupUserIds;
 
         if ($lineup) {
             $this->syncLineupMembers($lineup, $group);
 
             $lineup = Lineup::with('members.user')->findOrFail($lineup->id);
             $tateSize = $lineup->tate_size;
+            $lineupUserIds = $lineup->members
+                ->pluck('user_id')
+                ->filter()
+                ->map(fn($id) => (int) $id)
+                ->unique()
+                ->values();
+            $officialRecordUserIds = $officialRecordUserIds
+                ->merge($this->enteredOfficialRecordUserIds($lineupUserIds, $date))
+                ->unique()
+                ->values();
 
             $placedMembers = $lineup->members
                 ->whereIn('user_id', $activeGroupUserIds)
@@ -137,7 +148,7 @@ class GroupRecordController extends Controller
             }
         }
 
-        $groupUserIds = $activeGroupUserIds;
+        $groupUserIds = $officialRecordUserIds;
         $userIds = $users->pluck('id');
 
         $this->normalizeOfficialTateNos($date, $groupUserIds);
@@ -252,21 +263,47 @@ class GroupRecordController extends Controller
         $displayLineupTateSize = $this->officialDisplayTateSize($lineupSlots, $officialCompactEmptySlots, $tateSize);
 
         foreach ($tates as $tateNo) {
+            $tateRecords = $recordRows
+                ->where('tate_no', $tateNo)
+                ->filter(fn($record) => !is_null($record->lineup_position));
+
             if ($isCurrentSheet && $lineupSlots->isNotEmpty()) {
+                $hasEnteredFormerMemberRecord = $tateRecords
+                    ->contains(fn($record) => !$activeGroupUserIds->contains((int) $record->user_id)
+                        && $this->recordHasEnteredShots($record));
+
+                if ($hasEnteredFormerMemberRecord) {
+                    [$snapshotSlots, $snapshotTateSize] = $this->officialSlotsFromRecordSnapshots(
+                        $tateRecords,
+                        $tateSize,
+                        $officialCompactEmptySlots
+                    );
+                    $officialTateSlots->put($tateNo, $snapshotSlots);
+                    $officialTateSizes->put($tateNo, $snapshotTateSize);
+                    continue;
+                }
+
                 $officialTateSlots->put($tateNo, $displayLineupSlots);
                 $officialTateSizes->put($tateNo, $displayLineupTateSize);
                 continue;
             }
 
             if ($isCurrentSheet && $lineupSlots->isEmpty()) {
+                if ($tateRecords->isNotEmpty()) {
+                    [$snapshotSlots, $snapshotTateSize] = $this->officialSlotsFromRecordSnapshots(
+                        $tateRecords,
+                        $tateSize,
+                        $officialCompactEmptySlots
+                    );
+                    $officialTateSlots->put($tateNo, $snapshotSlots);
+                    $officialTateSizes->put($tateNo, $snapshotTateSize);
+                    continue;
+                }
+
                 $officialTateSlots->put($tateNo, collect());
                 $officialTateSizes->put($tateNo, $tateSize);
                 continue;
             }
-
-            $tateRecords = $recordRows
-                ->where('tate_no', $tateNo)
-                ->filter(fn($record) => !is_null($record->lineup_position));
 
             if ($tateRecords->isEmpty()) {
                 $officialTateSlots->put($tateNo, $displayLineupSlots);
@@ -274,26 +311,13 @@ class GroupRecordController extends Controller
                 continue;
             }
 
-            $snapshotTateSize = (int) ($tateRecords->pluck('lineup_tate_size')->filter()->first() ?? $tateSize);
-            $maxPosition = max((int) $tateRecords->max('lineup_position'), $snapshotTateSize);
-            $totalSlots = $snapshotTateSize > 0
-                ? (int) ceil($maxPosition / $snapshotTateSize) * $snapshotTateSize
-                : $maxPosition;
-            $slots = collect();
-
-            for ($pos = 1; $pos <= $totalSlots; $pos++) {
-                $record = $tateRecords->firstWhere('lineup_position', $pos);
-
-                $slots->push((object) [
-                    'position' => $pos,
-                    'member' => null,
-                    'user' => $record?->user,
-                    'is_empty' => is_null($record?->user),
-                ]);
-            }
-
-            $officialTateSlots->put($tateNo, $this->officialDisplaySlots($slots, $officialCompactEmptySlots, $snapshotTateSize));
-            $officialTateSizes->put($tateNo, $this->officialDisplayTateSize($slots, $officialCompactEmptySlots, $snapshotTateSize));
+            [$snapshotSlots, $snapshotTateSize] = $this->officialSlotsFromRecordSnapshots(
+                $tateRecords,
+                $tateSize,
+                $officialCompactEmptySlots
+            );
+            $officialTateSlots->put($tateNo, $snapshotSlots);
+            $officialTateSizes->put($tateNo, $snapshotTateSize);
         }
         $lineupSlots = $displayLineupSlots;
 
@@ -1483,6 +1507,37 @@ class GroupRecordController extends Controller
         return "/group/{$groupId}/match-records?date={$date}&month={$month}&team_id={$teamId}&tate_no={$tateNo}#match-team-{$teamId}";
     }
 
+    private function enteredOfficialRecordUserIds($userIds, string $date)
+    {
+        $userIds = collect($userIds)
+            ->filter()
+            ->map(fn($id) => (int) $id)
+            ->unique()
+            ->values();
+
+        if ($userIds->isEmpty()) {
+            return collect();
+        }
+
+        return Record::whereIn('user_id', $userIds)
+            ->where('date', $date)
+            ->where('practice_type', 'official')
+            ->whereHas('shots', function ($query) {
+                $query->whereNotNull('result')
+                    ->orWhereNotNull('numeric_score');
+            })
+            ->pluck('user_id')
+            ->map(fn($id) => (int) $id)
+            ->unique()
+            ->values();
+    }
+
+    private function recordHasEnteredShots(Record $record): bool
+    {
+        return $record->shots
+            ->contains(fn($shot) => !is_null($shot->result) || !is_null($shot->numeric_score));
+    }
+
     private function officialSheetNos($groupId, string $date, $groupUserIds)
     {
         $recordSheetNos = Record::whereIn('user_id', $groupUserIds)
@@ -1503,6 +1558,33 @@ class GroupRecordController extends Controller
             ->unique()
             ->sort()
             ->values();
+    }
+
+    private function officialSlotsFromRecordSnapshots($tateRecords, int $fallbackTateSize, bool $compactEmptySlots): array
+    {
+        $tateRecords = collect($tateRecords)
+            ->filter(fn($record) => !is_null($record->lineup_position))
+            ->values();
+        $snapshotTateSize = max(1, (int) ($tateRecords->pluck('lineup_tate_size')->filter()->first() ?? $fallbackTateSize));
+        $maxPosition = max((int) $tateRecords->max('lineup_position'), $snapshotTateSize);
+        $totalSlots = (int) ceil($maxPosition / $snapshotTateSize) * $snapshotTateSize;
+        $slots = collect();
+
+        for ($pos = 1; $pos <= $totalSlots; $pos++) {
+            $record = $tateRecords->firstWhere('lineup_position', $pos);
+
+            $slots->push((object) [
+                'position' => $pos,
+                'member' => null,
+                'user' => $record?->user,
+                'is_empty' => is_null($record?->user),
+            ]);
+        }
+
+        return [
+            $this->officialDisplaySlots($slots, $compactEmptySlots, $snapshotTateSize),
+            $this->officialDisplayTateSize($slots, $compactEmptySlots, $snapshotTateSize),
+        ];
     }
 
     private function officialDisplaySlots($slots, bool $compactEmptySlots, int $tateSize)
