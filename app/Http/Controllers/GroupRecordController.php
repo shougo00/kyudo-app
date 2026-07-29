@@ -95,24 +95,21 @@ class GroupRecordController extends Controller
             ->where('is_admin', false)
             ->pluck('id')
             ->values();
-        $officialRecordUserIds = $activeGroupUserIds;
+        $historicalGroupUserIds = $this->historicalGroupUserIds($groupId);
+        $formerGroupUserIds = $historicalGroupUserIds
+            ->diff($activeGroupUserIds)
+            ->values();
+        $sheetLookupUserIds = $historicalGroupUserIds
+            ->merge($activeGroupUserIds)
+            ->unique()
+            ->values();
+        $currentSheetUserIds = $this->enteredOfficialRecordUserIds($formerGroupUserIds, $date);
 
         if ($lineup) {
             $this->syncLineupMembers($lineup, $group);
 
             $lineup = Lineup::with('members.user')->findOrFail($lineup->id);
             $tateSize = $lineup->tate_size;
-            $lineupUserIds = $lineup->members
-                ->pluck('user_id')
-                ->filter()
-                ->map(fn($id) => (int) $id)
-                ->unique()
-                ->values();
-            $officialRecordUserIds = $officialRecordUserIds
-                ->merge($this->enteredOfficialRecordUserIds($lineupUserIds, $date))
-                ->unique()
-                ->values();
-
             $placedMembers = $lineup->members
                 ->whereIn('user_id', $activeGroupUserIds)
                 ->where('is_absent', false)
@@ -122,6 +119,11 @@ class GroupRecordController extends Controller
                 ->values();
 
             $users = $placedMembers->pluck('user')->filter()->values();
+            $currentSheetUserIds = $users
+                ->pluck('id')
+                ->merge($this->enteredOfficialRecordUserIds($formerGroupUserIds, $date))
+                ->unique()
+                ->values();
             $lineupSnapshotsByUserId = $placedMembers
                 ->mapWithKeys(fn($member) => [
                     $member->user_id => [
@@ -148,12 +150,11 @@ class GroupRecordController extends Controller
             }
         }
 
-        $groupUserIds = $officialRecordUserIds;
         $userIds = $users->pluck('id');
 
-        $this->normalizeOfficialTateNos($date, $groupUserIds);
+        $this->normalizeOfficialTateNos($date, $sheetLookupUserIds);
 
-        $sheetNos = $this->officialSheetNos($groupId, $date, $groupUserIds);
+        $sheetNos = $this->officialSheetNos($groupId, $date, $sheetLookupUserIds);
         $activeSheetNo = (int) ($request->sheet_no ?? $sheetNos->max() ?? 1);
 
         if ($activeSheetNo < 1) {
@@ -165,6 +166,9 @@ class GroupRecordController extends Controller
         }
 
         $isCurrentSheet = $activeSheetNo === (int) ($sheetNos->max() ?? 1);
+        $groupUserIds = $isCurrentSheet
+            ? $currentSheetUserIds
+            : $this->officialSheetRecordUserIds($sheetLookupUserIds, $date, $activeSheetNo);
 
         if ($isCurrentSheet && $userIds->isEmpty()) {
             $this->deleteEmptyOfficialSheetRecords($groupUserIds, $date, $activeSheetNo);
@@ -231,13 +235,11 @@ class GroupRecordController extends Controller
                 ->contains(fn($shot) => !is_null($shot->result) || !is_null($shot->numeric_score)));
 
         $records = $recordRows->groupBy('user_id');
-        if ($lineupSlots->isNotEmpty()) {
-            $users = $users
-                ->merge($recordRows->pluck('user')->filter())
-                ->filter()
-                ->unique('id')
-                ->values();
-        }
+        $users = $users
+            ->merge($recordRows->pluck('user')->filter())
+            ->filter()
+            ->unique('id')
+            ->values();
 
         $hitCounts = [];
         $numericCounts = [];
@@ -1525,6 +1527,40 @@ class GroupRecordController extends Controller
                     ->orWhereNotNull('numeric_score');
             })
             ->pluck('user_id')
+            ->map(fn($id) => (int) $id)
+            ->unique()
+            ->values();
+    }
+
+    private function officialSheetRecordUserIds($userIds, string $date, int $sheetNo)
+    {
+        $userIds = collect($userIds)
+            ->filter()
+            ->map(fn($id) => (int) $id)
+            ->unique()
+            ->values();
+
+        if ($userIds->isEmpty()) {
+            return collect();
+        }
+
+        return Record::whereIn('user_id', $userIds)
+            ->where('date', $date)
+            ->where('practice_type', 'official')
+            ->where('official_sheet_no', $sheetNo)
+            ->pluck('user_id')
+            ->map(fn($id) => (int) $id)
+            ->unique()
+            ->values();
+    }
+
+    private function historicalGroupUserIds(int $groupId)
+    {
+        return DB::table('group_user')
+            ->join('users', 'users.id', '=', 'group_user.user_id')
+            ->where('group_user.group_id', $groupId)
+            ->where('users.is_admin', false)
+            ->pluck('group_user.user_id')
             ->map(fn($id) => (int) $id)
             ->unique()
             ->values();

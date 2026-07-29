@@ -859,3 +859,308 @@ it('keeps entered official records for members who left the group while hiding t
         ->assertOk()
         ->assertDontSee('Former Member');
 });
+
+it('hides entered official records for active members removed from the lineup', function () {
+    $date = '2026-07-25';
+    $host = User::factory()->create([
+        'name' => 'Host',
+        'username' => 'host-active-removed-record',
+        'is_admin' => true,
+    ]);
+    $placedMember = User::factory()->create([
+        'name' => 'Placed Active Member',
+        'username' => 'placed-active-removed-record',
+        'is_admin' => false,
+    ]);
+    $removedMember = User::factory()->create([
+        'name' => 'Removed Active Member',
+        'username' => 'removed-active-record',
+        'is_admin' => false,
+    ]);
+    $group = Group::create([
+        'name' => 'Active Removed Record Group',
+        'host_user_id' => $host->id,
+        'invite_code' => '8641',
+    ]);
+    $group->users()->attach([$host->id, $placedMember->id, $removedMember->id]);
+
+    $lineup = Lineup::create([
+        'group_id' => $group->id,
+        'date' => $date,
+        'tate_size' => 2,
+    ]);
+    LineupMember::create([
+        'lineup_id' => $lineup->id,
+        'user_id' => $placedMember->id,
+        'position' => 1,
+        'is_absent' => false,
+        'is_late' => false,
+    ]);
+    LineupMember::create([
+        'lineup_id' => $lineup->id,
+        'user_id' => $removedMember->id,
+        'position' => null,
+        'is_absent' => false,
+        'is_late' => false,
+    ]);
+
+    $record = Record::create([
+        'user_id' => $removedMember->id,
+        'date' => $date,
+        'tate_no' => 1,
+        'practice_type' => 'official',
+        'official_sheet_no' => 1,
+        'lineup_position' => 2,
+        'lineup_tate_size' => 2,
+    ]);
+    Shot::create([
+        'record_id' => $record->id,
+        'shot_no' => 1,
+        'result' => 'hit',
+    ]);
+
+    $this->actingAs($host)
+        ->get("/group/{$group->id}/records?date={$date}")
+        ->assertOk()
+        ->assertSee('Placed Active Member')
+        ->assertDontSee('Removed Active Member');
+
+    $this->assertDatabaseHas('records', [
+        'id' => $record->id,
+        'user_id' => $removedMember->id,
+        'practice_type' => 'official',
+    ]);
+});
+
+it('keeps saved previous sheet records for active members later removed from the current lineup', function () {
+    $date = '2026-07-25';
+    $host = User::factory()->create([
+        'name' => 'Host',
+        'username' => 'host-previous-sheet-removed',
+        'is_admin' => true,
+    ]);
+    $placedMember = User::factory()->create([
+        'name' => 'Still On Current Sheet',
+        'username' => 'still-current-sheet',
+        'is_admin' => false,
+    ]);
+    $removedMember = User::factory()->create([
+        'name' => 'Removed After Sheet Switch',
+        'username' => 'removed-after-sheet-switch',
+        'is_admin' => false,
+    ]);
+    $group = Group::create([
+        'name' => 'Previous Sheet Snapshot Group',
+        'host_user_id' => $host->id,
+        'invite_code' => '9750',
+    ]);
+    $group->users()->attach([$host->id, $placedMember->id, $removedMember->id]);
+
+    $lineup = Lineup::create([
+        'group_id' => $group->id,
+        'date' => $date,
+        'tate_size' => 2,
+    ]);
+    LineupMember::create([
+        'lineup_id' => $lineup->id,
+        'user_id' => $placedMember->id,
+        'position' => 1,
+        'is_absent' => false,
+        'is_late' => false,
+    ]);
+    LineupMember::create([
+        'lineup_id' => $lineup->id,
+        'user_id' => $removedMember->id,
+        'position' => null,
+        'is_absent' => false,
+        'is_late' => false,
+    ]);
+
+    foreach ([
+        [$placedMember, 1],
+        [$removedMember, 2],
+    ] as [$member, $position]) {
+        $record = Record::create([
+            'user_id' => $member->id,
+            'date' => $date,
+            'tate_no' => 1,
+            'practice_type' => 'official',
+            'official_sheet_no' => 1,
+            'lineup_position' => $position,
+            'lineup_tate_size' => 2,
+        ]);
+        Shot::create([
+            'record_id' => $record->id,
+            'shot_no' => 1,
+            'result' => 'hit',
+        ]);
+    }
+
+    DB::table('official_record_sheets')->insert([
+        [
+            'group_id' => $group->id,
+            'date' => $date,
+            'sheet_no' => 1,
+            'scoring_mode' => 'hit_miss',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ],
+        [
+            'group_id' => $group->id,
+            'date' => $date,
+            'sheet_no' => 2,
+            'scoring_mode' => 'hit_miss',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ],
+    ]);
+
+    $this->actingAs($host)
+        ->get("/group/{$group->id}/records?date={$date}&sheet_no=1")
+        ->assertOk()
+        ->assertSee('Still On Current Sheet')
+        ->assertSee('Removed After Sheet Switch');
+
+    $this->actingAs($host)
+        ->get("/group/{$group->id}/records?date={$date}&sheet_no=2")
+        ->assertOk()
+        ->assertSee('Still On Current Sheet')
+        ->assertDontSee('Removed After Sheet Switch');
+});
+
+it('shows soft-deleted group members only on official records when they have entered official scores', function () {
+    $date = '2026-07-25';
+    $host = User::factory()->create([
+        'name' => 'Host',
+        'username' => 'host-soft-deleted-member',
+        'is_admin' => true,
+    ]);
+    $activeMember = User::factory()->create([
+        'name' => 'Active Member',
+        'username' => 'active-soft-deleted-member',
+        'is_admin' => false,
+    ]);
+    $formerMember = User::factory()->create([
+        'name' => 'Former Soft Deleted',
+        'username' => 'former-soft-deleted-member',
+        'is_admin' => false,
+    ]);
+    $group = Group::create([
+        'name' => 'Soft Deleted Member Group',
+        'host_user_id' => $host->id,
+        'invite_code' => '2460',
+    ]);
+    $group->users()->attach([$host->id, $activeMember->id, $formerMember->id]);
+
+    $lineup = Lineup::create([
+        'group_id' => $group->id,
+        'date' => $date,
+        'tate_size' => 2,
+    ]);
+    LineupMember::create([
+        'lineup_id' => $lineup->id,
+        'user_id' => $activeMember->id,
+        'position' => 1,
+        'is_absent' => false,
+        'is_late' => false,
+    ]);
+
+    $record = Record::create([
+        'user_id' => $formerMember->id,
+        'date' => $date,
+        'tate_no' => 1,
+        'practice_type' => 'official',
+        'official_sheet_no' => 1,
+        'lineup_position' => 2,
+        'lineup_tate_size' => 2,
+    ]);
+    Shot::create([
+        'record_id' => $record->id,
+        'shot_no' => 1,
+        'result' => 'hit',
+    ]);
+
+    DB::table('group_user')
+        ->where('group_id', $group->id)
+        ->where('user_id', $formerMember->id)
+        ->update(['deleted_at' => now()]);
+
+    $this->actingAs($host)
+        ->get("/group/{$group->id}/records?date={$date}")
+        ->assertOk()
+        ->assertSee('Former Soft Deleted');
+
+    $this->actingAs($host)
+        ->get("/group/{$group->id}/lineup?date={$date}")
+        ->assertOk()
+        ->assertDontSee('Former Soft Deleted');
+
+    $this->actingAs($host)
+        ->get("/group/{$group->id}/match-lineup?date={$date}")
+        ->assertOk()
+        ->assertDontSee('Former Soft Deleted');
+
+    $this->actingAs($host)
+        ->get("/group/{$group->id}/history?period=today")
+        ->assertOk()
+        ->assertDontSee('Former Soft Deleted');
+});
+
+it('keeps former member official records visible when no active lineup member remains', function () {
+    $date = '2026-07-25';
+    $host = User::factory()->create([
+        'name' => 'Host',
+        'username' => 'host-only-former-member-record',
+        'is_admin' => true,
+    ]);
+    $formerMember = User::factory()->create([
+        'name' => 'Only Former Member',
+        'username' => 'only-former-member-record',
+        'is_admin' => false,
+    ]);
+    $group = Group::create([
+        'name' => 'Only Former Group',
+        'host_user_id' => $host->id,
+        'invite_code' => '8640',
+    ]);
+    $group->users()->attach([$host->id, $formerMember->id]);
+
+    $lineup = Lineup::create([
+        'group_id' => $group->id,
+        'date' => $date,
+        'tate_size' => 1,
+    ]);
+    LineupMember::create([
+        'lineup_id' => $lineup->id,
+        'user_id' => $formerMember->id,
+        'position' => 1,
+        'is_absent' => false,
+        'is_late' => false,
+    ]);
+
+    $record = Record::create([
+        'user_id' => $formerMember->id,
+        'date' => $date,
+        'tate_no' => 1,
+        'practice_type' => 'official',
+        'official_sheet_no' => 1,
+        'lineup_position' => 1,
+        'lineup_tate_size' => 1,
+    ]);
+    Shot::create([
+        'record_id' => $record->id,
+        'shot_no' => 1,
+        'result' => 'hit',
+    ]);
+
+    DB::table('group_user')
+        ->where('group_id', $group->id)
+        ->where('user_id', $formerMember->id)
+        ->update(['deleted_at' => now()]);
+
+    $this->actingAs($host)
+        ->get("/group/{$group->id}/records?date={$date}")
+        ->assertOk()
+        ->assertSee('Only Former Member')
+        ->assertDontSee('この日はまだ立順が設定されていません。');
+});

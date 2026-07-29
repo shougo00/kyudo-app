@@ -78,16 +78,32 @@ class GroupController extends Controller
             return back()->with('error', 'グループが見つかりません');
         }
 
-        // ★ここ追加（重複参加防止）
-        if ($group->users()->where('user_id', auth()->id())->exists()) {
+        $userId = auth()->id();
+        $hasActiveMembership = DB::table('group_user')
+            ->where('group_id', $group->id)
+            ->where('user_id', $userId)
+            ->whereNull('deleted_at')
+            ->exists();
+        $membership = DB::table('group_user')
+            ->where('group_id', $group->id)
+            ->where('user_id', $userId)
+            ->orderByDesc('id')
+            ->first();
+
+        if ($hasActiveMembership) {
             return back()->with('error', '既に参加しています');
         }
 
-        // 参加処理
-        DB::table('group_user')->insert([
-            'group_id' => $group->id,
-            'user_id' => auth()->id(),
-        ]);
+        if ($membership) {
+            DB::table('group_user')
+                ->where('id', $membership->id)
+                ->update(['deleted_at' => null]);
+        } else {
+            DB::table('group_user')->insert([
+                'group_id' => $group->id,
+                'user_id' => $userId,
+            ]);
+        }
 
         return redirect('/groups');
     }

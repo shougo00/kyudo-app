@@ -644,7 +644,7 @@ if (window.groupRecordData.practiceType !== 'match') {
     <div class="alert alert-warning">
         まだ立順が設定されていません。
     </div>
-@elseif($practiceType !== 'match' && $lineupSlots->isEmpty())
+@elseif($practiceType !== 'match' && $lineupSlots->isEmpty() && $tates->isEmpty())
     <div class="alert alert-warning">
         この日はまだ立順が設定されていません。
     </div>
@@ -878,7 +878,7 @@ if (window.groupRecordData.practiceType !== 'match') {
     $nameTateSize = max(1, (int) $nameTateSize);
 @endphp
 
-@if($lineupSlots->isNotEmpty())
+@if($nameSlots->isNotEmpty())
     <div class="score-header official-score-header">
         <div class="tate-label"></div>
         @foreach($nameSlots as $slot)
@@ -904,7 +904,7 @@ if (window.groupRecordData.practiceType !== 'match') {
     </div>
 @endif
 
-@if($lineupSlots->isNotEmpty())
+@if($nameSlots->isNotEmpty())
 <div class="tate-area">
 @foreach($tates as $tateNo)
     @php
