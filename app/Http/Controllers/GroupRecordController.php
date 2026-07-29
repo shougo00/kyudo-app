@@ -696,10 +696,8 @@ class GroupRecordController extends Controller
             ->where('practice_type', 'official')
             ->max('tate_no');
         $startTate = $maxTate ? $maxTate + 1 : 1;
-        $endTate = (int) ceil($startTate / $maxTatesPerPage) * $maxTatesPerPage;
         $remainingSlots = $maxTatesPerPage - $currentSheetTates->count();
-        $tates = collect(range($startTate, $endTate))
-            ->take($remainingSlots)
+        $tates = collect(range($startTate, $startTate + $remainingSlots - 1))
             ->values();
 
         DB::table('official_record_sheets')->updateOrInsert(

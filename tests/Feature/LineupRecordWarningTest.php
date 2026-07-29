@@ -291,7 +291,7 @@ it('keeps the active official sheet number when linking from records to lineup',
     );
 });
 
-it('starts the next official sheet from the first unentered tate up to the page boundary', function () {
+it('fills the next official sheet with one page from the first unentered tate', function () {
     $date = '2026-07-25';
     $host = User::factory()->create([
         'username' => 'host-official-partial-sheet',
@@ -332,7 +332,7 @@ it('starts the next official sheet from the first unentered tate up to the page 
             'lineup_tate_size' => 1,
         ]);
 
-        if ($tateNo <= 2) {
+        if ($tateNo <= 4) {
             Shot::create([
                 'record_id' => $record->id,
                 'shot_no' => 1,
@@ -355,7 +355,7 @@ it('starts the next official sheet from the first unentered tate up to the page 
         ->pluck('tate_no')
         ->sort()
         ->values()
-        ->all())->toBe([1, 2]);
+        ->all())->toBe([1, 2, 3, 4]);
 
     $this->actingAs($host)
         ->get("/group/{$group->id}/records?date={$date}&sheet_no=2")
@@ -369,7 +369,7 @@ it('starts the next official sheet from the first unentered tate up to the page 
         ->unique()
         ->sort()
         ->values()
-        ->all())->toBe([3, 4, 5]);
+        ->all())->toBe([5, 6, 7, 8, 9]);
 });
 
 it('shows latest match tate assignments only on the selected official record column', function () {
