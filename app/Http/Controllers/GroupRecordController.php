@@ -171,7 +171,7 @@ class GroupRecordController extends Controller
             : $this->officialSheetRecordUserIds($sheetLookupUserIds, $date, $activeSheetNo);
 
         if ($isCurrentSheet && $userIds->isEmpty()) {
-            $this->deleteEmptyOfficialSheetRecords($groupUserIds, $date, $activeSheetNo);
+            $this->deleteEmptyOfficialSheetRecords($userIds, $date, $activeSheetNo);
         }
 
         if ($isCurrentSheet) {
@@ -235,6 +235,11 @@ class GroupRecordController extends Controller
                 ->contains(fn($shot) => !is_null($shot->result) || !is_null($shot->numeric_score)));
 
         $records = $recordRows->groupBy('user_id');
+        $placedUserIds = $users
+            ->pluck('id')
+            ->map(fn($id) => (int) $id)
+            ->unique()
+            ->values();
         $users = $users
             ->merge($recordRows->pluck('user')->filter())
             ->filter()
@@ -263,6 +268,17 @@ class GroupRecordController extends Controller
         $officialTateSizes = collect();
         $displayLineupSlots = $this->officialDisplaySlots($lineupSlots, $officialCompactEmptySlots, $tateSize);
         $displayLineupTateSize = $this->officialDisplayTateSize($lineupSlots, $officialCompactEmptySlots, $tateSize);
+        $currentSheetSnapshotUserIds = $placedUserIds
+            ->merge($formerGroupUserIds)
+            ->unique()
+            ->values();
+        $currentSheetSnapshotRecords = $recordRows
+            ->filter(fn($record) => !is_null($record->lineup_position)
+                && $currentSheetSnapshotUserIds->contains((int) $record->user_id))
+            ->values();
+        $hasEnteredFormerMemberRecordOnSheet = $isCurrentSheet
+            && $currentSheetSnapshotRecords->contains(fn($record) => $formerGroupUserIds->contains((int) $record->user_id)
+                && $this->recordHasEnteredShots($record));
 
         foreach ($tates as $tateNo) {
             $tateRecords = $recordRows
@@ -270,13 +286,9 @@ class GroupRecordController extends Controller
                 ->filter(fn($record) => !is_null($record->lineup_position));
 
             if ($isCurrentSheet && $lineupSlots->isNotEmpty()) {
-                $hasEnteredFormerMemberRecord = $tateRecords
-                    ->contains(fn($record) => !$activeGroupUserIds->contains((int) $record->user_id)
-                        && $this->recordHasEnteredShots($record));
-
-                if ($hasEnteredFormerMemberRecord) {
+                if ($hasEnteredFormerMemberRecordOnSheet) {
                     [$snapshotSlots, $snapshotTateSize] = $this->officialSlotsFromRecordSnapshots(
-                        $tateRecords,
+                        $currentSheetSnapshotRecords,
                         $tateSize,
                         $officialCompactEmptySlots
                     );

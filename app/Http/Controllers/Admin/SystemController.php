@@ -146,6 +146,27 @@ class SystemController extends Controller
         return view('admin.system.groups', compact('groups', 'search'));
     }
 
+    public function updateGroup(Request $request, Group $group): RedirectResponse
+    {
+        $this->authorizeSystemAdmin($request);
+
+        $validated = $request->validate([
+            'max_members' => ['nullable', 'integer', 'min:1', 'max:999'],
+        ], [
+            'max_members.integer' => '最大人数は数字で入力してください。',
+            'max_members.min' => '最大人数は1人以上で入力してください。',
+            'max_members.max' => '最大人数は999人以下で入力してください。',
+        ]);
+
+        $group->update([
+            'max_members' => $validated['max_members'] ?? null,
+        ]);
+
+        $maxMembersLabel = $group->max_members ? "{$group->max_members}人" : '無制限';
+
+        return back()->with('success', "{$group->name} の最大人数を {$maxMembersLabel} に更新しました。");
+    }
+
     public function destroyGroup(Request $request, Group $group): RedirectResponse
     {
         $this->authorizeSystemAdmin($request);

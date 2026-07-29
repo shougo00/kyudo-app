@@ -43,6 +43,7 @@ Route::middleware([ 'verified'])->group(function () {
     Route::patch('/admin/system/users/{user}', [SystemController::class, 'updateUser'])->name('admin.system.users.update');
     Route::delete('/admin/system/users/{user}', [SystemController::class, 'destroyUser'])->name('admin.system.users.destroy');
     Route::get('/admin/system/groups', [SystemController::class, 'groups'])->name('admin.system.groups');
+    Route::patch('/admin/system/groups/{group}', [SystemController::class, 'updateGroup'])->name('admin.system.groups.update');
     Route::delete('/admin/system/groups/{group}', [SystemController::class, 'destroyGroup'])->name('admin.system.groups.destroy');
 
     // 3️⃣ ユーザ管理画面

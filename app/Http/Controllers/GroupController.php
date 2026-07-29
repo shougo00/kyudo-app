@@ -94,6 +94,10 @@ class GroupController extends Controller
             return back()->with('error', '既に参加しています');
         }
 
+        if ($this->groupIsFull($group)) {
+            return back()->with('error', "このグループは最大人数（{$group->max_members}人）に達しています");
+        }
+
         if ($membership) {
             DB::table('group_user')
                 ->where('id', $membership->id)
@@ -115,6 +119,22 @@ class GroupController extends Controller
         } while (Group::where('invite_code', $code)->exists());
 
         return $code;
+    }
+
+    private function groupIsFull(Group $group): bool
+    {
+        $maxMembers = (int) ($group->max_members ?? 0);
+
+        if ($maxMembers <= 0) {
+            return false;
+        }
+
+        $activeMemberCount = DB::table('group_user')
+            ->where('group_id', $group->id)
+            ->whereNull('deleted_at')
+            ->count();
+
+        return $activeMemberCount >= $maxMembers;
     }
 
     public function leave(Group $group)

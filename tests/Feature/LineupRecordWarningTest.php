@@ -1106,6 +1106,96 @@ it('shows soft-deleted group members only on official records when they have ent
         ->assertDontSee('Former Soft Deleted');
 });
 
+it('keeps former member slots on unentered official tates when compacting empty slots', function () {
+    $date = '2026-07-25';
+    $host = User::factory()->create([
+        'name' => 'Host',
+        'username' => 'host-former-unentered-tates',
+        'is_admin' => true,
+    ]);
+    $activeMember = User::factory()->create([
+        'name' => 'Active For All Tates',
+        'username' => 'active-former-unentered-tates',
+        'is_admin' => false,
+    ]);
+    $formerMember = User::factory()->create([
+        'name' => 'Former Sparse Tates',
+        'username' => 'former-sparse-tates',
+        'is_admin' => false,
+    ]);
+    $group = Group::create([
+        'name' => 'Former Unentered Tate Group',
+        'host_user_id' => $host->id,
+        'invite_code' => '7531',
+    ]);
+    $group->users()->attach([$host->id, $activeMember->id, $formerMember->id]);
+
+    $lineup = Lineup::create([
+        'group_id' => $group->id,
+        'date' => $date,
+        'tate_size' => 2,
+    ]);
+    LineupMember::create([
+        'lineup_id' => $lineup->id,
+        'user_id' => $activeMember->id,
+        'position' => 1,
+        'is_absent' => false,
+        'is_late' => false,
+    ]);
+    LineupMember::create([
+        'lineup_id' => $lineup->id,
+        'user_id' => $formerMember->id,
+        'position' => 2,
+        'is_absent' => false,
+        'is_late' => false,
+    ]);
+
+    foreach (range(1, 5) as $tateNo) {
+        $activeRecord = Record::create([
+            'user_id' => $activeMember->id,
+            'date' => $date,
+            'tate_no' => $tateNo,
+            'practice_type' => 'official',
+            'official_sheet_no' => 1,
+            'lineup_position' => 1,
+            'lineup_tate_size' => 2,
+        ]);
+        Shot::create([
+            'record_id' => $activeRecord->id,
+            'shot_no' => 1,
+            'result' => 'hit',
+        ]);
+    }
+
+    foreach ([1, 2] as $tateNo) {
+        $formerRecord = Record::create([
+            'user_id' => $formerMember->id,
+            'date' => $date,
+            'tate_no' => $tateNo,
+            'practice_type' => 'official',
+            'official_sheet_no' => 1,
+            'lineup_position' => 2,
+            'lineup_tate_size' => 2,
+        ]);
+        Shot::create([
+            'record_id' => $formerRecord->id,
+            'shot_no' => 1,
+            'result' => 'hit',
+        ]);
+    }
+
+    DB::table('group_user')
+        ->where('group_id', $group->id)
+        ->where('user_id', $formerMember->id)
+        ->update(['deleted_at' => now()]);
+
+    $response = $this->actingAs($host)
+        ->get("/group/{$group->id}/records?date={$date}&compact_empty_slots=1");
+
+    $response->assertOk();
+    expect(substr_count($response->getContent(), 'data-user="' . $formerMember->id . '"'))->toBe(20);
+});
+
 it('keeps former member official records visible when no active lineup member remains', function () {
     $date = '2026-07-25';
     $host = User::factory()->create([

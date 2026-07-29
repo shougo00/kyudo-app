@@ -9,6 +9,7 @@ class Group extends Model
         'name',
         'host_user_id',
         'invite_code',
+        'max_members',
         'official_tates_per_page',
         'show_group_records_to_members',
         'allow_members_edit_group_records',
@@ -20,6 +21,7 @@ class Group extends Model
     ];
 
     protected $casts = [
+        'max_members' => 'integer',
         'official_tates_per_page' => 'integer',
         'show_group_records_to_members' => 'boolean',
         'allow_members_edit_group_records' => 'boolean',
