@@ -346,7 +346,7 @@
                 @if($canViewGroupSelfRecords)
                     <li class="nav-item mb-2">
                         <a class="nav-link" href="#" onclick="goGroupSelfRecord()">
-                            グループ的中記録（自主練）
+                            グループ的中記録（自主練）!!
                         </a>
                     </li>
                 @endif
