@@ -531,9 +531,10 @@ if (compactEmptyCellsToggle) {
 function randomize() {
     if (!canEditLineup) return;
 
-    // 未配置にいる人だけ対象
+    // 未配置欄で現在表示されている人だけ対象
     const members = Array.from(pool.querySelectorAll('.member'))
         .filter(member =>
+            memberMatchesFilter(member) &&
             !isInLatestMatch(member) &&
             !member.classList.contains('absent') &&
             !member.classList.contains('late')
@@ -541,8 +542,9 @@ function randomize() {
 
     const absentMembers = Array.from(pool.querySelectorAll('.member'))
     .filter(member =>
-        member.classList.contains('absent') ||
-        member.classList.contains('late')
+        memberMatchesFilter(member) &&
+        (member.classList.contains('absent') ||
+            member.classList.contains('late'))
     );
 
     for (let i = members.length - 1; i > 0; i--) {
@@ -556,6 +558,7 @@ function randomize() {
 
     members.forEach((member, index) => {
         if (emptyCells[index]) {
+            member.classList.remove('hidden-by-filter');
             emptyCells[index].appendChild(member);
         }
     });
@@ -759,6 +762,10 @@ function updatePoolView() {
 
     document.querySelectorAll('#pool .member').forEach(member => {
         member.classList.toggle('hidden-by-filter', !memberMatchesFilter(member));
+    });
+
+    document.querySelectorAll('#grid .member').forEach(member => {
+        member.classList.remove('hidden-by-filter');
     });
 }
 
