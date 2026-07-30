@@ -20,8 +20,6 @@ class DatabaseSeeder extends Seeder
         $this->call([
             DefaultSystemAdminSeeder::class,
             ItemSeeder::class,
-            StudentAccountSeeder::class,
-            ShikokuUniversityKyudoGroupSeeder::class,
             DemoKyudoGroupSeeder::class,
         ]);
         $this->call(KyudoResultSeeder::class);
