@@ -1635,8 +1635,22 @@ body.modal-open {
     .print-page {
         page-break-after: always;
         break-after: page;
-        overflow: hidden;
+        page-break-inside: avoid;
+        break-inside: avoid-page;
+        overflow: visible;
         padding-bottom: 0;
+        box-sizing: border-box;
+    }
+
+    .print-page + .print-page {
+        page-break-before: always;
+        break-before: page;
+    }
+
+    .official-print-page {
+        width: 100%;
+        max-height: 289mm;
+        overflow: hidden;
     }
 
     .print-page:last-child {

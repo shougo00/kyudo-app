@@ -1234,7 +1234,7 @@ if (window.groupRecordData.practiceType !== 'match') {
 
         @foreach($printTatePages as $printTatePage)
             @foreach($printMemberPages as $printSlots)
-                <div class="print-page">
+                <div class="print-page official-print-page">
                     <div class="print-title">
                         {{ $group->name }}（{{ $recordLabel }}）<br>
                         {{ \Carbon\Carbon::parse($date)->locale('ja')->isoFormat('YYYY年M月D日（ddd）') }}
