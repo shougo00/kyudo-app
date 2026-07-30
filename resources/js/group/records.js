@@ -32,7 +32,10 @@ if (window.visualViewport) {
 }
 
 function syncRecordShellOffset() {
-    if (!document.body.classList.contains('official-record-scroll-locked')) {
+    if (
+        !document.body.classList.contains('official-record-scroll-locked') &&
+        !document.body.classList.contains('match-record-scroll-locked')
+    ) {
         return;
     }
 
@@ -534,8 +537,15 @@ function initRecordPageOuterScroll() {
         '.match-team-board',
     ].join(',');
 
+    const outerScrollLocked = () => document.body.classList.contains('match-record-scroll-locked');
+
     page.addEventListener('wheel', event => {
         if (event.target.closest(innerScrollSelector)) {
+            return;
+        }
+
+        if (outerScrollLocked()) {
+            event.preventDefault();
             return;
         }
 
@@ -573,6 +583,11 @@ function initRecordPageOuterScroll() {
 
     page.addEventListener('touchmove', event => {
         if (event.touches.length !== 1 || startTarget?.closest(innerScrollSelector)) {
+            return;
+        }
+
+        if (outerScrollLocked()) {
+            event.preventDefault();
             return;
         }
 

@@ -170,9 +170,13 @@ window.groupRecordData = {
     practiceType: @json($practiceType),
     matchSelection: @json($matchSelectionPayload),
 };
-document.body.classList.toggle('official-record-scroll-locked', window.groupRecordData.practiceType !== 'match');
-document.documentElement.classList.toggle('official-record-scroll-locked', window.groupRecordData.practiceType !== 'match');
-if (window.groupRecordData.practiceType !== 'match') {
+const isOfficialRecordPage = window.groupRecordData.practiceType !== 'match';
+const isMatchRecordPage = window.groupRecordData.practiceType === 'match';
+document.body.classList.toggle('official-record-scroll-locked', isOfficialRecordPage);
+document.documentElement.classList.toggle('official-record-scroll-locked', isOfficialRecordPage);
+document.body.classList.toggle('match-record-scroll-locked', isMatchRecordPage);
+document.documentElement.classList.toggle('match-record-scroll-locked', isMatchRecordPage);
+if (isOfficialRecordPage || isMatchRecordPage) {
     const recordNav = document.querySelector('body > nav');
     document.documentElement.style.setProperty('--record-shell-offset', `${Math.ceil(recordNav?.getBoundingClientRect().height || 66)}px`);
 }
