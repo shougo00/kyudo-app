@@ -145,6 +145,10 @@ body {
     overscroll-behavior: auto;
 }
 
+.record-page.official-record-page .score-scroll:not(.match-score-scroll) {
+    touch-action: manipulation;
+}
+
 .record-page.match-selection-mode .score-scroll {
     height: calc(100dvh - 370px + var(--record-height-extra, 60px));
     min-height: 260px;

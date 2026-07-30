@@ -20,6 +20,7 @@ window.addEventListener('load', () => {
 
     initMatchSelectionScrollBridge();
     initRecordPageOuterScroll();
+    initOfficialRecordTapGuard();
     initMatchSelectionPositionLinks();
     initOfficialMatchTeamControls();
 });
@@ -586,6 +587,93 @@ function initRecordPageOuterScroll() {
         lastY = y;
         event.preventDefault();
     }, { passive: false });
+}
+
+function initOfficialRecordTapGuard() {
+    const data = window.groupRecordData || {};
+
+    if (data.practiceType === 'match' || data.matchSelection) {
+        return;
+    }
+
+    const scrollArea = document.querySelector('.record-page.official-record-page .score-scroll:not(.match-score-scroll)');
+
+    if (!scrollArea) {
+        return;
+    }
+
+    const allowedTapSelector = [
+        '.shot-btn',
+        'a',
+        'button',
+        'input',
+        'select',
+        'textarea',
+        'label',
+        '[role="button"]',
+    ].join(',');
+
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let touchMoved = false;
+
+    function shouldBlockTap(target) {
+        if (!(target instanceof Element)) {
+            return true;
+        }
+
+        return !target.closest(allowedTapSelector);
+    }
+
+    scrollArea.addEventListener('touchstart', event => {
+        if (event.touches.length !== 1) {
+            return;
+        }
+
+        touchStartX = event.touches[0].clientX;
+        touchStartY = event.touches[0].clientY;
+        touchMoved = false;
+    }, { passive: true });
+
+    scrollArea.addEventListener('touchmove', event => {
+        if (event.touches.length !== 1) {
+            return;
+        }
+
+        const deltaX = Math.abs(event.touches[0].clientX - touchStartX);
+        const deltaY = Math.abs(event.touches[0].clientY - touchStartY);
+
+        if (deltaX > 8 || deltaY > 8) {
+            touchMoved = true;
+        }
+    }, { passive: true });
+
+    scrollArea.addEventListener('touchend', event => {
+        if (touchMoved || !shouldBlockTap(event.target)) {
+            return;
+        }
+
+        event.preventDefault();
+        event.stopPropagation();
+    }, { capture: true, passive: false });
+
+    scrollArea.addEventListener('click', event => {
+        if (!shouldBlockTap(event.target)) {
+            return;
+        }
+
+        event.preventDefault();
+        event.stopPropagation();
+    }, true);
+
+    scrollArea.addEventListener('dblclick', event => {
+        if (!shouldBlockTap(event.target)) {
+            return;
+        }
+
+        event.preventDefault();
+        event.stopPropagation();
+    }, true);
 }
     
 function updateShot(el){
