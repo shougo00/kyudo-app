@@ -190,7 +190,7 @@ if (isOfficialRecordPage || isMatchRecordPage) {
             <a href="{{ $otherRecordPath }}?date={{ $date }}&month={{ $month }}" class="btn {{ $otherRecordButtonClass }}">
                 {{ $otherRecordLabel }}
             </a>
-            @if($practiceType !== 'match' && $officialMatchTeamControls->isNotEmpty())
+            @if($canEditGroupRecords && $practiceType !== 'match' && $officialMatchTeamControls->isNotEmpty())
                 <details class="official-match-team-controls" id="official-match-team-controls">
                     <summary class="btn btn-outline-success">試合操作</summary>
                     <div class="official-match-team-control-panel" aria-label="試合チーム操作">
@@ -257,10 +257,12 @@ if (isOfficialRecordPage || isMatchRecordPage) {
                     ＋ チーム作成
                 </button>
             @endif
-            <button type="button" class="btn btn-outline-primary" onclick="reloadAndPrint()">
-                印刷
-            </button>
-            @if($practiceType !== 'match' && $isCurrentSheet)
+            @if($canEditGroupRecords)
+                <button type="button" class="btn btn-outline-primary" onclick="reloadAndPrint()">
+                    印刷
+                </button>
+            @endif
+            @if($canEditGroupRecords && $practiceType !== 'match' && $isCurrentSheet)
                 <a href="/group/{{ $group->id }}/lineup?date={{ $date }}&month={{ $month }}&sheet_no={{ $activeSheetNo }}{{ $officialCompactEmptySlotsQuery }}" class="btn btn-secondary">
                     立順
                 </a>

@@ -68,13 +68,14 @@
             <a href="{{ route('home', ['date' => $nextDate, 'type'=>$type]) }}" class="btn btn-outline-secondary">＞</a>
         </div>
 
-        <!-- 立追加 -->
-        <form method="POST" action="{{ route('records.store') }}" class="mb-0">
-            @csrf
-            <input type="hidden" name="date" value="{{ $date }}">
-            <input type="hidden" name="practice_type" value="{{ $type }}">
-            <button class="btn btn-primary w-100">＋ 立を追加</button>
-        </form>
+        @if(($type ?? 'official') === 'self')
+            <form method="POST" action="{{ route('records.store') }}" class="mb-0">
+                @csrf
+                <input type="hidden" name="date" value="{{ $date }}">
+                <input type="hidden" name="practice_type" value="{{ $type }}">
+                <button class="btn btn-primary w-100">＋ 立を追加</button>
+            </form>
+        @endif
     </div>
 
     <!-- 一覧 -->
@@ -87,9 +88,11 @@
             <div class="d-flex align-items-center justify-content-between">
                 <div class="d-flex align-items-center">
                     <strong>{{ $record->tate_no }}立目</strong>
-                    <button class="delete-record ms-2" data-id="{{ $record->id }}" title="立を削除">
-                        <i class="fas fa-trash-alt"></i>
-                    </button>
+                    @if(($type ?? 'official') === 'self')
+                        <button class="delete-record ms-2" data-id="{{ $record->id }}" title="立を削除">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                    @endif
                 </div>
                 <span id="result-{{ $record->id }}" class="record-result">
                     <span class="hit-count">{{ $record->shots->where('result', 'hit')->count() }}/4</span>

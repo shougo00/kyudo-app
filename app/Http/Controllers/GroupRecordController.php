@@ -152,6 +152,12 @@ class GroupRecordController extends Controller
 
         $userIds = $users->pluck('id');
 
+        $preliminarySheetNos = $this->officialSheetNos($groupId, $date, $sheetLookupUserIds);
+        $this->trimFinalizedOfficialSheets(
+            $sheetLookupUserIds,
+            $date,
+            (int) ($preliminarySheetNos->max() ?? 1)
+        );
         $this->normalizeOfficialTateNos($date, $sheetLookupUserIds);
 
         $sheetNos = $this->officialSheetNos($groupId, $date, $sheetLookupUserIds);
@@ -794,6 +800,28 @@ class GroupRecordController extends Controller
         Record::whereIn('id', $recordIds)->delete();
     }
 
+    private function trimFinalizedOfficialSheets($groupUserIds, string $date, int $currentSheetNo): void
+    {
+        if ($currentSheetNo <= 1) {
+            return;
+        }
+
+        Record::whereIn('user_id', $groupUserIds)
+            ->where('date', $date)
+            ->where('practice_type', 'official')
+            ->where('official_sheet_no', '<', $currentSheetNo)
+            ->pluck('official_sheet_no')
+            ->filter()
+            ->unique()
+            ->sort()
+            ->values()
+            ->each(fn($sheetNo) => $this->trimEmptyOfficialTatesAfterLastEntered(
+                $groupUserIds,
+                $date,
+                (int) $sheetNo
+            ));
+    }
+
     public function switchOfficialSheet(Request $request, $groupId)
     {
         $this->checkGroupAccess($groupId, true, true);
@@ -1196,6 +1224,10 @@ class GroupRecordController extends Controller
             ->where('is_admin', false)
             ->pluck('id')
             ->values();
+        $sheetLookupUserIds = $this->historicalGroupUserIds($groupId)
+            ->merge($activeGroupUserIds)
+            ->unique()
+            ->values();
 
         $placedMembers = $lineup->members
             ->whereIn('user_id', $activeGroupUserIds)
@@ -1218,7 +1250,15 @@ class GroupRecordController extends Controller
         $groupUserIds = $activeGroupUserIds;
 
         if ($practiceType === 'official') {
-            $this->normalizeOfficialTateNos($date, $groupUserIds);
+            $sheetNos = $this->officialSheetNos($groupId, $date, $sheetLookupUserIds);
+            $latestSheetNo = (int) ($sheetNos->max() ?? 1);
+
+            if ($activeSheetNo < $latestSheetNo) {
+                return redirect("{$redirectPath}?date={$date}&sheet_no={$activeSheetNo}{$compactQuery}");
+            }
+
+            $this->trimFinalizedOfficialSheets($sheetLookupUserIds, $date, $latestSheetNo);
+            $this->normalizeOfficialTateNos($date, $sheetLookupUserIds);
         }
 
         $currentSheetTates = Record::whereIn('user_id', $groupUserIds)
@@ -1758,8 +1798,13 @@ class GroupRecordController extends Controller
         $hasCrossSheetDuplicate = $sheetTates
             ->groupBy('tate_no')
             ->contains(fn($records) => $records->pluck('official_sheet_no')->unique()->count() > 1);
+        $hasTateNoGap = $sheetTates
+            ->pluck('tate_no')
+            ->map(fn($tateNo) => (int) $tateNo)
+            ->values()
+            ->all() !== range(1, $sheetTates->count());
 
-        if (!$hasCrossSheetDuplicate) {
+        if (!$hasCrossSheetDuplicate && !$hasTateNoGap) {
             return;
         }
 

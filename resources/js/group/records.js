@@ -1651,6 +1651,10 @@ function resetMatchTimer(button) {
     const box = getTimerBox(button);
     if (!box) return;
 
+    if (!confirm('タイマーをリセットしますか？')) {
+        return;
+    }
+
     stopMatchTimer(box);
     box.dataset.elapsed = 0;
     const display = box.querySelector('.match-timer-display');
