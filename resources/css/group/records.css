@@ -1241,7 +1241,7 @@ body.modal-open {
     max-width: 58px;
     height: 15px;
     border-radius: 999px;
-    background: #198754;
+    background: var(--match-selection-color, #198754);
     color: #fff;
     font-size: 10px;
     font-weight: 800;
@@ -1251,7 +1251,7 @@ body.modal-open {
 }
 
 .user-column.match-record-choice.assigned:not(.current) .match-record-choice-position-label {
-    background: #0d6efd;
+    background: var(--match-selection-color, #0d6efd);
 }
 
 .user-column.match-record-choice .shot-btn {
@@ -1260,17 +1260,17 @@ body.modal-open {
 
 .user-column.match-record-choice:hover {
     background: #f1f7ff;
-    outline-color: #0d6efd;
+    outline-color: var(--match-selection-color, #0d6efd);
 }
 
 .user-column.match-record-choice.assigned {
     background: #f6fbff;
-    outline-color: #90caf9;
+    outline-color: var(--match-selection-color, #90caf9);
 }
 
 .user-column.match-record-choice.current {
     background: #f2fff7;
-    outline-color: #198754;
+    outline-color: var(--match-selection-color, #198754);
 }
 
 .user-column.match-record-choice.saving {

@@ -15,6 +15,12 @@ use Illuminate\Support\Facades\DB;
 
 class GroupRecordController extends Controller
 {
+    private const MATCH_TEAM_COLORS = [
+        'male' => '#0d6efd',
+        'female' => '#dc3545',
+        'mixed' => '#198754',
+    ];
+
     public function index(Request $request, $groupId)
     {
         return $this->showRecords($request, $groupId, 'official');
@@ -31,6 +37,7 @@ class GroupRecordController extends Controller
 
         $group = Group::with('users')->findOrFail($groupId);
         $date = $request->date ?? date('Y-m-d');
+        $matchTeamColorsById = $this->matchTeamColorsById($group);
         $maxTatesPerPage = max(1, (int) ($group->official_tates_per_page ?? 5));
         $recordHeightExtra = 60;
         $matchRecordHeightExtra = 60;
@@ -72,6 +79,7 @@ class GroupRecordController extends Controller
                     'tate_no' => $selectionTateNo,
                     'position' => $selectionPosition,
                     'tate_size' => $selectionTeam->tate_size,
+                    'color' => $this->matchTeamColorFor($matchTeamColorsById, $selectionTeam->id),
                     'assigned_members' => $assignedMembers,
                     'return_to' => $selectionReturnToOfficial ? 'official' : 'match',
                     'back_url' => $selectionReturnToOfficial
@@ -369,8 +377,8 @@ class GroupRecordController extends Controller
             : "/group/{$groupId}/match-records";
         $otherRecordLabel = $practiceType === 'match' ? '正規連用記録' : '試合用記録';
         $canSwitchOfficialSheet = $hasEnteredOfficialShots;
-        $latestMatchAssignmentsByRecordId = $this->latestMatchAssignmentsByRecordId($group, $date);
-        $officialMatchTeamControls = $this->officialMatchTeamControls($group, $date);
+        $latestMatchAssignmentsByRecordId = $this->latestMatchAssignmentsByRecordId($group, $date, $matchTeamColorsById);
+        $officialMatchTeamControls = $this->officialMatchTeamControls($group, $date, $matchTeamColorsById);
 
         return view('group.records', compact(
             'group',
@@ -406,6 +414,7 @@ class GroupRecordController extends Controller
             'matchSelection',
             'latestMatchAssignmentsByRecordId',
             'officialMatchTeamControls',
+            'matchTeamColorsById',
             'officialCompactEmptySlots',
             'officialCompactEmptySlotsExplicit'
         ));
@@ -415,6 +424,7 @@ class GroupRecordController extends Controller
     {
         $groupId = $group->id;
         $canEditGroupRecords = true;
+        $matchTeamColorsById = $this->matchTeamColorsById($group);
         $matchAttendanceByUserId = $this->attendanceMembersByUserId($group, $date);
         $teams = MatchTeam::withTrashed()
             ->with(['members' => function ($q) use ($date) {
@@ -673,6 +683,7 @@ class GroupRecordController extends Controller
             'matchTeamSlots',
             'matchTateMetas',
             'matchAttendanceByUserId',
+            'matchTeamColorsById',
             'canEditGroupRecords'
         ));
     }
@@ -1407,19 +1418,8 @@ class GroupRecordController extends Controller
         );
     }
 
-    private function latestMatchAssignmentsByRecordId(Group $group, string $date)
+    private function latestMatchAssignmentsByRecordId(Group $group, string $date, $matchTeamColorsById)
     {
-        $teamColors = [
-            '#dc3545',
-            '#0d6efd',
-            '#198754',
-            '#fd7e14',
-            '#6f42c1',
-            '#0aa2c0',
-            '#d63384',
-            '#6c757d',
-        ];
-
         return MatchTeam::withTrashed()
             ->with(['members' => fn($query) => $query->where('date', $date)])
             ->where('group_id', $group->id)
@@ -1427,7 +1427,7 @@ class GroupRecordController extends Controller
             ->orderBy('id')
             ->get()
             ->values()
-            ->flatMap(function ($team, int $teamIndex) use ($teamColors) {
+            ->flatMap(function ($team) use ($matchTeamColorsById) {
                 $latestTateNo = $team->members
                     ->pluck('tate_no')
                     ->filter()
@@ -1452,26 +1452,15 @@ class GroupRecordController extends Controller
                         'tate_no' => (int) $latestTateNo,
                         'position' => (int) $member->position,
                         'tate_size' => (int) $team->tate_size,
-                        'color' => $teamColors[$teamIndex % count($teamColors)],
+                        'color' => $this->matchTeamColorFor($matchTeamColorsById, $team->id),
                     ]);
             })
             ->groupBy('official_record_id')
             ->map(fn($assignments) => $assignments->values());
     }
 
-    private function officialMatchTeamControls(Group $group, string $date)
+    private function officialMatchTeamControls(Group $group, string $date, $matchTeamColorsById)
     {
-        $teamColors = [
-            '#dc3545',
-            '#0d6efd',
-            '#198754',
-            '#fd7e14',
-            '#6f42c1',
-            '#0aa2c0',
-            '#d63384',
-            '#6c757d',
-        ];
-
         $teams = MatchTeam::with([
                 'members' => fn($query) => $query->where('date', $date)->with('officialRecord.shots'),
                 'tateMetas' => fn($query) => $query->where('date', $date),
@@ -1499,7 +1488,7 @@ class GroupRecordController extends Controller
             ->get()
             ->groupBy('match_team_id');
 
-        return $teams->map(function ($team, int $teamIndex) use ($teamColors, $legacyMaxTates, $legacyRecords) {
+        return $teams->map(function ($team) use ($matchTeamColorsById, $legacyMaxTates, $legacyRecords) {
             $latestTateNo = max(
                 1,
                 (int) ($team->members->pluck('tate_no')->filter()->max() ?? 0),
@@ -1540,9 +1529,30 @@ class GroupRecordController extends Controller
                 'elapsed_seconds' => $elapsedSeconds,
                 'elapsed_label' => sprintf('%02d:%02d', floor($elapsedSeconds / 60), $elapsedSeconds % 60),
                 'is_timer_running' => $isTimerRunning,
-                'color' => $teamColors[$teamIndex % count($teamColors)],
+                'color' => $this->matchTeamColorFor($matchTeamColorsById, $team->id),
             ];
         });
+    }
+
+    private function matchTeamColorsById(Group $group)
+    {
+        return MatchTeam::withTrashed()
+            ->where('group_id', $group->id)
+            ->orderBy('id')
+            ->pluck('division', 'id')
+            ->mapWithKeys(fn($division, $teamId) => [
+                (int) $teamId => $this->matchTeamColorForDivision($division),
+            ]);
+    }
+
+    private function matchTeamColorFor($matchTeamColorsById, int $teamId): string
+    {
+        return $matchTeamColorsById->get((int) $teamId, self::MATCH_TEAM_COLORS['mixed']);
+    }
+
+    private function matchTeamColorForDivision(?string $division): string
+    {
+        return self::MATCH_TEAM_COLORS[$division] ?? self::MATCH_TEAM_COLORS['mixed'];
     }
 
     private function matchAddTateReturnUrl(Request $request, int $groupId, string $date, string $month, int $teamId, int $tateNo): string

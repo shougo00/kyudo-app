@@ -291,6 +291,355 @@ it('keeps the active official sheet number when linking from records to lineup',
     );
 });
 
+it('shows the first group official shot at the bottom of the vertical record column', function () {
+    $date = '2026-07-25';
+    $host = User::factory()->create([
+        'username' => 'host-official-shot-order',
+        'is_admin' => true,
+    ]);
+    $member = User::factory()->create([
+        'username' => 'member-official-shot-order',
+        'is_admin' => false,
+    ]);
+    $group = Group::create([
+        'name' => 'Official Shot Order Group',
+        'host_user_id' => $host->id,
+        'invite_code' => '7531',
+    ]);
+    $group->users()->attach([$host->id, $member->id]);
+
+    $lineup = Lineup::create([
+        'group_id' => $group->id,
+        'date' => $date,
+        'tate_size' => 1,
+    ]);
+    LineupMember::create([
+        'lineup_id' => $lineup->id,
+        'user_id' => $member->id,
+        'position' => 1,
+        'is_absent' => false,
+        'is_late' => false,
+    ]);
+    $record = Record::create([
+        'user_id' => $member->id,
+        'date' => $date,
+        'tate_no' => 1,
+        'practice_type' => 'official',
+        'official_sheet_no' => 1,
+        'lineup_position' => 1,
+        'lineup_tate_size' => 1,
+    ]);
+    $firstShot = Shot::create([
+        'record_id' => $record->id,
+        'shot_no' => 1,
+    ]);
+    $fourthShot = Shot::create([
+        'record_id' => $record->id,
+        'shot_no' => 4,
+    ]);
+
+    $content = $this->actingAs($host)
+        ->get("/group/{$group->id}/records?date={$date}")
+        ->assertOk()
+        ->getContent();
+
+    expect(strpos($content, 'data-id="' . $fourthShot->id . '"'))
+        ->toBeLessThan(strpos($content, 'data-id="' . $firstShot->id . '"'));
+});
+
+it('converts saved group official shots to the bottom-up order without touching standalone official records', function () {
+    $date = '2026-07-26';
+    $host = User::factory()->create([
+        'username' => 'host-official-shot-convert',
+        'is_admin' => true,
+    ]);
+    $member = User::factory()->create([
+        'username' => 'member-official-shot-convert',
+        'is_admin' => false,
+    ]);
+    $standaloneUser = User::factory()->create([
+        'username' => 'standalone-official-shot-convert',
+        'is_admin' => false,
+    ]);
+    $group = Group::create([
+        'name' => 'Official Shot Convert Group',
+        'host_user_id' => $host->id,
+        'invite_code' => '8642',
+    ]);
+    $group->users()->attach([$host->id, $member->id]);
+
+    $lineup = Lineup::create([
+        'group_id' => $group->id,
+        'date' => $date,
+        'tate_size' => 1,
+    ]);
+    LineupMember::create([
+        'lineup_id' => $lineup->id,
+        'user_id' => $member->id,
+        'position' => 1,
+        'is_absent' => false,
+        'is_late' => false,
+    ]);
+
+    $groupRecord = Record::create([
+        'user_id' => $member->id,
+        'date' => $date,
+        'tate_no' => 1,
+        'practice_type' => 'official',
+        'official_sheet_no' => 1,
+        'lineup_position' => 1,
+        'lineup_tate_size' => 1,
+    ]);
+    $groupShots = collect(range(1, 4))->mapWithKeys(fn($shotNo) => [
+        $shotNo => Shot::create([
+            'record_id' => $groupRecord->id,
+            'shot_no' => $shotNo,
+        ]),
+    ]);
+
+    $standaloneRecord = Record::create([
+        'user_id' => $standaloneUser->id,
+        'date' => $date,
+        'tate_no' => 1,
+        'practice_type' => 'official',
+        'official_sheet_no' => 1,
+    ]);
+    $standaloneFirstShot = Shot::create([
+        'record_id' => $standaloneRecord->id,
+        'shot_no' => 1,
+    ]);
+
+    $migration = include database_path('migrations/2026_08_01_000001_reverse_group_official_shot_order.php');
+    $migration->up();
+
+    expect($groupShots[1]->fresh()->shot_no)->toBe(4);
+    expect($groupShots[2]->fresh()->shot_no)->toBe(3);
+    expect($groupShots[3]->fresh()->shot_no)->toBe(2);
+    expect($groupShots[4]->fresh()->shot_no)->toBe(1);
+    expect($standaloneFirstShot->fresh()->shot_no)->toBe(1);
+});
+
+it('shows the first match shot at the bottom of the vertical record column', function () {
+    $date = '2026-07-25';
+    $host = User::factory()->create([
+        'username' => 'host-match-shot-order',
+        'is_admin' => true,
+    ]);
+    $member = User::factory()->create([
+        'username' => 'member-match-shot-order',
+        'is_admin' => false,
+    ]);
+    $group = Group::create([
+        'name' => 'Match Shot Order Group',
+        'host_user_id' => $host->id,
+        'invite_code' => '9753',
+    ]);
+    $group->users()->attach([$host->id, $member->id]);
+
+    $team = MatchTeam::create([
+        'group_id' => $group->id,
+        'date' => $date,
+        'name' => 'Aチーム',
+        'division' => 'mixed',
+        'tate_size' => 1,
+    ]);
+    MatchTeamMember::create([
+        'match_team_id' => $team->id,
+        'date' => $date,
+        'user_id' => $member->id,
+        'tate_no' => 1,
+        'position' => 1,
+        'is_absent' => false,
+        'is_late' => false,
+    ]);
+    $record = Record::create([
+        'user_id' => $member->id,
+        'date' => $date,
+        'tate_no' => 1,
+        'practice_type' => 'match',
+        'official_sheet_no' => 1,
+        'match_team_id' => $team->id,
+    ]);
+    $firstShot = Shot::create([
+        'record_id' => $record->id,
+        'shot_no' => 1,
+    ]);
+    $fourthShot = Shot::create([
+        'record_id' => $record->id,
+        'shot_no' => 4,
+    ]);
+
+    $content = $this->actingAs($host)
+        ->get("/group/{$group->id}/match-records?date={$date}&team_id={$team->id}")
+        ->assertOk()
+        ->getContent();
+
+    expect(strpos($content, 'data-id="' . $fourthShot->id . '"'))
+        ->toBeLessThan(strpos($content, 'data-id="' . $firstShot->id . '"'));
+});
+
+it('converts saved match shots to the bottom-up order', function () {
+    $date = '2026-07-26';
+    $host = User::factory()->create([
+        'username' => 'host-match-shot-convert',
+        'is_admin' => true,
+    ]);
+    $member = User::factory()->create([
+        'username' => 'member-match-shot-convert',
+        'is_admin' => false,
+    ]);
+    $group = Group::create([
+        'name' => 'Match Shot Convert Group',
+        'host_user_id' => $host->id,
+        'invite_code' => '0864',
+    ]);
+    $group->users()->attach([$host->id, $member->id]);
+
+    $team = MatchTeam::create([
+        'group_id' => $group->id,
+        'date' => $date,
+        'name' => 'Aチーム',
+        'division' => 'mixed',
+        'tate_size' => 1,
+    ]);
+    $matchRecord = Record::create([
+        'user_id' => $member->id,
+        'date' => $date,
+        'tate_no' => 1,
+        'practice_type' => 'match',
+        'official_sheet_no' => 1,
+        'match_team_id' => $team->id,
+    ]);
+    $matchShots = collect(range(1, 4))->mapWithKeys(fn($shotNo) => [
+        $shotNo => Shot::create([
+            'record_id' => $matchRecord->id,
+            'shot_no' => $shotNo,
+        ]),
+    ]);
+
+    $standaloneMatchRecord = Record::create([
+        'user_id' => $member->id,
+        'date' => $date,
+        'tate_no' => 2,
+        'practice_type' => 'match',
+        'official_sheet_no' => 1,
+    ]);
+    $standaloneFirstShot = Shot::create([
+        'record_id' => $standaloneMatchRecord->id,
+        'shot_no' => 1,
+    ]);
+
+    $migration = include database_path('migrations/2026_08_01_000002_reverse_group_match_shot_order.php');
+    $migration->up();
+
+    expect($matchShots[1]->fresh()->shot_no)->toBe(4);
+    expect($matchShots[2]->fresh()->shot_no)->toBe(3);
+    expect($matchShots[3]->fresh()->shot_no)->toBe(2);
+    expect($matchShots[4]->fresh()->shot_no)->toBe(1);
+    expect($standaloneFirstShot->fresh()->shot_no)->toBe(1);
+});
+
+it('keeps the selected match team color on official record assignment frames', function () {
+    $date = '2026-07-25';
+    $host = User::factory()->create([
+        'username' => 'host-match-team-color',
+        'is_admin' => true,
+    ]);
+    $member = User::factory()->create([
+        'username' => 'member-match-team-color',
+        'is_admin' => false,
+    ]);
+    $group = Group::create([
+        'name' => 'Match Team Color Group',
+        'host_user_id' => $host->id,
+        'invite_code' => '1357',
+    ]);
+    $group->users()->attach([$host->id, $member->id]);
+
+    $lineup = Lineup::create([
+        'group_id' => $group->id,
+        'date' => $date,
+        'tate_size' => 1,
+    ]);
+    LineupMember::create([
+        'lineup_id' => $lineup->id,
+        'user_id' => $member->id,
+        'position' => 1,
+        'is_absent' => false,
+        'is_late' => false,
+    ]);
+
+    $deletedTeam = MatchTeam::create([
+        'group_id' => $group->id,
+        'date' => $date,
+        'name' => '削除済みチーム',
+        'division' => 'mixed',
+        'tate_size' => 1,
+    ]);
+    $deletedTeam->delete();
+
+    $targetTeam = MatchTeam::create([
+        'group_id' => $group->id,
+        'date' => $date,
+        'name' => '日本インカレ男子',
+        'division' => 'male',
+        'tate_size' => 1,
+    ]);
+    $femaleTeam = MatchTeam::create([
+        'group_id' => $group->id,
+        'date' => $date,
+        'name' => '日本インカレ女子',
+        'division' => 'female',
+        'tate_size' => 1,
+    ]);
+    $mixedTeam = MatchTeam::create([
+        'group_id' => $group->id,
+        'date' => $date,
+        'name' => '混合チーム',
+        'division' => 'mixed',
+        'tate_size' => 1,
+    ]);
+    $record = Record::create([
+        'user_id' => $member->id,
+        'date' => $date,
+        'tate_no' => 1,
+        'practice_type' => 'official',
+        'official_sheet_no' => 1,
+        'lineup_position' => 1,
+        'lineup_tate_size' => 1,
+    ]);
+    MatchTeamMember::create([
+        'match_team_id' => $targetTeam->id,
+        'date' => $date,
+        'user_id' => $member->id,
+        'tate_no' => 1,
+        'position' => 1,
+        'official_record_id' => $record->id,
+        'is_absent' => false,
+        'is_late' => false,
+    ]);
+
+    $matchContent = $this->actingAs($host)
+        ->get("/group/{$group->id}/match-records?date={$date}&team_id={$targetTeam->id}")
+        ->assertOk()
+        ->getContent();
+    expect($matchContent)->toContain("id=\"match-team-{$targetTeam->id}\" style=\"--match-team-color: #0d6efd;\"");
+    expect($matchContent)->toContain("id=\"match-team-{$femaleTeam->id}\" style=\"--match-team-color: #dc3545;\"");
+    expect($matchContent)->toContain("id=\"match-team-{$mixedTeam->id}\" style=\"--match-team-color: #198754;\"");
+
+    $officialContent = $this->actingAs($host)
+        ->get("/group/{$group->id}/records?date={$date}")
+        ->assertOk()
+        ->getContent();
+    expect(substr_count($officialContent, '--latest-match-color: #0d6efd;'))->toBeGreaterThanOrEqual(2);
+
+    $editContent = $this->actingAs($host)
+        ->get("/group/{$group->id}/records?date={$date}&match_team_id={$targetTeam->id}&match_tate_no=1&match_position=1&return_to=official")
+        ->assertOk()
+        ->getContent();
+    expect($editContent)->toContain('--match-selection-color: #0d6efd;');
+});
+
 it('fills the next official sheet with one page from the first unentered tate', function () {
     $date = '2026-07-25';
     $host = User::factory()->create([

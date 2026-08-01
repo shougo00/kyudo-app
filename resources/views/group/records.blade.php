@@ -71,16 +71,7 @@
         'value' => (int) ($option['value'] ?? 0),
         'color' => $option['color'] ?? '#dbeafe',
     ])->values();
-    $matchTeamColorPalette = [
-        '#dc3545',
-        '#0d6efd',
-        '#198754',
-        '#fd7e14',
-        '#6f42c1',
-        '#0aa2c0',
-        '#d63384',
-        '#6c757d',
-    ];
+    $matchTeamColorsById = $matchTeamColorsById ?? collect();
     $numericScoreColorMap = $numericScoreOptions->mapWithKeys(fn($option) => [$option['value'] => $option['color']]);
     $gradeTextColor = function (?string $color) {
         if (!$color || !preg_match('/^#[0-9A-Fa-f]{6}$/', $color)) {
@@ -666,7 +657,7 @@ if (isOfficialRecordPage || isMatchRecordPage) {
     @php
         $teamTates = $matchTeamTates->get($team->id, collect());
         $teamSlots = $matchTeamSlots->get($team->id, collect());
-        $matchTeamColor = $matchTeamColorPalette[$loop->index % count($matchTeamColorPalette)];
+        $matchTeamColor = $matchTeamColorsById->get((int) $team->id, '#198754');
     @endphp
 
     <section class="match-team-panel" id="match-team-{{ $team->id }}" style="--match-team-color: {{ $matchTeamColor }};">
@@ -796,7 +787,7 @@ if (isOfficialRecordPage || isMatchRecordPage) {
                     @foreach($slots as $slot)
                         @if($slot->is_empty)
                             <div class="match-vertical-column empty-column">
-                                @for($i=1;$i<=4;$i++)
+                                @for($i=4;$i>=1;$i--)
                                     <div class="shot-btn empty-shot">空</div>
                                 @endfor
                                 <div class="match-vertical-name empty-name">{{ $slot->position }} 空き</div>
@@ -815,7 +806,7 @@ if (isOfficialRecordPage || isMatchRecordPage) {
                             @endphp
 
                             <div class="match-vertical-column">
-                                @for($i=1;$i<=4;$i++)
+                                @for($i=4;$i>=1;$i--)
                                     @php
                                         $shot = $record
                                             ? $record->shots->where('shot_no',$i)->first()
@@ -934,10 +925,10 @@ if (isOfficialRecordPage || isMatchRecordPage) {
             @if($slot->is_empty)
 
                 <div class="user-column empty-column {{ $isTateBreak ? 'tate-border' : '' }}">
-                    @for($i=1;$i<=4;$i++)
+                    @for($i=4;$i>=1;$i--)
                         <div class="shot-btn empty-shot">空</div>
 
-                        @if($i == 4 && !$loop->parent->first)
+                        @if($i == 1 && !$loop->parent->first)
                             <div class="shot-separator"></div>
                         @endif
                     @endfor
@@ -964,11 +955,20 @@ if (isOfficialRecordPage || isMatchRecordPage) {
                     $latestMatchTitle = $latestMatchAssignments
                         ->map(fn($assignment) => $assignment['team_name'] . ' ' . $assignment['tate_no'] . '立目 ' . $matchPositionLabel((int) $assignment['position'], (int) $assignment['tate_size']))
                         ->implode(' / ');
+                    $columnStyles = [];
+
+                    if ($latestMatchPrimary) {
+                        $columnStyles[] = '--latest-match-color: ' . $latestMatchPrimary['color'] . ';';
+                    }
+
+                    if ($isMatchRecordChoice) {
+                        $columnStyles[] = '--match-selection-color: ' . ($matchSelection['color'] ?? '#198754') . ';';
+                    }
                 @endphp
 
                 <div class="user-column {{ $isTateBreak ? 'tate-border' : '' }} {{ $isMatchRecordChoice ? 'match-record-choice' : '' }} {{ $assignedRecordMember ? 'assigned' : '' }} {{ $isCurrentMatchRecordChoice ? 'current' : '' }} {{ $latestMatchAssignments->isNotEmpty() ? 'official-match-assigned' : '' }}"
-                     @if($latestMatchPrimary)
-                         style="--latest-match-color: {{ $latestMatchPrimary['color'] }};"
+                     @if(!empty($columnStyles))
+                         style="{{ implode(' ', $columnStyles) }}"
                      @endif
                      @if($isMatchRecordChoice)
                          data-match-record-id="{{ $record->id }}"
@@ -998,7 +998,7 @@ if (isOfficialRecordPage || isMatchRecordPage) {
                         </span>
                     @endif
 
-                    @for($i=1;$i<=4;$i++)
+                    @for($i=4;$i>=1;$i--)
                         @php
                             $shot = $record
                                 ? $record->shots->where('shot_no',$i)->first()
@@ -1032,7 +1032,7 @@ if (isOfficialRecordPage || isMatchRecordPage) {
                             @endif
                         </div>
 
-                        @if($i == 4 && !$loop->parent->first)
+                        @if($i == 1 && !$loop->parent->first)
                             <div class="shot-separator"></div>
                         @endif
                     @endfor
@@ -1192,7 +1192,7 @@ if (isOfficialRecordPage || isMatchRecordPage) {
                             @endphp
 
                             <div class="print-user-column {{ (($loop->index + 1) % $printTeam->tate_size == 0) ? 'print-tate-border' : '' }}">
-                                @for($i=1;$i<=4;$i++)
+                                @for($i=4;$i>=1;$i--)
                                     @php
                                         $shot = $record
                                             ? $record->shots->where('shot_no',$i)->first()
@@ -1299,7 +1299,7 @@ if (isOfficialRecordPage || isMatchRecordPage) {
                                     @endphp
 
                                     <div class="print-user-column {{ $isPrintTateBreak ? 'print-tate-border' : '' }}">
-                                        @for($i=1;$i<=4;$i++)
+                                        @for($i=4;$i>=1;$i--)
                                             @php
                                                 $shot = $record
                                                     ? $record->shots->where('shot_no',$i)->first()
