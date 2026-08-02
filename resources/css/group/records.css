@@ -10,6 +10,10 @@ body {
     max-width: 100%;
 }
 
+.record-page.official-record-page {
+    touch-action: manipulation;
+}
+
 .record-title-bar {
     display: flex;
     justify-content: space-between;

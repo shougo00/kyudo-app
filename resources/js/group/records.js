@@ -537,7 +537,27 @@ function initRecordPageOuterScroll() {
         '.match-team-board',
     ].join(',');
 
-    const outerScrollLocked = () => document.body.classList.contains('match-record-scroll-locked');
+    const outerScrollLocked = () =>
+        document.body.classList.contains('official-record-scroll-locked') ||
+        document.body.classList.contains('match-record-scroll-locked');
+    const interactiveSelector = [
+        'a',
+        'button',
+        'input',
+        'select',
+        'textarea',
+        'label',
+        'summary',
+        '[role="button"]',
+    ].join(',');
+
+    function shouldBlockOuterTap(target) {
+        if (!(target instanceof Element)) {
+            return true;
+        }
+
+        return !target.closest(innerScrollSelector) && !target.closest(interactiveSelector);
+    }
 
     page.addEventListener('wheel', event => {
         if (event.target.closest(innerScrollSelector)) {
@@ -602,6 +622,24 @@ function initRecordPageOuterScroll() {
         lastY = y;
         event.preventDefault();
     }, { passive: false });
+
+    page.addEventListener('touchend', event => {
+        if (!outerScrollLocked() || !shouldBlockOuterTap(event.target)) {
+            return;
+        }
+
+        event.preventDefault();
+        event.stopPropagation();
+    }, { capture: true, passive: false });
+
+    page.addEventListener('dblclick', event => {
+        if (!outerScrollLocked() || !shouldBlockOuterTap(event.target)) {
+            return;
+        }
+
+        event.preventDefault();
+        event.stopPropagation();
+    }, true);
 }
 
 function initOfficialRecordTapGuard() {
