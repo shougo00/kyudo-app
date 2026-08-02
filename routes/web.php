@@ -103,6 +103,7 @@ Route::middleware([ 'verified'])->group(function () {
     Route::post('/group/shot/{id}', [GroupRecordController::class, 'updateShot']);
     Route::get('/group/{groupId}/match-lineup', [MatchLineupController::class, 'index'])->name('group.match-lineup');
     Route::post('/group/{groupId}/match-teams', [MatchLineupController::class, 'storeTeam']);
+    Route::delete('/match-teams/{team}/tates/{tateNo}', [GroupRecordController::class, 'destroyLatestMatchTate']);
     Route::patch('/match-teams/{team}', [MatchLineupController::class, 'updateTeam']);
     Route::delete('/match-teams/{team}', [MatchLineupController::class, 'destroy']);
     Route::post('/match-teams/{team}/tate', [MatchLineupController::class, 'saveTate']);

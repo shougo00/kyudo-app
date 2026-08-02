@@ -1118,6 +1118,75 @@ class GroupRecordController extends Controller
         return redirect($this->matchAddTateReturnUrl($request, $groupId, $date, $month, $team->id, $newTate));
     }
 
+    public function destroyLatestMatchTate(Request $request, MatchTeam $team, int $tateNo)
+    {
+        $this->checkGroupAccess($team->group_id);
+
+        $validated = $request->validate([
+            'date' => ['required', 'date'],
+            'month' => ['nullable', 'date_format:Y-m'],
+        ]);
+
+        $date = $validated['date'];
+        $month = $validated['month'] ?? \Carbon\Carbon::parse($date)->format('Y-m');
+        $tateNo = max(1, (int) $tateNo);
+        $returnUrl = $this->matchTateReturnUrl($team, $date, $month, $tateNo);
+
+        if ($team->trashed()) {
+            $message = '解散済みチームの立は削除できません。';
+
+            return redirect($returnUrl)
+                ->with('error', $message)
+                ->with('error_alert', $message);
+        }
+
+        $latestTateNo = $this->latestMatchTateNo($team, $date);
+
+        if ($latestTateNo < 1 || $tateNo !== $latestTateNo) {
+            $message = '削除できるのは最新の立だけです。';
+
+            return redirect($returnUrl)
+                ->with('error', $message)
+                ->with('error_alert', $message);
+        }
+
+        if ($this->matchTateHasEnteredScore($team, $date, $tateNo)) {
+            $message = "{$tateNo}立目に的中が入力されているため削除できません。";
+
+            return redirect($returnUrl)
+                ->with('error', $message)
+                ->with('error_alert', $message);
+        }
+
+        DB::transaction(function () use ($team, $date, $tateNo) {
+            $recordIds = Record::where('match_team_id', $team->id)
+                ->where('date', $date)
+                ->where('practice_type', 'match')
+                ->where('tate_no', $tateNo)
+                ->pluck('id');
+
+            if ($recordIds->isNotEmpty()) {
+                Shot::whereIn('record_id', $recordIds)->delete();
+                Record::whereIn('id', $recordIds)->delete();
+            }
+
+            MatchTeamMember::where('match_team_id', $team->id)
+                ->where('date', $date)
+                ->where('tate_no', $tateNo)
+                ->delete();
+
+            MatchTateMeta::where('match_team_id', $team->id)
+                ->where('date', $date)
+                ->where('tate_no', $tateNo)
+                ->delete();
+        });
+
+        $previousTateNo = max(1, $tateNo - 1);
+
+        return redirect($this->matchTateReturnUrl($team, $date, $month, $previousTateNo))
+            ->with('success', "{$tateNo}立目を削除しました。");
+    }
+
     public function updateOfficialScoringMode(Request $request, $groupId)
     {
         $this->checkGroupAccess($groupId, true, true);
@@ -1624,6 +1693,66 @@ class GroupRecordController extends Controller
         }
 
         return "/group/{$groupId}/match-records?date={$date}&month={$month}&team_id={$teamId}&tate_no={$tateNo}#match-team-{$teamId}";
+    }
+
+    private function latestMatchTateNo(MatchTeam $team, string $date): int
+    {
+        $memberMaxTate = (int) ($team->members()
+            ->where('date', $date)
+            ->max('tate_no') ?? 0);
+        $metaMaxTate = (int) (MatchTateMeta::where('match_team_id', $team->id)
+            ->where('date', $date)
+            ->max('tate_no') ?? 0);
+        $recordMaxTate = (int) (Record::where('match_team_id', $team->id)
+            ->where('date', $date)
+            ->where('practice_type', 'match')
+            ->max('tate_no') ?? 0);
+
+        return max($memberMaxTate, $metaMaxTate, $recordMaxTate);
+    }
+
+    private function matchTateHasEnteredScore(MatchTeam $team, string $date, int $tateNo): bool
+    {
+        $linkedOfficialRecordIds = MatchTeamMember::where('match_team_id', $team->id)
+            ->where('date', $date)
+            ->where('tate_no', $tateNo)
+            ->whereNotNull('official_record_id')
+            ->pluck('official_record_id');
+
+        if ($linkedOfficialRecordIds->isNotEmpty() && $this->recordIdsHaveEnteredScore($linkedOfficialRecordIds)) {
+            return true;
+        }
+
+        $matchRecordIds = Record::where('match_team_id', $team->id)
+            ->where('date', $date)
+            ->where('practice_type', 'match')
+            ->where('tate_no', $tateNo)
+            ->pluck('id');
+
+        return $matchRecordIds->isNotEmpty() && $this->recordIdsHaveEnteredScore($matchRecordIds);
+    }
+
+    private function recordIdsHaveEnteredScore($recordIds): bool
+    {
+        $recordIds = collect($recordIds)->filter()->values();
+
+        if ($recordIds->isEmpty()) {
+            return false;
+        }
+
+        return Shot::whereIn('record_id', $recordIds)
+            ->where(function ($query) {
+                $query->whereNotNull('result')
+                    ->orWhereNotNull('numeric_score');
+            })
+            ->exists();
+    }
+
+    private function matchTateReturnUrl(MatchTeam $team, string $date, string $month, int $tateNo): string
+    {
+        $tateNo = max(1, $tateNo);
+
+        return "/group/{$team->group_id}/match-records?date={$date}&month={$month}&team_id={$team->id}&tate_no={$tateNo}#match-team-{$team->id}";
     }
 
     private function officialSheetSwitchMatchSelectionQuery(Request $request): string

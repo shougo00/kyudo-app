@@ -269,6 +269,12 @@ if (isOfficialRecordPage || isMatchRecordPage) {
     </div>
 @endif
 
+@if(session('success'))
+    <div class="alert alert-success">
+        {{ session('success') }}
+    </div>
+@endif
+
 @if(session('error_alert'))
     <script>
         window.addEventListener('load', () => {
@@ -665,6 +671,7 @@ if (isOfficialRecordPage || isMatchRecordPage) {
         $teamTates = $matchTeamTates->get($team->id, collect());
         $teamSlots = $matchTeamSlots->get($team->id, collect());
         $matchTeamColor = $matchTeamColorsById->get((int) $team->id, '#198754');
+        $latestTeamTateNoForDelete = max(1, (int) ($teamTates->max() ?? 1));
     @endphp
 
     <section class="match-team-panel" id="match-team-{{ $team->id }}" style="--match-team-color: {{ $matchTeamColor }};">
@@ -687,6 +694,16 @@ if (isOfficialRecordPage || isMatchRecordPage) {
             </div>
             <div class="match-team-actions">
                 @if(!$team->trashed())
+                    <form method="POST"
+                          action="/match-teams/{{ $team->id }}/tates/{{ $latestTeamTateNoForDelete }}"
+                          data-match-delete-tate-form
+                          onsubmit="return confirm('{{ $latestTeamTateNoForDelete }}立目を削除しますか？')">
+                        @csrf
+                        @method('DELETE')
+                        <input type="hidden" name="date" value="{{ $date }}">
+                        <input type="hidden" name="month" value="{{ $month }}">
+                        <button class="btn btn-sm btn-outline-danger">ー立</button>
+                    </form>
                     <form method="POST" action="{{ $addTatePath }}" data-match-add-tate-form>
                         @csrf
                         <input type="hidden" name="date" value="{{ $date }}">
