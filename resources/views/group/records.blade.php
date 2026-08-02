@@ -578,6 +578,13 @@ if (isOfficialRecordPage || isMatchRecordPage) {
                         @csrf
                         <input type="hidden" name="date" value="{{ $date }}">
                         <input type="hidden" name="sheet_no" value="{{ $activeSheetNo }}">
+                        @if($matchSelection)
+                            <input type="hidden" name="month" value="{{ $month }}">
+                            <input type="hidden" name="match_team_id" value="{{ $matchSelection['team_id'] }}">
+                            <input type="hidden" name="match_tate_no" value="{{ $matchSelection['tate_no'] }}">
+                            <input type="hidden" name="match_position" value="{{ $matchSelection['position'] }}">
+                            <input type="hidden" name="return_to" value="{{ $matchSelection['return_to'] ?? 'official' }}">
+                        @endif
                         @if($officialCompactEmptySlotsExplicit)
                             <input type="hidden" name="compact_empty_slots" value="{{ $officialCompactEmptySlots ? 1 : 0 }}">
                         @endif

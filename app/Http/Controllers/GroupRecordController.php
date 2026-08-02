@@ -766,15 +766,7 @@ class GroupRecordController extends Controller
 
     private function trimEmptyOfficialTatesAfterLastEntered($groupUserIds, string $date, int $sheetNo): void
     {
-        $latestEnteredTate = Record::whereIn('user_id', $groupUserIds)
-            ->where('date', $date)
-            ->where('practice_type', 'official')
-            ->where('official_sheet_no', $sheetNo)
-            ->whereHas('shots', function ($query) {
-                $query->whereNotNull('result')
-                    ->orWhereNotNull('numeric_score');
-            })
-            ->max('tate_no');
+        $latestEnteredTate = $this->latestEnteredOfficialTateNo($groupUserIds, $date, $sheetNo);
 
         if (!$latestEnteredTate) {
             return;
@@ -789,6 +781,9 @@ class GroupRecordController extends Controller
                 $query->whereNotNull('result')
                     ->orWhereNotNull('numeric_score');
             })
+            ->whereNotIn('id', MatchTeamMember::query()
+                ->whereNotNull('official_record_id')
+                ->select('official_record_id'))
             ->pluck('id');
 
         if ($recordIds->isEmpty()) {
@@ -797,6 +792,53 @@ class GroupRecordController extends Controller
 
         Shot::whereIn('record_id', $recordIds)->delete();
         Record::whereIn('id', $recordIds)->delete();
+    }
+
+    private function moveLinkedEmptyOfficialTatesAfterLastEntered($groupUserIds, string $date, int $fromSheetNo, int $toSheetNo): void
+    {
+        $latestEnteredTate = $this->latestEnteredOfficialTateNo($groupUserIds, $date, $fromSheetNo);
+
+        if (!$latestEnteredTate) {
+            return;
+        }
+
+        $recordIds = Record::whereIn('user_id', $groupUserIds)
+            ->where('date', $date)
+            ->where('practice_type', 'official')
+            ->where('official_sheet_no', $fromSheetNo)
+            ->where('tate_no', '>', $latestEnteredTate)
+            ->whereDoesntHave('shots', function ($query) {
+                $query->whereNotNull('result')
+                    ->orWhereNotNull('numeric_score');
+            })
+            ->whereIn('id', MatchTeamMember::query()
+                ->whereNotNull('official_record_id')
+                ->select('official_record_id'))
+            ->pluck('id');
+
+        if ($recordIds->isEmpty()) {
+            return;
+        }
+
+        Record::whereIn('id', $recordIds)->update([
+            'official_sheet_no' => $toSheetNo,
+            'updated_at' => now(),
+        ]);
+    }
+
+    private function latestEnteredOfficialTateNo($groupUserIds, string $date, int $sheetNo): ?int
+    {
+        $latestEnteredTate = Record::whereIn('user_id', $groupUserIds)
+            ->where('date', $date)
+            ->where('practice_type', 'official')
+            ->where('official_sheet_no', $sheetNo)
+            ->whereHas('shots', function ($query) {
+                $query->whereNotNull('result')
+                    ->orWhereNotNull('numeric_score');
+            })
+            ->max('tate_no');
+
+        return $latestEnteredTate ? (int) $latestEnteredTate : null;
     }
 
     private function deleteEmptyOfficialSheetRecords($groupUserIds, string $date, int $activeSheetNo): void
@@ -810,6 +852,9 @@ class GroupRecordController extends Controller
                     ->whereNotNull('result')
                     ->orWhereNotNull('numeric_score');
             })
+            ->whereNotIn('id', MatchTeamMember::query()
+                ->whereNotNull('official_record_id')
+                ->select('official_record_id'))
             ->pluck('id');
 
         if ($recordIds->isEmpty()) {
@@ -871,10 +916,16 @@ class GroupRecordController extends Controller
             return redirect("/group/{$groupId}/records?date={$date}&sheet_no={$activeSheetNo}{$compactQuery}");
         }
 
+        $nextSheetNo = $activeSheetNo + 1;
+        $this->moveLinkedEmptyOfficialTatesAfterLastEntered(
+            $activeGroupUserIds,
+            $date,
+            $activeSheetNo,
+            $nextSheetNo
+        );
+
         $this->trimEmptyOfficialTatesAfterLastEntered($activeGroupUserIds, $date, $activeSheetNo);
         $this->captureOfficialSheetLineup($group, $date, $activeSheetNo);
-
-        $nextSheetNo = $activeSheetNo + 1;
 
         DB::table('official_record_sheets')->updateOrInsert(
             [
@@ -891,8 +942,9 @@ class GroupRecordController extends Controller
         $compactQuery = $request->has('compact_empty_slots')
             ? '&compact_empty_slots=' . ($request->boolean('compact_empty_slots', true) ? '1' : '0')
             : '';
+        $matchSelectionQuery = $this->officialSheetSwitchMatchSelectionQuery($request);
 
-        return redirect("/group/{$groupId}/records?date={$date}&sheet_no={$nextSheetNo}{$compactQuery}");
+        return redirect("/group/{$groupId}/records?date={$date}&sheet_no={$nextSheetNo}{$matchSelectionQuery}{$compactQuery}");
     }
 
     public function addMatchTate(Request $request, $groupId)
@@ -1572,6 +1624,27 @@ class GroupRecordController extends Controller
         }
 
         return "/group/{$groupId}/match-records?date={$date}&month={$month}&team_id={$teamId}&tate_no={$tateNo}#match-team-{$teamId}";
+    }
+
+    private function officialSheetSwitchMatchSelectionQuery(Request $request): string
+    {
+        if (!$request->filled(['match_team_id', 'match_tate_no', 'match_position'])) {
+            return '';
+        }
+
+        $params = [
+            'match_team_id' => $request->integer('match_team_id'),
+            'match_tate_no' => max(1, $request->integer('match_tate_no')),
+            'match_position' => max(1, $request->integer('match_position')),
+        ];
+
+        if ($request->filled('month')) {
+            $params['month'] = $request->input('month');
+        }
+
+        $params['return_to'] = $request->input('return_to') === 'match' ? 'match' : 'official';
+
+        return '&' . http_build_query($params);
     }
 
     private function enteredOfficialRecordUserIds($userIds, string $date)
