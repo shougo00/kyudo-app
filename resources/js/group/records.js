@@ -591,6 +591,8 @@ function initRecordPageOuterScroll() {
 
     let lastY = 0;
     let startTarget = null;
+    let lastBlockedOuterTapAt = 0;
+    const doubleTapWindowMs = 450;
 
     page.addEventListener('touchstart', event => {
         if (event.touches.length !== 1) {
@@ -599,7 +601,16 @@ function initRecordPageOuterScroll() {
 
         startTarget = event.target;
         lastY = event.touches[0].clientY;
-    }, { passive: true });
+
+        if (
+            outerScrollLocked() &&
+            shouldBlockOuterTap(event.target) &&
+            Date.now() - lastBlockedOuterTapAt < doubleTapWindowMs
+        ) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+    }, { capture: true, passive: false });
 
     page.addEventListener('touchmove', event => {
         if (event.touches.length !== 1 || startTarget?.closest(innerScrollSelector)) {
@@ -628,6 +639,7 @@ function initRecordPageOuterScroll() {
             return;
         }
 
+        lastBlockedOuterTapAt = Date.now();
         event.preventDefault();
         event.stopPropagation();
     }, { capture: true, passive: false });
@@ -669,6 +681,8 @@ function initOfficialRecordTapGuard() {
     let touchStartX = 0;
     let touchStartY = 0;
     let touchMoved = false;
+    let lastBlockedTapAt = 0;
+    const doubleTapWindowMs = 450;
 
     function shouldBlockTap(target) {
         if (!(target instanceof Element)) {
@@ -686,7 +700,12 @@ function initOfficialRecordTapGuard() {
         touchStartX = event.touches[0].clientX;
         touchStartY = event.touches[0].clientY;
         touchMoved = false;
-    }, { passive: true });
+
+        if (shouldBlockTap(event.target) && Date.now() - lastBlockedTapAt < doubleTapWindowMs) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+    }, { capture: true, passive: false });
 
     scrollArea.addEventListener('touchmove', event => {
         if (event.touches.length !== 1) {
@@ -706,6 +725,7 @@ function initOfficialRecordTapGuard() {
             return;
         }
 
+        lastBlockedTapAt = Date.now();
         event.preventDefault();
         event.stopPropagation();
     }, { capture: true, passive: false });
