@@ -35,10 +35,12 @@ class RecordController extends Controller
         // 前日・翌日の日付を計算
         $prevDate = Carbon::parse($date)->subDay()->format('Y-m-d');
         $nextDate = Carbon::parse($date)->addDay()->format('Y-m-d');
+        $isInGroup = auth()->user()?->groups()->exists() ?? false;
+        $canManageTates = $type === 'self' || !$isInGroup;
 
         // Ajaxリクエストの場合は部分HTMLだけ返す
         if ($request->ajax()) {
-            return view('partials.records', compact('records', 'type', 'date'))->render();
+            return view('partials.records', compact('records', 'type', 'date', 'canManageTates'))->render();
         }
        $totalShots = $records->sum(function($record) {
             return $record->shots->whereNotNull('result')->count();
@@ -67,7 +69,8 @@ class RecordController extends Controller
             'totalShots',
             'totalHits',
             'hitRate',
-            'numericScoreOptions'
+            'numericScoreOptions',
+            'canManageTates'
         ));
     }
     // 立追加

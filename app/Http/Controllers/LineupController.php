@@ -13,14 +13,9 @@ use Illuminate\Support\Facades\DB;
 class LineupController extends Controller
 {
     private const MATCH_TEAM_COLORS = [
-        '#dc3545',
-        '#0d6efd',
-        '#198754',
-        '#fd7e14',
-        '#6f42c1',
-        '#0aa2c0',
-        '#d63384',
-        '#6c757d',
+        'male' => '#0d6efd',
+        'female' => '#dc3545',
+        'mixed' => '#198754',
     ];
 
     public function index(Request $request, $groupId)
@@ -205,7 +200,7 @@ class LineupController extends Controller
             ->values();
 
         return $teams
-            ->flatMap(function ($team, int $teamIndex) {
+            ->flatMap(function ($team) {
                 $latestTateNo = $team->members
                     ->pluck('tate_no')
                     ->filter()
@@ -215,13 +210,12 @@ class LineupController extends Controller
                     return collect();
                 }
 
-                $teamColor = self::MATCH_TEAM_COLORS[$teamIndex % count(self::MATCH_TEAM_COLORS)];
+                $teamColor = self::MATCH_TEAM_COLORS[$team->division] ?? self::MATCH_TEAM_COLORS['mixed'];
 
                 return $team->members
                     ->where('tate_no', $latestTateNo)
                     ->whereNotNull('position')
                     ->where('is_absent', false)
-                    ->where('is_late', false)
                     ->map(fn($member) => [
                         'user_id' => (int) $member->user_id,
                         'color' => $teamColor,

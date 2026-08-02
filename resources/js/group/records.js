@@ -1194,8 +1194,8 @@ function initInlineMatchLineup() {
 
         Array.from(pool.querySelectorAll('.inline-member'))
             .sort((a, b) => {
-                const aUnavailable = a.classList.contains('absent') || a.classList.contains('late');
-                const bUnavailable = b.classList.contains('absent') || b.classList.contains('late');
+                const aUnavailable = a.classList.contains('absent');
+                const bUnavailable = b.classList.contains('absent');
                 const unavailableOrder = Number(aUnavailable) - Number(bUnavailable);
 
                 if (unavailableOrder !== 0) {
@@ -1241,17 +1241,18 @@ function initInlineMatchLineup() {
 
         function cycleInlineAttendance() {
             if (!member.classList.contains('late') && !member.classList.contains('absent')) {
-                if (!confirmRemoveRecordedMember(member)) {
-                    return false;
-                }
-
                 member.classList.add('late');
-                pool.appendChild(member);
-                sortInlinePoolMembers();
+                if (isPoolElement(member.parentElement)) {
+                    sortInlinePoolMembers();
+                }
                 return true;
             }
 
             if (member.classList.contains('late')) {
+                if (!confirmRemoveRecordedMember(member)) {
+                    return false;
+                }
+
                 member.classList.remove('late');
                 member.classList.add('absent');
                 pool.appendChild(member);
@@ -1424,7 +1425,7 @@ function initInlineMatchLineup() {
         const member = makeMember(sourceEl);
         const position = parseInt(sourceEl.dataset.position);
 
-        if (!member.classList.contains('absent') && !member.classList.contains('late') && position && cells[position - 1]) {
+        if (!member.classList.contains('absent') && position && cells[position - 1]) {
             cells[position - 1].appendChild(member);
         } else {
             pool.appendChild(member);

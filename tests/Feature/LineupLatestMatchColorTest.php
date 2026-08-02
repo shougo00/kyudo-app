@@ -83,7 +83,7 @@ it('marks latest match members with their match team color on the lineup page', 
 
     $response->assertOk();
     $this->assertMatchesRegularExpression(
-        '/data-id="' . $secondLineupMember->id . '"[\s\S]*?data-in-latest-match="1"[\s\S]*?data-latest-match-color="#0d6efd"/',
+        '/data-id="' . $secondLineupMember->id . '"[\s\S]*?data-in-latest-match="1"[\s\S]*?data-latest-match-color="#198754"/',
         $response->getContent()
     );
 });

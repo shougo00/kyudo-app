@@ -99,6 +99,7 @@ class MatchLineupController extends Controller
 
         $group = Group::with(['users' => fn($q) => $q->where('is_admin', false)])->findOrFail($team->group_id);
         $attendanceByUserId = $this->attendanceMembersByUserId($group, $validated['date']);
+        $recordUserIds = collect();
 
         foreach ($validated['members'] ?? [] as $member) {
             $isAbsent = (bool) ($member['absent'] ?? false);
@@ -111,6 +112,10 @@ class MatchLineupController extends Controller
                     'is_absent' => $isAbsent,
                     'is_late' => $isLate,
                 ]);
+            }
+
+            if ($position && !$isAbsent) {
+                $recordUserIds->push((int) $member['user_id']);
             }
 
             if (!$position && !$isAbsent && !$isLate) {
@@ -127,6 +132,8 @@ class MatchLineupController extends Controller
                 'is_late' => $isLate,
             ]);
         }
+
+        $this->ensureRecordsWithShots($recordUserIds, $team, $validated['date'], (int) $validated['tate_no']);
 
         return response()->json(['ok' => true]);
     }

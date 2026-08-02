@@ -33,8 +33,9 @@ function makeMember(sourceEl) {
     function cycleAttendance() {
         if (!div.classList.contains('late') && !div.classList.contains('absent')) {
             div.classList.add('late');
-            pool.appendChild(div);
-            sortPoolMembers();
+            if (div.parentElement === pool) {
+                sortPoolMembers();
+            }
             return;
         }
 
@@ -157,8 +158,8 @@ function sortPoolMembers() {
 
     Array.from(pool.querySelectorAll('.match-member'))
         .sort((a, b) => {
-            const aUnavailable = a.classList.contains('absent') || a.classList.contains('late');
-            const bUnavailable = b.classList.contains('absent') || b.classList.contains('late');
+            const aUnavailable = a.classList.contains('absent');
+            const bUnavailable = b.classList.contains('absent');
             const unavailableOrder = Number(aUnavailable) - Number(bUnavailable);
 
             if (unavailableOrder !== 0) {
@@ -238,7 +239,7 @@ function initMembers() {
         const member = makeMember(sourceEl);
         const position = parseInt(sourceEl.dataset.position);
 
-        if (!member.classList.contains('absent') && !member.classList.contains('late') && position && cells[position - 1]) {
+        if (!member.classList.contains('absent') && position && cells[position - 1]) {
             cells[position - 1].appendChild(member);
         } else {
             pool.appendChild(member);

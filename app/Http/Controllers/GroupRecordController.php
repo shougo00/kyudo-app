@@ -449,6 +449,16 @@ class GroupRecordController extends Controller
             ->get();
 
         $teamIds = $teams->pluck('id');
+
+        foreach ($teams as $team) {
+            $this->ensureMatchTeamRecords(
+                $team,
+                $date,
+                $team->members->pluck('tate_no')->filter()->unique()->values(),
+                $matchAttendanceByUserId
+            );
+        }
+
         $legacyRecordRows = Record::with(['shots', 'user'])
             ->where('date', $date)
             ->where('practice_type', 'match')
@@ -510,8 +520,7 @@ class GroupRecordController extends Controller
                             $attendance = $matchAttendanceByUserId->get($member->user_id);
 
                             return !is_null($member->position)
-                                && !$attendance?->is_absent
-                                && !$attendance?->is_late;
+                                && !$attendance?->is_absent;
                         })
                         ->sortBy('position')
                         ->values();
@@ -939,8 +948,7 @@ class GroupRecordController extends Controller
                 ->get();
             $activeSourceMembers = $sourceMembers
                 ->filter(fn($member) => !is_null($member->position)
-                    && !$member->is_absent
-                    && !$member->is_late);
+                    && !$member->is_absent);
 
             if ($activeSourceMembers->isEmpty()) {
                 $message = "{$sourceTate}立目にメンバーが選択されていません。先にメンバーを選択してから、＋立を押してください。";
@@ -975,8 +983,7 @@ class GroupRecordController extends Controller
             $plannedMembers = $sourceMembers
                 ->map(function ($member) use (&$linkedOfficialRecordIds, $missingNextOfficialMembers) {
                     $shouldLinkNextRecord = !is_null($member->position)
-                        && !$member->is_absent
-                        && !$member->is_late;
+                        && !$member->is_absent;
                     $nextOfficialRecord = $shouldLinkNextRecord
                         ? $this->nextOfficialRecordAfter($member->officialRecord, $linkedOfficialRecordIds)
                         : null;
@@ -1442,7 +1449,6 @@ class GroupRecordController extends Controller
                     ->whereNotNull('position')
                     ->whereNotNull('official_record_id')
                     ->where('is_absent', false)
-                    ->where('is_late', false)
                     ->sortBy('position')
                     ->map(fn($member) => [
                         'official_record_id' => (int) $member->official_record_id,
@@ -1510,7 +1516,6 @@ class GroupRecordController extends Controller
                 ->where('tate_no', $latestTateNo)
                 ->whereNotNull('position')
                 ->where('is_absent', false)
-                ->where('is_late', false)
                 ->pluck('officialRecord')
                 ->filter();
             $teamLegacyRecords = ($legacyRecords->get($team->id, collect()))
@@ -2102,8 +2107,7 @@ class GroupRecordController extends Controller
                 $attendance = $attendanceByUserId->get($member->user_id);
 
                 return !is_null($member->position)
-                    && !$attendance?->is_absent
-                    && !$attendance?->is_late;
+                    && !$attendance?->is_absent;
             })
             ->groupBy('tate_no')
             ->map(fn($members) => $members->pluck('user_id')->unique()->values());

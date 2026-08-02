@@ -25,6 +25,7 @@
 
         return 'background:' . $color . '; border-color:' . $color . '; color:#111;';
     };
+    $canManageTates = (bool) ($canManageTates ?? (($type ?? 'official') === 'self'));
 @endphp
 
 <div class="container py-3 {{ $type == 'self' ? 'self-bg' : 'official-bg' }}" id="records-container" data-type="{{ $type }}">
@@ -68,12 +69,12 @@
             <a href="{{ route('home', ['date' => $nextDate, 'type'=>$type]) }}" class="btn btn-outline-secondary">＞</a>
         </div>
 
-        @if(($type ?? 'official') === 'self')
+        @if($canManageTates)
             <form method="POST" action="{{ route('records.store') }}" class="mb-0">
                 @csrf
                 <input type="hidden" name="date" value="{{ $date }}">
                 <input type="hidden" name="practice_type" value="{{ $type }}">
-                <button class="btn btn-primary w-100">＋ 立を追加</button>
+                <button class="btn {{ ($type ?? 'official') === 'self' ? 'btn-primary' : 'btn-danger' }} w-100">＋ 立を追加</button>
             </form>
         @endif
     </div>
@@ -88,7 +89,7 @@
             <div class="d-flex align-items-center justify-content-between">
                 <div class="d-flex align-items-center">
                     <strong>{{ $record->tate_no }}立目</strong>
-                    @if(($type ?? 'official') === 'self')
+                    @if($canManageTates)
                         <button class="delete-record ms-2" data-id="{{ $record->id }}" title="立を削除">
                             <i class="fas fa-trash-alt"></i>
                         </button>

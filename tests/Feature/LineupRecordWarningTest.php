@@ -478,6 +478,162 @@ it('shows the first match shot at the bottom of the vertical record column', fun
         ->toBeLessThan(strpos($content, 'data-id="' . $firstShot->id . '"'));
 });
 
+it('keeps late match members in the match records while excluding absent members', function () {
+    $date = '2026-07-25';
+    $host = User::factory()->create([
+        'username' => 'host-late-match-record',
+        'is_admin' => true,
+    ]);
+    $lateMember = User::factory()->create([
+        'name' => 'Late Match Member',
+        'username' => 'late-match-record',
+        'is_admin' => false,
+    ]);
+    $absentMember = User::factory()->create([
+        'name' => 'Absent Match Member',
+        'username' => 'absent-match-record',
+        'is_admin' => false,
+    ]);
+    $group = Group::create([
+        'name' => 'Late Match Record Group',
+        'host_user_id' => $host->id,
+        'invite_code' => '2468',
+    ]);
+    $group->users()->attach([$host->id, $lateMember->id, $absentMember->id]);
+
+    $lineup = Lineup::create([
+        'group_id' => $group->id,
+        'date' => $date,
+        'tate_size' => 2,
+    ]);
+    LineupMember::create([
+        'lineup_id' => $lineup->id,
+        'user_id' => $lateMember->id,
+        'position' => 1,
+        'is_absent' => false,
+        'is_late' => true,
+    ]);
+    LineupMember::create([
+        'lineup_id' => $lineup->id,
+        'user_id' => $absentMember->id,
+        'position' => 2,
+        'is_absent' => true,
+        'is_late' => false,
+    ]);
+
+    $team = MatchTeam::create([
+        'group_id' => $group->id,
+        'date' => $date,
+        'name' => 'Aチーム',
+        'division' => 'mixed',
+        'tate_size' => 2,
+    ]);
+    MatchTeamMember::create([
+        'match_team_id' => $team->id,
+        'date' => $date,
+        'user_id' => $lateMember->id,
+        'tate_no' => 1,
+        'position' => 1,
+        'is_absent' => false,
+        'is_late' => true,
+    ]);
+    MatchTeamMember::create([
+        'match_team_id' => $team->id,
+        'date' => $date,
+        'user_id' => $absentMember->id,
+        'tate_no' => 1,
+        'position' => 2,
+        'is_absent' => true,
+        'is_late' => false,
+    ]);
+
+    $this->actingAs($host)
+        ->get("/group/{$group->id}/match-records?date={$date}&team_id={$team->id}")
+        ->assertOk();
+
+    $lateRecord = Record::where('user_id', $lateMember->id)
+        ->where('date', $date)
+        ->where('practice_type', 'match')
+        ->where('match_team_id', $team->id)
+        ->where('tate_no', 1)
+        ->first();
+
+    expect($lateRecord)->not->toBeNull();
+    expect($lateRecord->shots()->count())->toBe(4);
+    expect(Record::where('user_id', $absentMember->id)
+        ->where('date', $date)
+        ->where('practice_type', 'match')
+        ->where('match_team_id', $team->id)
+        ->exists())->toBeFalse();
+});
+
+it('creates match records for late members when saving a match lineup', function () {
+    $date = '2026-07-25';
+    $host = User::factory()->create([
+        'username' => 'host-save-late-match-record',
+        'is_admin' => true,
+    ]);
+    $lateMember = User::factory()->create([
+        'username' => 'save-late-match-record',
+        'is_admin' => false,
+    ]);
+    $absentMember = User::factory()->create([
+        'username' => 'save-absent-match-record',
+        'is_admin' => false,
+    ]);
+    $group = Group::create([
+        'name' => 'Save Late Match Record Group',
+        'host_user_id' => $host->id,
+        'invite_code' => '8640',
+    ]);
+    $group->users()->attach([$host->id, $lateMember->id, $absentMember->id]);
+
+    $team = MatchTeam::create([
+        'group_id' => $group->id,
+        'date' => $date,
+        'name' => 'Aチーム',
+        'division' => 'mixed',
+        'tate_size' => 2,
+    ]);
+
+    $this->actingAs($host)
+        ->postJson("/match-teams/{$team->id}/tate", [
+            'date' => $date,
+            'tate_no' => 1,
+            'members' => [
+                [
+                    'user_id' => $lateMember->id,
+                    'position' => 1,
+                    'late' => true,
+                    'absent' => false,
+                ],
+                [
+                    'user_id' => $absentMember->id,
+                    'position' => 2,
+                    'late' => false,
+                    'absent' => true,
+                ],
+            ],
+        ])
+        ->assertOk()
+        ->assertJson(['ok' => true]);
+
+    $lateRecord = Record::where('user_id', $lateMember->id)
+        ->where('date', $date)
+        ->where('practice_type', 'match')
+        ->where('match_team_id', $team->id)
+        ->where('tate_no', 1)
+        ->first();
+
+    expect($lateRecord)->not->toBeNull();
+    expect($lateRecord->shots()->count())->toBe(4);
+    expect(Record::where('user_id', $absentMember->id)
+        ->where('date', $date)
+        ->where('practice_type', 'match')
+        ->where('match_team_id', $team->id)
+        ->exists())->toBeFalse();
+});
+
 it('converts saved match shots to the bottom-up order', function () {
     $date = '2026-07-26';
     $host = User::factory()->create([
