@@ -12,9 +12,6 @@ body {
 
 .record-page.official-record-page {
     touch-action: manipulation;
-    -webkit-user-select: none;
-    user-select: none;
-    -webkit-touch-callout: none;
 }
 
 .record-page.official-record-page .score-wrapper,
@@ -22,12 +19,6 @@ body {
 .record-page.official-record-page .user-column,
 .record-page.official-record-page .shot-separator {
     touch-action: manipulation;
-}
-
-.record-page.official-record-page input,
-.record-page.official-record-page textarea {
-    -webkit-user-select: text;
-    user-select: text;
 }
 
 .record-title-bar {
@@ -464,12 +455,6 @@ body.match-record-scroll-locked {
     height: 100dvh;
     overflow: hidden;
     overscroll-behavior: none;
-}
-
-body.official-record-scroll-locked {
-    position: fixed;
-    inset: 0;
-    width: 100%;
 }
 
 body.official-record-scroll-locked > main.container,

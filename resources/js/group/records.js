@@ -6,10 +6,7 @@ function reloadAndPrint() {
     });
 }
 
-lockRecordViewportScale();
-
 window.addEventListener('load', () => {
-    lockRecordViewportScale();
     syncRecordShellOffset();
     const url = new URL(window.location.href);
     const isPrintRequest = url.searchParams.get('print') === '1';
@@ -27,16 +24,6 @@ window.addEventListener('load', () => {
     initMatchSelectionPositionLinks();
     initOfficialMatchTeamControls();
 });
-
-function lockRecordViewportScale() {
-    if (!document.querySelector('.record-page')) {
-        return;
-    }
-
-    document.querySelectorAll('meta[name="viewport"]').forEach(meta => {
-        meta.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover');
-    });
-}
 
 window.addEventListener('resize', syncRecordShellOffset);
 
@@ -655,7 +642,6 @@ function initRecordPageOuterScroll() {
         lastBlockedOuterTapAt = Date.now();
         event.preventDefault();
         event.stopPropagation();
-        stabilizeLockedRecordPageScroll();
     }, { capture: true, passive: false });
 
     page.addEventListener('dblclick', event => {
@@ -665,36 +651,7 @@ function initRecordPageOuterScroll() {
 
         event.preventDefault();
         event.stopPropagation();
-        stabilizeLockedRecordPageScroll();
     }, true);
-
-    window.addEventListener('scroll', () => {
-        if (!outerScrollLocked()) {
-            return;
-        }
-
-        resetLockedRecordPageScroll();
-    }, { passive: true });
-}
-
-function resetLockedRecordPageScroll() {
-    if (
-        !document.body.classList.contains('official-record-scroll-locked') &&
-        !document.body.classList.contains('match-record-scroll-locked')
-    ) {
-        return;
-    }
-
-    window.scrollTo(0, 0);
-    document.documentElement.scrollTop = 0;
-    document.body.scrollTop = 0;
-}
-
-function stabilizeLockedRecordPageScroll() {
-    resetLockedRecordPageScroll();
-    window.requestAnimationFrame(resetLockedRecordPageScroll);
-    setTimeout(resetLockedRecordPageScroll, 40);
-    setTimeout(resetLockedRecordPageScroll, 120);
 }
 
 function initOfficialRecordTapGuard() {
@@ -735,18 +692,6 @@ function initOfficialRecordTapGuard() {
         return !target.closest(allowedTapSelector);
     }
 
-    function isInsideOfficialScore(target) {
-        return target instanceof Element && scrollArea.contains(target);
-    }
-
-    function stabilizeAfterOfficialScoreTap(target) {
-        if (!isInsideOfficialScore(target)) {
-            return;
-        }
-
-        stabilizeLockedRecordPageScroll();
-    }
-
     scrollArea.addEventListener('touchstart', event => {
         if (event.touches.length !== 1) {
             return;
@@ -755,12 +700,10 @@ function initOfficialRecordTapGuard() {
         touchStartX = event.touches[0].clientX;
         touchStartY = event.touches[0].clientY;
         touchMoved = false;
-        stabilizeAfterOfficialScoreTap(event.target);
 
         if (shouldBlockTap(event.target) && Date.now() - lastBlockedTapAt < doubleTapWindowMs) {
             event.preventDefault();
             event.stopPropagation();
-            stabilizeAfterOfficialScoreTap(event.target);
         }
     }, { capture: true, passive: false });
 
@@ -778,50 +721,31 @@ function initOfficialRecordTapGuard() {
     }, { passive: true });
 
     scrollArea.addEventListener('touchend', event => {
-        if (touchMoved) {
-            return;
-        }
-
-        if (!shouldBlockTap(event.target)) {
-            stabilizeAfterOfficialScoreTap(event.target);
+        if (touchMoved || !shouldBlockTap(event.target)) {
             return;
         }
 
         lastBlockedTapAt = Date.now();
         event.preventDefault();
         event.stopPropagation();
-        stabilizeAfterOfficialScoreTap(event.target);
     }, { capture: true, passive: false });
 
     scrollArea.addEventListener('click', event => {
         if (!shouldBlockTap(event.target)) {
-            stabilizeAfterOfficialScoreTap(event.target);
             return;
         }
 
         event.preventDefault();
         event.stopPropagation();
-        stabilizeAfterOfficialScoreTap(event.target);
     }, true);
 
     scrollArea.addEventListener('dblclick', event => {
-        if (!isInsideOfficialScore(event.target)) {
+        if (!shouldBlockTap(event.target)) {
             return;
         }
 
         event.preventDefault();
         event.stopPropagation();
-        stabilizeAfterOfficialScoreTap(event.target);
-    }, true);
-
-    scrollArea.addEventListener('selectstart', event => {
-        if (!isInsideOfficialScore(event.target)) {
-            return;
-        }
-
-        event.preventDefault();
-        event.stopPropagation();
-        stabilizeAfterOfficialScoreTap(event.target);
     }, true);
 }
     
