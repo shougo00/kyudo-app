@@ -20,6 +20,7 @@ window.addEventListener('load', () => {
 
     initMatchSelectionScrollBridge();
     initRecordPageOuterScroll();
+    initOfficialRecordZoomGuard();
     initOfficialRecordTapGuard();
     initMatchSelectionPositionLinks();
     initOfficialMatchTeamControls();
@@ -673,6 +674,41 @@ function initRecordPageOuterScroll() {
         blockOuterTap(event);
     }, true);
 
+}
+
+function initOfficialRecordZoomGuard() {
+    const page = document.querySelector('.record-page.official-record-page');
+
+    if (!page) {
+        return;
+    }
+
+    function blockZoom(event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
+
+    page.addEventListener('touchstart', event => {
+        if (event.touches.length > 1) {
+            blockZoom(event);
+        }
+    }, { capture: true, passive: false });
+
+    page.addEventListener('touchmove', event => {
+        if (event.touches.length > 1) {
+            blockZoom(event);
+        }
+    }, { capture: true, passive: false });
+
+    page.addEventListener('wheel', event => {
+        if (event.ctrlKey) {
+            blockZoom(event);
+        }
+    }, { capture: true, passive: false });
+
+    ['gesturestart', 'gesturechange'].forEach(type => {
+        page.addEventListener(type, blockZoom, { capture: true, passive: false });
+    });
 }
 
 function initOfficialRecordTapGuard() {
