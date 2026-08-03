@@ -540,6 +540,8 @@ function initRecordPageOuterScroll() {
     const outerScrollLocked = () =>
         document.body.classList.contains('official-record-scroll-locked') ||
         document.body.classList.contains('match-record-scroll-locked');
+    const isOfficialRecordPage = page.classList.contains('official-record-page')
+        && !page.classList.contains('match-selection-mode');
     const interactiveSelector = [
         'a',
         'button',
@@ -557,6 +559,11 @@ function initRecordPageOuterScroll() {
         }
 
         return !target.closest(innerScrollSelector) && !target.closest(interactiveSelector);
+    }
+
+    function blockOuterTap(event) {
+        event.preventDefault();
+        event.stopPropagation();
     }
 
     page.addEventListener('wheel', event => {
@@ -605,10 +612,9 @@ function initRecordPageOuterScroll() {
         if (
             outerScrollLocked() &&
             shouldBlockOuterTap(event.target) &&
-            Date.now() - lastBlockedOuterTapAt < doubleTapWindowMs
+            (isOfficialRecordPage || Date.now() - lastBlockedOuterTapAt < doubleTapWindowMs)
         ) {
-            event.preventDefault();
-            event.stopPropagation();
+            blockOuterTap(event);
         }
     }, { capture: true, passive: false });
 
@@ -640,8 +646,15 @@ function initRecordPageOuterScroll() {
         }
 
         lastBlockedOuterTapAt = Date.now();
-        event.preventDefault();
-        event.stopPropagation();
+        blockOuterTap(event);
+    }, { capture: true, passive: false });
+
+    page.addEventListener('click', event => {
+        if (!outerScrollLocked() || !shouldBlockOuterTap(event.target)) {
+            return;
+        }
+
+        blockOuterTap(event);
     }, { capture: true, passive: false });
 
     page.addEventListener('dblclick', event => {
@@ -649,9 +662,26 @@ function initRecordPageOuterScroll() {
             return;
         }
 
-        event.preventDefault();
-        event.stopPropagation();
+        blockOuterTap(event);
     }, true);
+
+    page.addEventListener('selectstart', event => {
+        if (!outerScrollLocked() || !shouldBlockOuterTap(event.target)) {
+            return;
+        }
+
+        blockOuterTap(event);
+    }, true);
+
+    ['gesturestart', 'gesturechange'].forEach(type => {
+        page.addEventListener(type, event => {
+            if (!outerScrollLocked()) {
+                return;
+            }
+
+            blockOuterTap(event);
+        }, { capture: true, passive: false });
+    });
 }
 
 function initOfficialRecordTapGuard() {
@@ -698,27 +728,6 @@ function initOfficialRecordTapGuard() {
         return !target.closest(allowedTapSelector);
     }
 
-    let suppressNextShotClickUntil = 0;
-
-    function touchShotButton(target) {
-        if (!(target instanceof Element)) {
-            return null;
-        }
-
-        const button = target.closest('.shot-btn');
-
-        if (
-            !button ||
-            !scrollArea.contains(button) ||
-            button.classList.contains('empty-shot') ||
-            button.disabled
-        ) {
-            return null;
-        }
-
-        return button;
-    }
-
     scrollArea.addEventListener('touchstart', event => {
         if (event.touches.length !== 1) {
             return;
@@ -752,16 +761,6 @@ function initOfficialRecordTapGuard() {
             return;
         }
 
-        const shotButton = touchShotButton(event.target);
-
-        if (shotButton) {
-            event.preventDefault();
-            event.stopPropagation();
-            suppressNextShotClickUntil = Date.now() + 700;
-            updateShot(shotButton);
-            return;
-        }
-
         if (!shouldBlockTap(event.target)) {
             return;
         }
@@ -772,12 +771,6 @@ function initOfficialRecordTapGuard() {
     }, { capture: true, passive: false });
 
     scrollArea.addEventListener('click', event => {
-        if (touchShotButton(event.target) && Date.now() < suppressNextShotClickUntil) {
-            event.preventDefault();
-            event.stopImmediatePropagation();
-            return;
-        }
-
         if (!shouldBlockTap(event.target)) {
             return;
         }
@@ -803,6 +796,13 @@ function initOfficialRecordTapGuard() {
         event.preventDefault();
         event.stopPropagation();
     }, true);
+
+    ['gesturestart', 'gesturechange'].forEach(type => {
+        scrollArea.addEventListener(type, event => {
+            event.preventDefault();
+            event.stopPropagation();
+        }, { capture: true, passive: false });
+    });
 }
     
 function updateShot(el){
