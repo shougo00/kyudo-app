@@ -4,7 +4,7 @@
     <link rel="manifest" href="/manifest.json">
 
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="{{ request()->routeIs('group.records') ? 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no' : 'width=device-width, initial-scale=1' }}">
 <meta name="csrf-token" content="{{ csrf_token() }}">
 
 <title>Kyudo Score</title>

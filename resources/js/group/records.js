@@ -689,7 +689,34 @@ function initOfficialRecordTapGuard() {
             return true;
         }
 
+        const shotButton = target.closest('.shot-btn');
+
+        if (shotButton && scrollArea.contains(shotButton)) {
+            return shotButton.classList.contains('empty-shot') || shotButton.disabled;
+        }
+
         return !target.closest(allowedTapSelector);
+    }
+
+    let suppressNextShotClickUntil = 0;
+
+    function touchShotButton(target) {
+        if (!(target instanceof Element)) {
+            return null;
+        }
+
+        const button = target.closest('.shot-btn');
+
+        if (
+            !button ||
+            !scrollArea.contains(button) ||
+            button.classList.contains('empty-shot') ||
+            button.disabled
+        ) {
+            return null;
+        }
+
+        return button;
     }
 
     scrollArea.addEventListener('touchstart', event => {
@@ -721,7 +748,21 @@ function initOfficialRecordTapGuard() {
     }, { passive: true });
 
     scrollArea.addEventListener('touchend', event => {
-        if (touchMoved || !shouldBlockTap(event.target)) {
+        if (touchMoved) {
+            return;
+        }
+
+        const shotButton = touchShotButton(event.target);
+
+        if (shotButton) {
+            event.preventDefault();
+            event.stopPropagation();
+            suppressNextShotClickUntil = Date.now() + 700;
+            updateShot(shotButton);
+            return;
+        }
+
+        if (!shouldBlockTap(event.target)) {
             return;
         }
 
@@ -731,6 +772,12 @@ function initOfficialRecordTapGuard() {
     }, { capture: true, passive: false });
 
     scrollArea.addEventListener('click', event => {
+        if (touchShotButton(event.target) && Date.now() < suppressNextShotClickUntil) {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            return;
+        }
+
         if (!shouldBlockTap(event.target)) {
             return;
         }
@@ -740,7 +787,16 @@ function initOfficialRecordTapGuard() {
     }, true);
 
     scrollArea.addEventListener('dblclick', event => {
-        if (!shouldBlockTap(event.target)) {
+        if (!scrollArea.contains(event.target)) {
+            return;
+        }
+
+        event.preventDefault();
+        event.stopPropagation();
+    }, true);
+
+    scrollArea.addEventListener('selectstart', event => {
+        if (!scrollArea.contains(event.target)) {
             return;
         }
 
