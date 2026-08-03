@@ -10,17 +10,6 @@ body {
     max-width: 100%;
 }
 
-.record-page.official-record-page {
-    touch-action: manipulation;
-}
-
-.record-page.official-record-page .score-wrapper,
-.record-page.official-record-page .tate-row,
-.record-page.official-record-page .user-column,
-.record-page.official-record-page .shot-separator {
-    touch-action: manipulation;
-}
-
 .record-title-bar {
     display: flex;
     justify-content: space-between;
@@ -154,10 +143,6 @@ body {
     -webkit-overflow-scrolling: touch;
     touch-action: auto;
     overscroll-behavior: auto;
-}
-
-.record-page.official-record-page .score-scroll:not(.match-score-scroll) {
-    touch-action: manipulation;
 }
 
 .record-page.match-selection-mode .score-scroll {

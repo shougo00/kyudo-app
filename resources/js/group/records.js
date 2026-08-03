@@ -673,15 +673,6 @@ function initRecordPageOuterScroll() {
         blockOuterTap(event);
     }, true);
 
-    ['gesturestart', 'gesturechange'].forEach(type => {
-        page.addEventListener(type, event => {
-            if (!outerScrollLocked()) {
-                return;
-            }
-
-            blockOuterTap(event);
-        }, { capture: true, passive: false });
-    });
 }
 
 function initOfficialRecordTapGuard() {
@@ -797,12 +788,6 @@ function initOfficialRecordTapGuard() {
         event.stopPropagation();
     }, true);
 
-    ['gesturestart', 'gesturechange'].forEach(type => {
-        scrollArea.addEventListener(type, event => {
-            event.preventDefault();
-            event.stopPropagation();
-        }, { capture: true, passive: false });
-    });
 }
     
 function updateShot(el){
