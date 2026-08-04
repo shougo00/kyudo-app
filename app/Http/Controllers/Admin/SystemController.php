@@ -9,6 +9,7 @@ use App\Models\Lineup;
 use App\Models\MatchTeam;
 use App\Models\News;
 use App\Models\Record;
+use App\Models\RegistrationLicenseCode;
 use App\Models\Shot;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
@@ -34,6 +35,7 @@ class SystemController extends Controller
             'recentUsers' => User::latest()->limit(8)->get(),
             'recentGroups' => Group::with(['host', 'users'])->latest()->limit(8)->get(),
             'recentRecords' => Record::with('user')->latest()->limit(10)->get(),
+            'recentLicenseCodes' => RegistrationLicenseCode::withCount('users')->latest()->limit(8)->get(),
             'logFiles' => $logFiles,
             'selectedLog' => $selectedLog,
             'logLines' => $selectedLog ? $this->tailLog($selectedLog['path']) : [],
@@ -146,6 +148,72 @@ class SystemController extends Controller
         return view('admin.system.groups', compact('groups', 'search'));
     }
 
+    public function licenseCodes(Request $request): View
+    {
+        $this->authorizeSystemAdmin($request);
+
+        $search = trim((string) $request->query('search', ''));
+
+        $licenseCodes = RegistrationLicenseCode::query()
+            ->with('creator')
+            ->withCount('users')
+            ->when($search !== '', function ($query) use ($search) {
+                $query->where(function ($query) use ($search) {
+                    $query->where('code', 'like', "%{$search}%")
+                        ->orWhere('memo', 'like', "%{$search}%");
+                });
+            })
+            ->orderByDesc('id')
+            ->paginate(20)
+            ->withQueryString();
+
+        return view('admin.system.license_codes', compact('licenseCodes', 'search'));
+    }
+
+    public function storeLicenseCode(Request $request): RedirectResponse
+    {
+        $this->authorizeSystemAdmin($request);
+
+        $validated = $this->validateLicenseCode($request);
+
+        RegistrationLicenseCode::create([
+            'code' => RegistrationLicenseCode::normalize($validated['code']),
+            'memo' => $validated['memo'] ?? null,
+            'is_active' => $request->boolean('is_active'),
+            'created_by' => $request->user()->id,
+        ]);
+
+        return back()->with('success', 'ライセンスコードを追加しました。');
+    }
+
+    public function updateLicenseCode(Request $request, RegistrationLicenseCode $licenseCode): RedirectResponse
+    {
+        $this->authorizeSystemAdmin($request);
+
+        $validated = $this->validateLicenseCode($request, $licenseCode);
+
+        $licenseCode->update([
+            'code' => RegistrationLicenseCode::normalize($validated['code']),
+            'memo' => $validated['memo'] ?? null,
+            'is_active' => $request->boolean('is_active'),
+        ]);
+
+        return back()->with('success', 'ライセンスコードを更新しました。');
+    }
+
+    public function destroyLicenseCode(Request $request, RegistrationLicenseCode $licenseCode): RedirectResponse
+    {
+        $this->authorizeSystemAdmin($request);
+
+        if ($licenseCode->users()->exists()) {
+            return back()->with('error', '使用済みのライセンスコードは削除できません。無効化してください。');
+        }
+
+        $licenseCode->delete();
+
+        return back()->with('success', 'ライセンスコードを削除しました。');
+    }
+
     public function updateGroup(Request $request, Group $group): RedirectResponse
     {
         $this->authorizeSystemAdmin($request);
@@ -192,6 +260,8 @@ class SystemController extends Controller
             'normal_users' => User::where('is_admin', false)->count(),
             'admins' => User::where('is_admin', true)->count(),
             'groups' => Group::count(),
+            'license_codes' => RegistrationLicenseCode::count(),
+            'active_license_codes' => RegistrationLicenseCode::where('is_active', true)->count(),
             'records' => Record::count(),
             'shots' => Shot::count(),
             'lineups' => Lineup::count(),
@@ -201,6 +271,30 @@ class SystemController extends Controller
             'sessions' => $this->tableCount('sessions'),
             'jobs' => $this->tableCount('jobs'),
         ];
+    }
+
+    private function validateLicenseCode(Request $request, ?RegistrationLicenseCode $licenseCode = null): array
+    {
+        $request->merge([
+            'code' => RegistrationLicenseCode::normalize((string) $request->input('code', '')),
+        ]);
+
+        return $request->validate([
+            'code' => [
+                'required',
+                'string',
+                'max:50',
+                'regex:/^[A-Za-z0-9-]+$/',
+                Rule::unique('registration_license_codes', 'code')->ignore($licenseCode?->id),
+            ],
+            'memo' => ['nullable', 'string', 'max:255'],
+            'is_active' => ['nullable', 'boolean'],
+        ], [
+            'code.required' => 'ライセンスコードを入力してください。',
+            'code.regex' => 'ライセンスコードは英数字とハイフンのみ使用できます。',
+            'code.unique' => 'このライセンスコードはすでに登録されています。',
+            'memo.max' => 'メモは255文字以内で入力してください。',
+        ]);
     }
 
     private function tableCount(string $table): int

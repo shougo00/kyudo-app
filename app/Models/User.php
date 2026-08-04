@@ -20,6 +20,7 @@ class User extends Authenticatable
   // app/Models/User.php
     protected $fillable = [
         'name',
+        'registration_license_code_id',
         'username',
         'email',
         'password',
@@ -96,6 +97,11 @@ class User extends Authenticatable
     {
         return $this->belongsToMany(Group::class, 'group_user')
             ->wherePivotNull('deleted_at');
+    }
+
+    public function registrationLicenseCode()
+    {
+        return $this->belongsTo(RegistrationLicenseCode::class, 'registration_license_code_id');
     }
 
 }

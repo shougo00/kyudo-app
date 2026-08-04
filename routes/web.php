@@ -45,6 +45,10 @@ Route::middleware([ 'verified'])->group(function () {
     Route::get('/admin/system/groups', [SystemController::class, 'groups'])->name('admin.system.groups');
     Route::patch('/admin/system/groups/{group}', [SystemController::class, 'updateGroup'])->name('admin.system.groups.update');
     Route::delete('/admin/system/groups/{group}', [SystemController::class, 'destroyGroup'])->name('admin.system.groups.destroy');
+    Route::get('/admin/system/license-codes', [SystemController::class, 'licenseCodes'])->name('admin.system.license-codes');
+    Route::post('/admin/system/license-codes', [SystemController::class, 'storeLicenseCode'])->name('admin.system.license-codes.store');
+    Route::patch('/admin/system/license-codes/{licenseCode}', [SystemController::class, 'updateLicenseCode'])->name('admin.system.license-codes.update');
+    Route::delete('/admin/system/license-codes/{licenseCode}', [SystemController::class, 'destroyLicenseCode'])->name('admin.system.license-codes.destroy');
 
     // 3️⃣ ユーザ管理画面
     Route::get('/users', [UserController::class, 'index'])->name('users.index');

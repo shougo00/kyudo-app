@@ -181,6 +181,17 @@ body {
                     </div>
                 </div>
 
+                <!-- ライセンスコード -->
+                <div class="mb-3">
+                    <label class="form-label">ライセンスコード</label>
+                    <input type="text"
+                        name="license_code"
+                        class="form-control @error('license_code') is-invalid @enderror"
+                        value="{{ old('license_code') }}"
+                        maxlength="50"
+                        required>
+                </div>
+
                 <!-- 登録ボタン -->
                 <div class="d-grid mb-3">
                     <button class="btn btn-primary">

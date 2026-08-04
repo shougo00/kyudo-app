@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\RegistrationLicenseCode;
 use App\Models\User;
 use App\Rules\PasswordPolicy;
 use Illuminate\Auth\Events\Registered;
@@ -10,6 +11,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class RegisteredUserController extends Controller
@@ -40,21 +42,33 @@ class RegisteredUserController extends Controller
                 'unique:users,username',
             ],
             'password' => ['required', 'confirmed', new PasswordPolicy()],
-            'is_admin' => ['nullable', 'boolean'],
             'gender' => ['required', 'in:male,female'],
+            'license_code' => ['required', 'string', 'max:50'],
         ], [
             'username.required' => 'ユーザー名を入力してください。',
             'username.min' => 'ユーザー名は5文字以上で入力してください。',
             'username.regex' => 'ユーザー名は英数字のみ使用できます。',
             'username.unique' => 'このユーザー名はすでに使われています。',
+            'license_code.required' => 'ライセンスコードを入力してください。',
         ]);
+
+        $licenseCode = RegistrationLicenseCode::where('code', RegistrationLicenseCode::normalize($request->license_code))
+            ->where('is_active', true)
+            ->first();
+
+        if (!$licenseCode) {
+            throw ValidationException::withMessages([
+                'license_code' => '有効なライセンスコードを入力してください。',
+            ]);
+        }
 
         $user = User::create([
             'name' => $request->name,
+            'registration_license_code_id' => $licenseCode->id,
             'username' => $request->username,
             'email' => null,
             'password' => Hash::make($request->password),
-            'is_admin' => $request->has('is_admin'),
+            'is_admin' => false,
             'gender' => $request->gender,
         ]);
 

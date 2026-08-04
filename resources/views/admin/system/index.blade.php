@@ -11,6 +11,7 @@
         <div class="d-flex gap-2 flex-wrap">
             <a href="{{ route('admin.system.users') }}" class="btn btn-outline-primary">KANRIユーザー管理</a>
             <a href="{{ route('admin.system.groups') }}" class="btn btn-outline-primary">KANRIグループ管理</a>
+            <a href="{{ route('admin.system.license-codes') }}" class="btn btn-outline-primary">ライセンスコード管理</a>
             <a href="{{ route('news.index') }}" class="btn btn-outline-primary">お知らせ管理</a>
         </div>
     </div>
@@ -21,6 +22,8 @@
             '一般ユーザー' => $stats['normal_users'],
             '管理ユーザー' => $stats['admins'],
             'グループ' => $stats['groups'],
+            'ライセンスコード' => $stats['license_codes'],
+            '有効コード' => $stats['active_license_codes'],
             '記録' => $stats['records'],
             '矢数' => $stats['shots'],
             '立順' => $stats['lineups'],
@@ -38,7 +41,7 @@
     </div>
 
     <div class="row g-3 mb-4">
-        <div class="col-lg-4">
+        <div class="col-lg-3">
             <div class="admin-panel">
                 <div class="admin-panel-head">最近のユーザー</div>
                 <div class="admin-list">
@@ -59,7 +62,7 @@
             </div>
         </div>
 
-        <div class="col-lg-4">
+        <div class="col-lg-3">
             <div class="admin-panel">
                 <div class="admin-panel-head">最近のグループ</div>
                 <div class="admin-list">
@@ -82,7 +85,7 @@
             </div>
         </div>
 
-        <div class="col-lg-4">
+        <div class="col-lg-3">
             <div class="admin-panel">
                 <div class="admin-panel-head">最近の記録</div>
                 <div class="admin-list">
@@ -95,6 +98,27 @@
                         </div>
                     @empty
                         <div class="text-muted">記録がありません。</div>
+                    @endforelse
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-3">
+            <div class="admin-panel">
+                <div class="admin-panel-head">最近のライセンスコード</div>
+                <div class="admin-list">
+                    @forelse($recentLicenseCodes as $recentLicenseCode)
+                        <div class="admin-list-row">
+                            <div>
+                                <strong>{{ $recentLicenseCode->code }}</strong>
+                                <span>{{ $recentLicenseCode->memo ?: 'メモなし' }} / {{ $recentLicenseCode->users_count }}人使用</span>
+                            </div>
+                            <span class="badge {{ $recentLicenseCode->is_active ? 'text-bg-success' : 'text-bg-secondary' }}">
+                                {{ $recentLicenseCode->is_active ? '有効' : '無効' }}
+                            </span>
+                        </div>
+                    @empty
+                        <div class="text-muted">ライセンスコードがありません。</div>
                     @endforelse
                 </div>
             </div>
