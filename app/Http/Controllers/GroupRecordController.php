@@ -169,7 +169,14 @@ class GroupRecordController extends Controller
         $this->normalizeOfficialTateNos($date, $sheetLookupUserIds);
 
         $sheetNos = $this->officialSheetNos($groupId, $date, $sheetLookupUserIds);
-        $activeSheetNo = (int) ($request->sheet_no ?? $sheetNos->max() ?? 1);
+        $requestedSheetNo = $request->filled('sheet_no') ? (int) $request->sheet_no : null;
+        $defaultSheetNo = (int) ($sheetNos->max() ?? 1);
+
+        if (is_null($requestedSheetNo) && \Carbon\Carbon::parse($date)->lt(\Carbon\Carbon::today())) {
+            $defaultSheetNo = 1;
+        }
+
+        $activeSheetNo = (int) ($requestedSheetNo ?? $defaultSheetNo);
 
         if ($activeSheetNo < 1) {
             $activeSheetNo = 1;

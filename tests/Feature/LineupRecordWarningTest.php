@@ -291,6 +291,72 @@ it('keeps the active official sheet number when linking from records to lineup',
     );
 });
 
+it('opens past official record dates on the first sheet unless a sheet is selected', function () {
+    \Carbon\Carbon::setTestNow(\Carbon\Carbon::parse('2026-07-26 12:00:00'));
+
+    try {
+        $date = '2026-07-25';
+        $host = User::factory()->create([
+            'username' => 'host-past-official-first-sheet',
+            'is_admin' => true,
+        ]);
+        $member = User::factory()->create([
+            'username' => 'member-past-official-first-sheet',
+            'is_admin' => false,
+        ]);
+        $group = Group::create([
+            'name' => 'Past Official First Sheet Group',
+            'host_user_id' => $host->id,
+            'invite_code' => '9135',
+        ]);
+        $group->users()->attach([$host->id, $member->id]);
+
+        $lineup = Lineup::create([
+            'group_id' => $group->id,
+            'date' => $date,
+            'tate_size' => 1,
+        ]);
+        LineupMember::create([
+            'lineup_id' => $lineup->id,
+            'user_id' => $member->id,
+            'position' => 1,
+            'is_absent' => false,
+            'is_late' => false,
+        ]);
+
+        DB::table('official_record_sheets')->insert([
+            [
+                'group_id' => $group->id,
+                'date' => $date,
+                'sheet_no' => 1,
+                'scoring_mode' => 'hit_miss',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'group_id' => $group->id,
+                'date' => $date,
+                'sheet_no' => 2,
+                'scoring_mode' => 'hit_miss',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+        ]);
+
+        $this->actingAs($host)
+            ->get("/group/{$group->id}/records?date={$date}")
+            ->assertOk()
+            ->assertSee('<strong>1ページ目</strong>', false);
+
+        $this->actingAs($host)
+            ->get("/group/{$group->id}/records?date={$date}&sheet_no=2")
+            ->assertOk()
+            ->assertSee('<strong>2ページ目</strong>', false);
+    } finally {
+        \Carbon\Carbon::setTestNow();
+    }
+});
+
 it('shows the first group official shot at the bottom of the vertical record column', function () {
     $date = '2026-07-25';
     $host = User::factory()->create([
