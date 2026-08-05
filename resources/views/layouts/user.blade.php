@@ -89,9 +89,37 @@
     /* ナビメニュー文字を小さく */
     .navbar-nav .nav-link { font-size:0.9rem; }
 }
+
+.nav-unread-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 999px;
+    background: #dc3545;
+    color: #fff;
+    font-size: 0.72rem;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.hamburger-unread-badge {
+    position: absolute;
+    top: 0;
+    right: 0;
+    transform: translate(35%, -35%);
+}
 </style>
 </head>
 <body class="bg-light">
+@auth
+    @php
+        $unreadNewsCount = Auth::user()->unreadNewsCount();
+        $unreadNewsLabel = $unreadNewsCount > 99 ? '99+' : (string) $unreadNewsCount;
+    @endphp
+@endauth
 
 <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm">
 <div class="container d-flex justify-content-between align-items-center">
@@ -156,10 +184,15 @@
         </div>
 
         <!-- 右（ハンバーガー） -->
-        <button class="navbar-toggler" type="button"
+        <button class="navbar-toggler position-relative" type="button"
             data-bs-toggle="offcanvas"
             data-bs-target="#mobileMenu">
             <span class="navbar-toggler-icon"></span>
+            @auth
+                @if($unreadNewsCount > 0)
+                    <span class="nav-unread-badge hamburger-unread-badge">{{ $unreadNewsLabel }}</span>
+                @endif
+            @endauth
         </button>
     </div>
 
@@ -230,6 +263,15 @@
                         onclick="goAttendance()">出欠確認</a>
                     </li>
 
+                    <li class="nav-item">
+                        <a class="nav-link active d-inline-flex align-items-center gap-1" href="{{ route('news.index') }}">
+                            お知らせ
+                            @if($unreadNewsCount > 0)
+                                <span class="nav-unread-badge">{{ $unreadNewsLabel }}</span>
+                            @endif
+                        </a>
+                    </li>
+
                     @if(Auth::user()->uses_camera)
                         <li class="nav-item">
                             <a class="nav-link active" href="{{ route('camera') }}">カメラ</a>
@@ -242,6 +284,15 @@
                     <li class="nav-item">
                         <a class="nav-link active" href="#"
                         onclick="goAttendance()">出席管理</a>
+                    </li>
+
+                    <li class="nav-item">
+                        <a class="nav-link active d-inline-flex align-items-center gap-1" href="{{ route('news.index') }}">
+                            お知らせ
+                            @if($unreadNewsCount > 0)
+                                <span class="nav-unread-badge">{{ $unreadNewsLabel }}</span>
+                            @endif
+                        </a>
                     </li>
                 @endif
 
@@ -372,6 +423,15 @@
                         </a>
                     </li>
 
+                    <li class="nav-item mb-2">
+                        <a class="nav-link d-inline-flex align-items-center gap-2" href="{{ route('news.index') }}">
+                            お知らせ
+                            @if($unreadNewsCount > 0)
+                                <span class="nav-unread-badge">{{ $unreadNewsLabel }}</span>
+                            @endif
+                        </a>
+                    </li>
+
                     @if(Auth::user()->uses_camera)
                         <li class="nav-item mb-2">
                             <a class="nav-link" href="{{ route('camera') }}">
@@ -386,6 +446,15 @@
                     <li class="nav-item mb-2">
                         <a class="nav-link" href="#" onclick="goAttendance()">
                             出席管理
+                        </a>
+                    </li>
+
+                    <li class="nav-item mb-2">
+                        <a class="nav-link d-inline-flex align-items-center gap-2" href="{{ route('news.index') }}">
+                            お知らせ
+                            @if($unreadNewsCount > 0)
+                                <span class="nav-unread-badge">{{ $unreadNewsLabel }}</span>
+                            @endif
                         </a>
                     </li>
                 @endif

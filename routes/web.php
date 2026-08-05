@@ -6,7 +6,7 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\AvatarController;
 use App\Http\Controllers\RecordController;
-use App\Http\Controllers\Admin\NewsController;
+use App\Http\Controllers\NewsController;
 use App\Http\Controllers\VideoController;
 use App\Http\Controllers\GroupController;
 use App\Http\Controllers\GroupRecordController;
@@ -20,6 +20,7 @@ use App\Http\Controllers\LineWebhookController;
 use App\Http\Controllers\MatchLineupController;
 use App\Http\Controllers\SettingController;
 use App\Http\Controllers\Admin\SystemController;
+use App\Http\Controllers\Admin\NewsController as AdminNewsController;
 Route::get('/', function () {
     return redirect('/login');
 });
@@ -57,7 +58,10 @@ Route::middleware([ 'verified'])->group(function () {
 
    Route::get('/home', [RecordController::class, 'index'])->name('home');
 
-    Route::resource('news', NewsController::class)->except(['show']);
+    Route::get('/news', [NewsController::class, 'index'])->name('news.index');
+    Route::post('/news/mark-all-read', [NewsController::class, 'markAllRead'])->name('news.mark-all-read');
+    Route::get('/news/{news}', [NewsController::class, 'show'])->name('news.show');
+    Route::resource('admin/news', AdminNewsController::class)->except(['show'])->names('admin.news');
 
     // ホーム画面に変更
     Route::get('/home', [RecordController::class, 'index'])->name('home');

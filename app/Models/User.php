@@ -6,11 +6,14 @@ use App\Models\Group;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Schema;
 
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory, Notifiable;
+
+    private static ?bool $hasNewsUserTable = null;
 
     /**
      * The attributes that are mass assignable.
@@ -102,6 +105,27 @@ class User extends Authenticatable
     public function registrationLicenseCode()
     {
         return $this->belongsTo(RegistrationLicenseCode::class, 'registration_license_code_id');
+    }
+
+    public function receivedNews()
+    {
+        return $this->belongsToMany(News::class, 'news_user')
+            ->withPivot('read_at')
+            ->withTimestamps();
+    }
+
+    public function unreadNewsCount(): int
+    {
+        self::$hasNewsUserTable ??= Schema::hasTable('news_user');
+
+        if (!self::$hasNewsUserTable) {
+            return 0;
+        }
+
+        return $this->receivedNews()
+            ->where('is_published', true)
+            ->wherePivotNull('read_at')
+            ->count();
     }
 
 }

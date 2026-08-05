@@ -12,7 +12,7 @@
             <a href="{{ route('admin.system.users') }}" class="btn btn-outline-primary">KANRIユーザー管理</a>
             <a href="{{ route('admin.system.groups') }}" class="btn btn-outline-primary">KANRIグループ管理</a>
             <a href="{{ route('admin.system.license-codes') }}" class="btn btn-outline-primary">ライセンスコード管理</a>
-            <a href="{{ route('news.index') }}" class="btn btn-outline-primary">お知らせ管理</a>
+            <a href="{{ route('admin.news.index') }}" class="btn btn-outline-primary">お知らせ管理</a>
         </div>
     </div>
 
