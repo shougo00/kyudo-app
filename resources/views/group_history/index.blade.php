@@ -23,6 +23,7 @@
                         'group' => $group->id,
                         'month' => $month,
                     ] + $monthlyQuery) }}"
+                   data-monthly-loading
                    class="btn btn-outline-success btn-sm">
                     CSV出力
                 </a>
@@ -52,6 +53,7 @@
                 'view' => 'monthly',
                 'month' => $month ?? now()->format('Y-m'),
             ] + $monthlyQuery) }}"
+           data-monthly-loading
            class="page-tab {{ $view === 'monthly' ? 'active' : '' }}">
             月間記録
         </a>
@@ -138,7 +140,7 @@
 
     @else
 
-        <form method="GET" class="filter-box monthly-filter">
+        <form method="GET" class="filter-box monthly-filter" data-monthly-loading-form>
             <input type="hidden" name="view" value="monthly">
             <input type="hidden" name="month" value="{{ $month }}">
 
@@ -163,6 +165,7 @@
                     'view' => 'monthly',
                     'month' => $prevMonth,
                 ] + $monthlyQuery) }}"
+               data-monthly-loading
                class="btn btn-outline-secondary">
                 ＜
             </a>
@@ -176,6 +179,7 @@
                     'view' => 'monthly',
                     'month' => $nextMonth,
                 ] + $monthlyQuery) }}"
+               data-monthly-loading
                class="btn btn-outline-secondary">
                 ＞
             </a>
@@ -288,8 +292,46 @@
 
 </div>
 
+<div class="history-loading-overlay" id="historyLoadingOverlay" aria-live="polite" aria-hidden="true">
+    <div class="history-loading-box">
+        <div class="history-loading-spinner"></div>
+        <div class="history-loading-title">計算中...</div>
+        <div class="history-loading-text">月間記録を集計しています</div>
+    </div>
+</div>
+
 <script>
 document.addEventListener('DOMContentLoaded', () => {
+    const loadingOverlay = document.getElementById('historyLoadingOverlay');
+    const showMonthlyLoading = () => {
+        if (!loadingOverlay) return;
+
+        loadingOverlay.classList.add('show');
+        loadingOverlay.setAttribute('aria-hidden', 'false');
+    };
+
+    document.querySelectorAll('[data-monthly-loading]').forEach(link => {
+        link.addEventListener('click', event => {
+            if (
+                event.defaultPrevented ||
+                event.button !== 0 ||
+                event.metaKey ||
+                event.ctrlKey ||
+                event.shiftKey ||
+                event.altKey ||
+                link.classList.contains('active')
+            ) {
+                return;
+            }
+
+            showMonthlyLoading();
+        });
+    });
+
+    document.querySelectorAll('[data-monthly-loading-form]').forEach(form => {
+        form.addEventListener('submit', showMonthlyLoading);
+    });
+
     const scoreChecks = document.querySelector('[data-score-checks]');
     if (!scoreChecks) return;
 
