@@ -15,7 +15,9 @@ class GroupHistoryController extends Controller
             abort(403);
         }
 
-        $view = $request->input('view', 'ranking');
+        $view = in_array($request->input('view', 'ranking'), ['ranking', 'monthly'], true)
+            ? $request->input('view', 'ranking')
+            : 'ranking';
 
         $availableScoreTypes = [
             'official' => '正規練',
@@ -50,63 +52,68 @@ class GroupHistoryController extends Controller
         $prevMonth = $currentMonth->copy()->subMonth()->format('Y-m');
         $nextMonth = $currentMonth->copy()->addMonth()->format('Y-m');
 
-        // ===== グループメンバー =====
-        $membersQuery = $group->users()
-            ->where('is_admin', false)
-            ->with('avatar');
+        $maleRanking = collect();
+        $femaleRanking = collect();
+        $monthlyRecords = collect();
 
-        $members = $membersQuery->get();
+        if ($view === 'ranking') {
+            // ===== グループメンバー =====
+            $members = $group->users()
+                ->where('is_admin', false)
+                ->with('avatar')
+                ->get();
 
-        // ===== ランキング用 =====
-        [$start, $end] = $this->periodRange($period);
+            // ===== ランキング用 =====
+            [$start, $end] = $this->periodRange($period);
 
-        $memberIds = $members->pluck('id');
+            $memberIds = $members->pluck('id');
 
-        $rankingSourceRecords = Record::with('shots')
-            ->whereIn('user_id', $memberIds)
-            ->whereBetween('date', [$start, $end])
-            ->whereIn('practice_type', array_keys($availableScoreTypes))
-            ->get()
-            ->groupBy('user_id');
+            $rankingSourceRecords = Record::with('shots')
+                ->whereIn('user_id', $memberIds)
+                ->whereBetween('date', [$start, $end])
+                ->whereIn('practice_type', array_keys($availableScoreTypes))
+                ->get()
+                ->groupBy('user_id');
 
-        $ranking = $members->map(function ($user) use ($rankingSourceRecords, $scoreTypes) {
-            $records = $rankingSourceRecords->get($user->id, collect());
-            $selectedRecords = in_array('all', $scoreTypes, true)
-                ? $records
-                : $records->whereIn('practice_type', $scoreTypes);
+            $ranking = $members->map(function ($user) use ($rankingSourceRecords, $scoreTypes) {
+                $records = $rankingSourceRecords->get($user->id, collect());
+                $selectedRecords = in_array('all', $scoreTypes, true)
+                    ? $records
+                    : $records->whereIn('practice_type', $scoreTypes);
 
-            return [
-                'user' => $user,
-                'selected' => $this->calc($selectedRecords),
-                'all' => $this->calc($records),
-                'official' => $this->calc($records->where('practice_type', 'official')),
-                'self' => $this->calc($records->where('practice_type', 'self')),
-            ];
-        });
+                return [
+                    'user' => $user,
+                    'selected' => $this->calc($selectedRecords),
+                    'all' => $this->calc($records),
+                    'official' => $this->calc($records->where('practice_type', 'official')),
+                    'self' => $this->calc($records->where('practice_type', 'self')),
+                ];
+            });
 
-        $sortRanking = function ($items) use ($limit) {
-            $items = $items
-                ->sort(function ($a, $b) {
-                    if ($a['selected']['rate'] == $b['selected']['rate']) {
-                        return $b['selected']['hits'] <=> $a['selected']['hits'];
-                    }
+            $sortRanking = function ($items) use ($limit) {
+                $items = $items
+                    ->sort(function ($a, $b) {
+                        if ($a['selected']['rate'] == $b['selected']['rate']) {
+                            return $b['selected']['hits'] <=> $a['selected']['hits'];
+                        }
 
-                    return $b['selected']['rate'] <=> $a['selected']['rate'];
-                })
-                ->values();
+                        return $b['selected']['rate'] <=> $a['selected']['rate'];
+                    })
+                    ->values();
 
-            return $items->take((int) $limit)->values();
-        };
+                return $items->take((int) $limit)->values();
+            };
 
-        $maleRanking = $sortRanking(
-            $ranking->filter(fn($row) => $row['user']->gender === 'male')
-        );
+            $maleRanking = $sortRanking(
+                $ranking->filter(fn($row) => $row['user']->gender === 'male')
+            );
 
-        $femaleRanking = $sortRanking(
-            $ranking->filter(fn($row) => $row['user']->gender === 'female')
-        );
-
-        $monthlyRecords = $this->monthlyRows($group, $currentMonth, $keyword);
+            $femaleRanking = $sortRanking(
+                $ranking->filter(fn($row) => $row['user']->gender === 'female')
+            );
+        } else {
+            $monthlyRecords = $this->monthlyRows($group, $currentMonth, $keyword);
+        }
 
         return view('group_history.index', compact(
             'group',
