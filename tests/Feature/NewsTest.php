@@ -3,6 +3,8 @@
 use App\Models\News;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 
 uses(RefreshDatabase::class);
 
@@ -65,4 +67,29 @@ it('lets KANRI create news for selected users', function () {
         'user_id' => $recipient->id,
         'read_at' => null,
     ]);
+});
+
+it('stores attached news images on the public disk', function () {
+    Storage::fake('public');
+
+    $admin = User::where('username', 'KANRI')->firstOrFail();
+    $recipient = User::factory()->create(['username' => 'image_recipient']);
+
+    $this->actingAs($admin)
+        ->post(route('admin.news.store'), [
+            'title' => '画像付きお知らせ',
+            'body' => '画像本文',
+            'is_published' => '1',
+            'recipient_ids' => [$recipient->id],
+            'image' => UploadedFile::fake()->createWithContent(
+                'notice.png',
+                base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=')
+            ),
+        ])
+        ->assertRedirect(route('admin.news.index'));
+
+    $news = News::where('title', '画像付きお知らせ')->firstOrFail();
+
+    expect($news->image_path)->toStartWith('news_images/');
+    Storage::disk('public')->assertExists($news->image_path);
 });

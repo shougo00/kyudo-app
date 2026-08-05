@@ -37,8 +37,8 @@
                 <tr>
                     <td class="fw-semibold">{{ $item->title }}</td>
                     <td>
-                        @if($item->image_path)
-                            <img src="{{ asset($item->image_path) }}" class="news-thumb" alt="">
+                        @if($item->imageUrl())
+                            <img src="{{ $item->imageUrl() }}" class="news-thumb" alt="">
                         @else
                             <span class="text-muted small">なし</span>
                         @endif
@@ -86,8 +86,8 @@
                     </span>
                 </div>
 
-                @if($item->image_path)
-                    <img src="{{ asset($item->image_path) }}" class="news-card-image mb-2" alt="">
+                @if($item->imageUrl())
+                    <img src="{{ $item->imageUrl() }}" class="news-card-image mb-2" alt="">
                 @endif
 
                 <a href="{{ route('admin.news.edit', $item) }}" class="btn btn-warning btn-sm w-100 mb-2">編集</a>

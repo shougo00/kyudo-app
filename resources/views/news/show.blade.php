@@ -10,8 +10,8 @@
         <div class="news-date">{{ $news->created_at->format('Y/m/d') }}</div>
         <h4>{{ $news->title }}</h4>
 
-        @if($news->image_path)
-            <img src="{{ asset($news->image_path) }}" class="news-detail-image" alt="">
+        @if($news->imageUrl())
+            <img src="{{ $news->imageUrl() }}" class="news-detail-image" alt="">
         @endif
 
         <div class="news-body">

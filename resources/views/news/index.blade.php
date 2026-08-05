@@ -23,8 +23,8 @@
     <div class="news-list">
         @forelse($news as $item)
             <a href="{{ route('news.show', $item) }}" class="news-list-item">
-                @if($item->image_path)
-                    <img src="{{ asset($item->image_path) }}" class="news-list-image" alt="">
+                @if($item->imageUrl())
+                    <img src="{{ $item->imageUrl() }}" class="news-list-image" alt="">
                 @endif
 
                 <div class="news-list-body">

@@ -9,6 +9,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
@@ -168,22 +169,32 @@ class NewsController extends Controller
             return null;
         }
 
-        $directory = public_path('news_images');
-        File::ensureDirectoryExists($directory);
-
         $file = $request->file('image');
         $filename = Str::uuid().'.'.$file->extension();
-        $file->move($directory, $filename);
+        $path = Storage::disk('public')->putFileAs('news_images', $file, $filename);
 
-        return 'news_images/'.$filename;
+        if ($path === false) {
+            abort(500, '画像を保存できませんでした。');
+        }
+
+        return $path;
     }
 
     private function deleteImage(?string $path): void
     {
-        if (!$path || !str_starts_with($path, 'news_images/')) {
+        if (!$path) {
             return;
         }
 
-        File::delete(public_path($path));
+        if (str_starts_with($path, 'storage/')) {
+            Storage::disk('public')->delete(Str::after($path, 'storage/'));
+
+            return;
+        }
+
+        if (str_starts_with($path, 'news_images/')) {
+            Storage::disk('public')->delete($path);
+            File::delete(public_path($path));
+        }
     }
 }

@@ -35,11 +35,11 @@
                 @error('body')<div class="text-danger small mt-1">{{ $message }}</div>@enderror
             </div>
 
-            @if($news->image_path)
+            @if($news->imageUrl())
                 <div class="mb-3">
                     <label class="form-label">現在の画像</label>
                     <div class="current-news-image">
-                        <img src="{{ asset($news->image_path) }}" alt="">
+                        <img src="{{ $news->imageUrl() }}" alt="">
                     </div>
                     <div class="form-check mt-2">
                         <input class="form-check-input" type="checkbox" name="remove_image" id="remove_image" value="1">
