@@ -93,7 +93,7 @@
                         <div class="admin-list-row">
                             <div>
                                 <strong>{{ $recentRecord->user?->name ?? '不明' }}</strong>
-                                <span>{{ $recentRecord->date }} / {{ $recentRecord->practice_type }} / {{ $recentRecord->tate_no }}立</span>
+                                <span>{{ $recentRecord->date }} {{ $recentRecord->created_at?->format('H:i') }} / {{ $recentRecord->practice_type }} / {{ $recentRecord->tate_no }}立</span>
                             </div>
                         </div>
                     @empty
