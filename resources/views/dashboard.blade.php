@@ -45,9 +45,10 @@ window.historyPageData = {
             </div>
             <a href="{{ route('group.history', [
                     'group' => $targetGroup->id,
+                ] + ($historyBackQuery ?? [
                     'view' => 'monthly',
                     'month' => $month,
-                ]) }}"
+                ])) }}"
                class="history-back-button">
                 戻る
             </a>

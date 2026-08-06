@@ -1,6 +1,7 @@
 <div class="rank-card">
     @php
         $scoreTypes = $scoreTypes ?? ['all'];
+        $detailReturnQuery = $detailReturnQuery ?? [];
         $allSelected = in_array('all', $scoreTypes, true);
     @endphp
 
@@ -27,7 +28,10 @@
     <div class="rank-info">
         <div class="name-with-action">
             <div class="user-name">{{ $row['user']->name }}</div>
-            <a href="{{ route('dashboard', ['group_id' => $group->id, 'user_id' => $row['user']->id]) }}"
+            <a href="{{ route('dashboard', [
+                    'group_id' => $group->id,
+                    'user_id' => $row['user']->id,
+                ] + $detailReturnQuery) }}"
                class="detail-link">
                 詳細
             </a>

@@ -191,6 +191,14 @@
     color: #0d6efd;
 }
 
+.group-self-record-page .summary-text .shots,
+.group-self-record-page .summary-text .hits,
+.group-self-record-page .summary-text .rate {
+    font-size: 20px;
+    font-weight: 800;
+    line-height: 1;
+}
+
 .self-member-picker {
     position: relative;
     flex: 0 0 auto;
@@ -303,6 +311,12 @@
 @media (max-width: 600px) {
     .self-record-strip {
         align-items: stretch;
+    }
+
+    .group-self-record-page .summary-text .shots,
+    .group-self-record-page .summary-text .hits,
+    .group-self-record-page .summary-text .rate {
+        font-size: 18px;
     }
 }
 </style>

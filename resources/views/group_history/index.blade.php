@@ -10,6 +10,17 @@
     $keyword = $keyword ?? '';
     $rankingQuery = ['score_types' => $scoreTypes];
     $monthlyQuery = ['keyword' => $keyword];
+    $rankingDetailReturnQuery = [
+        'return_view' => 'ranking',
+        'return_period' => $period,
+        'return_limit' => $limit,
+        'return_score_types' => $scoreTypes,
+    ];
+    $monthlyDetailReturnQuery = [
+        'return_view' => 'monthly',
+        'return_month' => $month,
+        'return_keyword' => $keyword,
+    ];
 @endphp
 
 <div class="history-page">
@@ -120,7 +131,8 @@
             @include('group_history.partials.rank_card', [
                 'rank' => $index + 1,
                 'row' => $row,
-                'scoreTypes' => $scoreTypes
+                'scoreTypes' => $scoreTypes,
+                'detailReturnQuery' => $rankingDetailReturnQuery,
             ])
         @empty
             <p>男子の記録はありません。</p>
@@ -132,7 +144,8 @@
             @include('group_history.partials.rank_card', [
                 'rank' => $index + 1,
                 'row' => $row,
-                'scoreTypes' => $scoreTypes
+                'scoreTypes' => $scoreTypes,
+                'detailReturnQuery' => $rankingDetailReturnQuery,
             ])
         @empty
             <p>女子の記録はありません。</p>
@@ -198,7 +211,7 @@
                                 'group_id' => $group->id,
                                 'user_id' => $row['user']->id,
                                 'month' => $month,
-                            ]) }}"
+                            ] + $monthlyDetailReturnQuery) }}"
                            class="detail-link">
                             詳細
                         </a>

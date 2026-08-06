@@ -67,12 +67,27 @@ function updateButtonStyles(){
 }
 
 function updateMonthLinks(){
-    const targetParams = !isViewingOwnHistory && targetUserId && targetGroupId
-        ? `&user_id=${targetUserId}&group_id=${targetGroupId}`
-        : '';
+    const buildMonthUrl = (month) => {
+        const url = new URL(window.location.pathname, window.location.origin);
+        url.searchParams.set('month', month);
+        url.searchParams.set('type', currentType);
 
-    document.getElementById('prevMonth').href = `?month=${prevMonth}&type=${currentType}${targetParams}`;
-    document.getElementById('nextMonth').href = `?month=${nextMonth}&type=${currentType}${targetParams}`;
+        if (!isViewingOwnHistory && targetUserId && targetGroupId) {
+            url.searchParams.set('user_id', targetUserId);
+            url.searchParams.set('group_id', targetGroupId);
+        }
+
+        new URLSearchParams(window.location.search).forEach((value, key) => {
+            if (key.startsWith('return_')) {
+                url.searchParams.append(key, value);
+            }
+        });
+
+        return `${url.pathname}${url.search}`;
+    };
+
+    document.getElementById('prevMonth').href = buildMonthUrl(prevMonth);
+    document.getElementById('nextMonth').href = buildMonthUrl(nextMonth);
 }
 
 function renderSummary(){

@@ -252,6 +252,10 @@ class RecordController extends Controller
             ];
         }
 
+        $historyBackQuery = $targetGroup
+            ? $this->historyBackQuery($request, $month)
+            : [];
+
         return view('dashboard', compact(
             'calendar',
             'month',
@@ -261,9 +265,55 @@ class RecordController extends Controller
             'targetUser',
             'targetGroup',
             'isViewingOwnHistory',
+            'historyBackQuery',
             'todayOfficial','todaySelf','todayAll',
             'monthOfficial','monthSelf','monthAll',
             'yearOfficial','yearSelf','yearAll'
         ));
+    }
+
+    private function historyBackQuery(Request $request, string $month): array
+    {
+        if ($request->input('return_view') === 'ranking') {
+            $period = in_array($request->input('return_period'), ['today', 'week', 'month', 'year'], true)
+                ? $request->input('return_period')
+                : 'today';
+            $limit = in_array((string) $request->input('return_limit'), ['5', '10'], true)
+                ? (string) $request->input('return_limit')
+                : '10';
+            $scoreTypes = collect((array) $request->input('return_score_types', ['all']))
+                ->filter(fn($type) => in_array($type, ['all', 'official', 'self'], true))
+                ->values()
+                ->all();
+
+            if (empty($scoreTypes) || in_array('all', $scoreTypes, true)) {
+                $scoreTypes = ['all'];
+            }
+
+            return [
+                'view' => 'ranking',
+                'period' => $period,
+                'limit' => $limit,
+                'score_types' => $scoreTypes,
+            ];
+        }
+
+        if ($request->input('return_view') === 'monthly') {
+            $returnMonth = (string) $request->input('return_month', $month);
+            if (!preg_match('/^\d{4}-\d{2}$/', $returnMonth)) {
+                $returnMonth = $month;
+            }
+
+            return [
+                'view' => 'monthly',
+                'month' => $returnMonth,
+                'keyword' => trim((string) $request->input('return_keyword', '')),
+            ];
+        }
+
+        return [
+            'view' => 'monthly',
+            'month' => $month,
+        ];
     }
 }
