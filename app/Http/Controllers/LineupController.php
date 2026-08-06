@@ -99,9 +99,11 @@ class LineupController extends Controller
             ->unique()
             ->values();
 
-        $latestMatchUserColors = $this->latestMatchUserColors($group, $date);
+        $latestMatchUserAssignments = $this->latestMatchUserAssignments($group, $date);
+        $latestMatchUserColors = $latestMatchUserAssignments->map(fn($assignment) => $assignment['color']);
+        $latestMatchUserPositionLabels = $latestMatchUserAssignments->map(fn($assignment) => $assignment['position_label']);
 
-        return view('lineup.index', compact('group', 'lineup', 'members', 'date', 'month', 'recordedUserIds', 'latestMatchUserColors', 'canEditLineup', 'activeOfficialSheetNo', 'officialCompactEmptySlots'));
+        return view('lineup.index', compact('group', 'lineup', 'members', 'date', 'month', 'recordedUserIds', 'latestMatchUserColors', 'latestMatchUserPositionLabels', 'canEditLineup', 'activeOfficialSheetNo', 'officialCompactEmptySlots'));
     }
 
     public function save(Request $request, $lineupId)
@@ -189,7 +191,7 @@ class LineupController extends Controller
         );
     }
 
-    private function latestMatchUserColors(Group $group, string $date)
+    private function latestMatchUserAssignments(Group $group, string $date)
     {
         $teams = MatchTeam::withTrashed()
             ->with(['members' => fn($query) => $query->where('date', $date)])
@@ -211,6 +213,7 @@ class LineupController extends Controller
                 }
 
                 $teamColor = self::MATCH_TEAM_COLORS[$team->division] ?? self::MATCH_TEAM_COLORS['mixed'];
+                $tateSize = max(1, (int) $team->tate_size);
 
                 return $team->members
                     ->where('tate_no', $latestTateNo)
@@ -219,10 +222,38 @@ class LineupController extends Controller
                     ->map(fn($member) => [
                         'user_id' => (int) $member->user_id,
                         'color' => $teamColor,
+                        'position_label' => $this->matchPositionLabel((int) $member->position, $tateSize),
                     ]);
             })
             ->groupBy('user_id')
-            ->map(fn($assignments) => $assignments->first()['color']);
+            ->map(fn($assignments) => $assignments->first());
+    }
+
+    private function matchPositionLabel(int $position, int $tateSize): string
+    {
+        if ($position === 1) {
+            return '大前';
+        }
+
+        if ($tateSize > 1 && $position === $tateSize) {
+            return '落';
+        }
+
+        return [
+            2 => '二的',
+            3 => '三的',
+            4 => '四的',
+            5 => '五的',
+            6 => '六的',
+            7 => '七的',
+            8 => '八的',
+            9 => '九的',
+            10 => '十的',
+            11 => '十一的',
+            12 => '十二的',
+            13 => '十三的',
+            14 => '十四的',
+        ][$position] ?? "{$position}的";
     }
 
     public function copyPrevious(Lineup $lineup)

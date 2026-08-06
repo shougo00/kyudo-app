@@ -54,12 +54,27 @@ function makeMember(sourceEl) {
     div.dataset.hasRecord = sourceEl.dataset.hasRecord || '0';
     div.dataset.inLatestMatch = sourceEl.dataset.inLatestMatch || '0';
     div.dataset.latestMatchColor = sourceEl.dataset.latestMatchColor || '';
+    div.dataset.latestMatchPositionLabel = sourceEl.dataset.latestMatchPositionLabel || '';
     div.dataset.gender = sourceEl.dataset.gender || '';
     div.dataset.gradeLevel = sourceEl.dataset.gradeLevel || '';
     const memberName = sourceEl.textContent.trim();
     div.dataset.displayName = memberName;
     div.dataset.name = memberName.toLowerCase();
-    div.textContent = memberName;
+
+    if (div.dataset.inLatestMatch === '1' && div.dataset.latestMatchPositionLabel) {
+        div.classList.add('has-latest-match-position-label');
+
+        const positionLabel = document.createElement('span');
+        positionLabel.className = 'latest-match-position-label';
+        positionLabel.textContent = div.dataset.latestMatchPositionLabel;
+        div.appendChild(positionLabel);
+    }
+
+    const nameLabel = document.createElement('span');
+    nameLabel.className = 'member-name';
+    nameLabel.textContent = memberName;
+    div.appendChild(nameLabel);
+
     if (memberName.length >= 5) {
         div.classList.add('long-name');
     }

@@ -189,6 +189,34 @@
     font-weight: 900;
 }
 
+.member.has-latest-match-position-label {
+    flex-direction: column;
+    gap: 2px;
+    padding-top: 4px;
+    padding-bottom: 4px;
+}
+
+.member-name {
+    display: block;
+    max-width: 100%;
+    min-width: 0;
+}
+
+.latest-match-position-label {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    max-width: 100%;
+    border-radius: 999px;
+    padding: 2px 6px;
+    background: var(--latest-match-color, #dc3545);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 900;
+    line-height: 1;
+    white-space: nowrap;
+}
+
 .member.late::after,
 .member.absent::after {
     margin-left: 4px;
@@ -296,6 +324,15 @@
     width: 90px;
     height: 42px;
     flex: 0 0 90px;
+}
+
+.pool .member.has-latest-match-position-label {
+    gap: 1px;
+}
+
+.pool .latest-match-position-label {
+    padding: 1px 5px;
+    font-size: 9px;
 }
 
 /* スマホ */

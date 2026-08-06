@@ -6,7 +6,7 @@ use App\Models\LineupMember;
 use App\Models\MatchTeam;
 use App\Models\User;
 
-it('marks latest match members with their match team color on the lineup page', function () {
+it('marks latest match members with their match team color and position label on the lineup page', function () {
     $date = '2026-07-25';
     $host = User::factory()->create([
         'username' => 'host-lineup-latest-match-color',
@@ -34,7 +34,7 @@ it('marks latest match members with their match team color on the lineup page', 
         'date' => $date,
         'tate_size' => 2,
     ]);
-    LineupMember::create([
+    $firstLineupMember = LineupMember::create([
         'lineup_id' => $lineup->id,
         'user_id' => $firstMember->id,
         'position' => 1,
@@ -68,12 +68,12 @@ it('marks latest match members with their match team color on the lineup page', 
         'date' => $date,
         'name' => 'Bチーム',
         'division' => 'mixed',
-        'tate_size' => 1,
+        'tate_size' => 2,
     ])->members()->create([
         'date' => $date,
         'user_id' => $secondMember->id,
         'tate_no' => 1,
-        'position' => 1,
+        'position' => 2,
         'is_absent' => false,
         'is_late' => false,
     ]);
@@ -83,7 +83,11 @@ it('marks latest match members with their match team color on the lineup page', 
 
     $response->assertOk();
     $this->assertMatchesRegularExpression(
-        '/data-id="' . $secondLineupMember->id . '"[\s\S]*?data-in-latest-match="1"[\s\S]*?data-latest-match-color="#198754"/',
+        '/data-id="' . $firstLineupMember->id . '"[\s\S]*?data-in-latest-match="1"[\s\S]*?data-latest-match-position-label="大前"/',
+        $response->getContent()
+    );
+    $this->assertMatchesRegularExpression(
+        '/data-id="' . $secondLineupMember->id . '"[\s\S]*?data-in-latest-match="1"[\s\S]*?data-latest-match-color="#198754"[\s\S]*?data-latest-match-position-label="落"/',
         $response->getContent()
     );
 });
