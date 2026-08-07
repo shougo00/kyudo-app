@@ -71,9 +71,14 @@ document.addEventListener('DOMContentLoaded', () => {
     function updateRecordResult(recordId) {
         let buttons = document.querySelectorAll(`[data-record='${recordId}']`);
         let hits = 0;
+        let shots = 0;
         let numericTotal = 0;
 
         buttons.forEach(b => {
+            if (b.dataset.result === 'hit' || b.dataset.result === 'miss') {
+                shots++;
+            }
+
             if (b.dataset.result === 'hit') hits++;
 
             let numericScore = parseInt(b.dataset.numericScore || '0', 10);
@@ -87,7 +92,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let numericTotalEl = result?.querySelector('.numeric-total');
 
         if (hitCount) {
-            hitCount.innerText = hits + '/4';
+            hitCount.innerText = hits + '/' + shots;
         }
 
         if (numericTotalEl) {

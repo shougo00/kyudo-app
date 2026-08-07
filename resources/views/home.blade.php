@@ -83,6 +83,7 @@
     <div class="record-card-list">
         @foreach($records as $record)
             @php
+                $enteredShotCount = $record->shots->whereNotNull('result')->count();
                 $recordNumericTotal = $record->shots->sum(fn($shot) => (int) ($shot->numeric_score ?? 0));
             @endphp
         <div class="card mb-3 p-2" id="record-{{ $record->id }}" data-record-id="{{ $record->id }}">
@@ -96,7 +97,7 @@
                     @endif
                 </div>
                 <span id="result-{{ $record->id }}" class="record-result">
-                    <span class="hit-count">{{ $record->shots->where('result', 'hit')->count() }}/4</span>
+                    <span class="hit-count">{{ $record->shots->where('result', 'hit')->count() }}/{{ $enteredShotCount }}</span>
                     <span class="numeric-total {{ $recordNumericTotal > 0 ? '' : 'd-none' }}">{{ $recordNumericTotal }}点</span>
                 </span>
             </div>
