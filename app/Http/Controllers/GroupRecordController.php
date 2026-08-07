@@ -285,6 +285,8 @@ class GroupRecordController extends Controller
             }
         }
 
+        $officialDailySummaries = $this->officialDailySummaries($sheetLookupUserIds, $date);
+
         $officialTateSlots = collect();
         $officialTateSizes = collect();
         $displayLineupSlots = $this->officialDisplaySlots($lineupSlots, $officialCompactEmptySlots, $tateSize);
@@ -423,7 +425,8 @@ class GroupRecordController extends Controller
             'officialMatchTeamControls',
             'matchTeamColorsById',
             'officialCompactEmptySlots',
-            'officialCompactEmptySlotsExplicit'
+            'officialCompactEmptySlotsExplicit',
+            'officialDailySummaries'
         ));
     }
 
@@ -1828,6 +1831,36 @@ class GroupRecordController extends Controller
             ->map(fn($id) => (int) $id)
             ->unique()
             ->values();
+    }
+
+    private function officialDailySummaries($userIds, string $date)
+    {
+        $userIds = collect($userIds)
+            ->filter()
+            ->map(fn($id) => (int) $id)
+            ->unique()
+            ->values();
+
+        if ($userIds->isEmpty()) {
+            return collect();
+        }
+
+        return Record::with('shots')
+            ->whereIn('user_id', $userIds)
+            ->where('date', $date)
+            ->where('practice_type', 'official')
+            ->get()
+            ->groupBy('user_id')
+            ->map(function ($records) {
+                $shots = $records->sum(fn($record) => $record->shots->whereNotNull('result')->count());
+                $hits = $records->sum(fn($record) => $record->shots->where('result', 'hit')->count());
+
+                return [
+                    'shots' => $shots,
+                    'hits' => $hits,
+                    'rate' => $shots > 0 ? round(($hits / $shots) * 100, 1) : 0,
+                ];
+            });
     }
 
     private function historicalGroupUserIds(int $groupId)

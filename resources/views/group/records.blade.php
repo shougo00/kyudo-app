@@ -26,6 +26,8 @@
     $matchRecordHeightExtra = max(0, min(120, (int) ($matchRecordHeightExtra ?? 60)));
     $isPageFull = $practiceType !== 'match' && isset($tates) && $tates->count() >= $maxTatesPerPage;
     $matchSelection = $matchSelection ?? null;
+    $showOfficialSummaryModal = $practiceType !== 'match' && !$matchSelection;
+    $officialDailySummaries = collect($officialDailySummaries ?? []);
     $officialCompactEmptySlots = (bool) ($officialCompactEmptySlots ?? true);
     $officialCompactEmptySlotsExplicit = (bool) ($officialCompactEmptySlotsExplicit ?? request()->has('compact_empty_slots'));
     $officialCompactEmptySlotsQuery = $practiceType !== 'match' && $officialCompactEmptySlotsExplicit
@@ -158,6 +160,8 @@ window.groupRecordData = {
     usesGrades: @json($usesGrades),
     canEdit: @json($canEditGroupRecords),
     practiceType: @json($practiceType),
+    date: @json($date),
+    officialDailySummaries: @json($officialDailySummaries->mapWithKeys(fn($summary, $userId) => [(string) $userId => $summary])),
     matchSelection: @json($matchSelectionPayload),
 };
 const isOfficialRecordPage = window.groupRecordData.practiceType !== 'match';
@@ -1077,11 +1081,25 @@ if (isOfficialRecordPage || isMatchRecordPage) {
         @foreach($nameSlots as $slot)
             @php
                 $isTateBreak = (bool) ($slot->display_tate_break ?? (($loop->index + 1) % $nameTateSize == 0));
+                $nameUser = !$slot->is_empty ? $slot->user : null;
+                $dailySummary = $nameUser
+                    ? ($officialDailySummaries->get($nameUser->id) ?? ['shots' => 0, 'hits' => 0, 'rate' => 0])
+                    : null;
             @endphp
-            <div class="tate-user-name {{ $slot->is_empty ? 'empty-name' : '' }} {{ $isTateBreak ? 'tate-border' : '' }}"
-                 style="{{ !$slot->is_empty ? $gradeStyleFor($slot->user) : '' }}">
+            <div class="tate-user-name {{ $slot->is_empty ? 'empty-name' : '' }} {{ $isTateBreak ? 'tate-border' : '' }} {{ $nameUser && $showOfficialSummaryModal ? 'official-summary-trigger' : '' }}"
+                 style="{{ $nameUser ? $gradeStyleFor($nameUser) : '' }}"
+                 @if($nameUser && $showOfficialSummaryModal)
+                     role="button"
+                     tabindex="0"
+                     data-official-summary-user="{{ $nameUser->id }}"
+                     data-official-summary-name="{{ $nameUser->name }}"
+                     data-official-summary-shots="{{ $dailySummary['shots'] ?? 0 }}"
+                     data-official-summary-hits="{{ $dailySummary['hits'] ?? 0 }}"
+                     data-official-summary-rate="{{ $dailySummary['rate'] ?? 0 }}"
+                     title="正規連の集計"
+                 @endif>
                 <span>{{ $slot->position }}</span>
-                {{ $slot->is_empty ? '空き' : $slot->user->name }}
+                {{ $slot->is_empty ? '空き' : $nameUser->name }}
             </div>
         @endforeach
     </div>
@@ -1363,5 +1381,42 @@ if (isOfficialRecordPage || isMatchRecordPage) {
 @endif
 
 </div>
+
+@if($showOfficialSummaryModal)
+    <div id="officialRecordSummaryModal" class="match-lineup-modal official-summary-modal" hidden>
+        <div class="match-lineup-dialog official-summary-dialog"
+             role="dialog"
+             aria-modal="true"
+             aria-labelledby="officialRecordSummaryTitle">
+            <div class="match-lineup-dialog-head">
+                <div>
+                    <strong id="officialRecordSummaryTitle">正規連</strong>
+                    <span id="officialRecordSummaryDate">{{ \Carbon\Carbon::parse($date)->format('Y年n月j日') }} 正規連</span>
+                </div>
+                <button type="button"
+                        class="btn btn-sm btn-outline-secondary official-summary-close"
+                        data-official-summary-close
+                        aria-label="閉じる">
+                    <i class="fas fa-xmark" aria-hidden="true"></i>
+                </button>
+            </div>
+
+            <div class="official-summary-stats">
+                <div class="official-summary-stat">
+                    <span>射数</span>
+                    <strong><span data-official-summary-shots>0</span>射</strong>
+                </div>
+                <div class="official-summary-stat">
+                    <span>的中</span>
+                    <strong><span data-official-summary-hits>0</span>中</strong>
+                </div>
+                <div class="official-summary-stat">
+                    <span>的中率</span>
+                    <strong><span data-official-summary-rate>0</span>%</strong>
+                </div>
+            </div>
+        </div>
+    </div>
+@endif
 
 @endsection

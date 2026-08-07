@@ -1354,6 +1354,81 @@ body.modal-open {
     font-size: 10px;
 }
 
+.tate-user-name.official-summary-trigger {
+    cursor: pointer;
+    touch-action: manipulation;
+    transition: border-color .15s ease, box-shadow .15s ease, transform .15s ease;
+}
+
+.tate-user-name.official-summary-trigger:hover,
+.tate-user-name.official-summary-trigger:focus-visible {
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 3px rgba(13, 110, 253, .16);
+    outline: 0;
+}
+
+.tate-user-name.official-summary-trigger:active {
+    transform: translateY(1px);
+}
+
+.official-summary-dialog {
+    width: min(380px, 100%);
+}
+
+.official-summary-close {
+    width: 34px;
+    height: 34px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+}
+
+.official-summary-stats {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    border: 1px solid #d7dee8;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #fff;
+}
+
+.official-summary-stat {
+    min-width: 0;
+    padding: 12px 8px;
+    text-align: center;
+}
+
+.official-summary-stat + .official-summary-stat {
+    border-left: 1px solid #e9ecef;
+}
+
+.official-summary-stat > span {
+    display: block;
+    color: #6c757d;
+    font-size: 11px;
+    font-weight: 800;
+    line-height: 1.1;
+}
+
+.official-summary-stat strong {
+    display: block;
+    margin-top: 5px;
+    color: #212529;
+    font-size: 20px;
+    font-weight: 900;
+    line-height: 1.1;
+    white-space: nowrap;
+}
+
+.official-summary-stat strong span {
+    display: inline;
+    color: inherit;
+    font-size: inherit;
+    font-weight: inherit;
+    line-height: inherit;
+}
+
 .official-name-row {
     position: sticky;
     bottom: 0;

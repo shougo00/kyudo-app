@@ -24,6 +24,7 @@ window.addEventListener('load', () => {
     initOfficialRecordTapGuard();
     initMatchSelectionPositionLinks();
     initOfficialMatchTeamControls();
+    initOfficialRecordSummaryModal();
 });
 
 window.addEventListener('resize', syncRecordShellOffset);
@@ -99,6 +100,192 @@ function initOfficialMatchTeamControls() {
     controls.addEventListener('toggle', () => {
         sessionStorage.setItem(storageKey, controls.open ? '1' : '0');
     });
+}
+
+let officialSummaryLastTrigger = null;
+
+function initOfficialRecordSummaryModal() {
+    const data = window.groupRecordData || {};
+
+    if (data.practiceType === 'match' || data.matchSelection) {
+        return;
+    }
+
+    const modal = document.getElementById('officialRecordSummaryModal');
+
+    if (!modal) {
+        return;
+    }
+
+    document.querySelectorAll('[data-official-summary-user]').forEach(trigger => {
+        trigger.addEventListener('click', event => {
+            event.preventDefault();
+            openOfficialRecordSummary(trigger);
+        });
+
+        trigger.addEventListener('keydown', event => {
+            if (event.key !== 'Enter' && event.key !== ' ') {
+                return;
+            }
+
+            event.preventDefault();
+            openOfficialRecordSummary(trigger);
+        });
+    });
+
+    modal.querySelectorAll('[data-official-summary-close]').forEach(button => {
+        button.addEventListener('click', closeOfficialRecordSummaryModal);
+    });
+
+    modal.addEventListener('click', event => {
+        if (event.target === modal) {
+            closeOfficialRecordSummaryModal();
+        }
+    });
+
+    document.addEventListener('keydown', event => {
+        if (event.key === 'Escape' && !modal.hidden) {
+            closeOfficialRecordSummaryModal();
+        }
+    });
+}
+
+function openOfficialRecordSummary(trigger) {
+    const modal = document.getElementById('officialRecordSummaryModal');
+
+    if (!modal || !trigger) {
+        return;
+    }
+
+    officialSummaryLastTrigger = trigger;
+    const userId = String(trigger.dataset.officialSummaryUser || '');
+    const name = trigger.dataset.officialSummaryName || '';
+    const summary = getOfficialDailySummary(userId, trigger);
+
+    modal.dataset.userId = userId;
+    renderOfficialRecordSummary(name, summary);
+    modal.hidden = false;
+    document.body.classList.add('modal-open');
+
+    const closeButton = modal.querySelector('[data-official-summary-close]');
+    if (closeButton) {
+        closeButton.focus({ preventScroll: true });
+    }
+}
+
+function closeOfficialRecordSummaryModal() {
+    const modal = document.getElementById('officialRecordSummaryModal');
+
+    if (!modal) {
+        return;
+    }
+
+    modal.hidden = true;
+    document.body.classList.remove('modal-open');
+
+    if (officialSummaryLastTrigger) {
+        officialSummaryLastTrigger.focus({ preventScroll: true });
+    }
+}
+
+function renderOfficialRecordSummary(name, summary) {
+    const modal = document.getElementById('officialRecordSummaryModal');
+
+    if (!modal) {
+        return;
+    }
+
+    const title = modal.querySelector('#officialRecordSummaryTitle');
+    const date = modal.querySelector('#officialRecordSummaryDate');
+    const shots = modal.querySelector('[data-official-summary-shots]');
+    const hits = modal.querySelector('[data-official-summary-hits]');
+    const rate = modal.querySelector('[data-official-summary-rate]');
+
+    if (title) title.innerText = name || '正規連';
+    if (date) date.innerText = `${formatOfficialSummaryDate(window.groupRecordData?.date)} 正規連`;
+    if (shots) shots.innerText = String(summary.shots);
+    if (hits) hits.innerText = String(summary.hits);
+    if (rate) rate.innerText = formatOfficialSummaryRate(summary.rate);
+}
+
+function getOfficialDailySummary(userId, source) {
+    const fallback = {
+        shots: Number(source?.dataset?.officialSummaryShots || 0),
+        hits: Number(source?.dataset?.officialSummaryHits || 0),
+        rate: Number(source?.dataset?.officialSummaryRate || 0),
+    };
+    const summary = window.groupRecordData?.officialDailySummaries?.[String(userId)] || fallback;
+    const shots = Math.max(0, Number(summary.shots || 0));
+    const hits = Math.max(0, Number(summary.hits || 0));
+
+    return {
+        shots,
+        hits,
+        rate: shots > 0 ? officialSummaryRate(shots, hits) : 0,
+    };
+}
+
+function updateOfficialDailySummary(userId, previousResult, nextResult) {
+    if (!userId || !window.groupRecordData || window.groupRecordData.practiceType === 'match') {
+        return;
+    }
+
+    const key = String(userId);
+    const previousEntered = previousResult === 'hit' || previousResult === 'miss';
+    const nextEntered = nextResult === 'hit' || nextResult === 'miss';
+    const current = getOfficialDailySummary(key);
+    let shots = current.shots;
+    let hits = current.hits;
+
+    if (!previousEntered && nextEntered) shots++;
+    if (previousEntered && !nextEntered) shots--;
+    if (previousResult !== 'hit' && nextResult === 'hit') hits++;
+    if (previousResult === 'hit' && nextResult !== 'hit') hits--;
+
+    shots = Math.max(0, shots);
+    hits = Math.max(0, hits);
+
+    const summary = {
+        shots,
+        hits,
+        rate: shots > 0 ? officialSummaryRate(shots, hits) : 0,
+    };
+
+    window.groupRecordData.officialDailySummaries = window.groupRecordData.officialDailySummaries || {};
+    window.groupRecordData.officialDailySummaries[key] = summary;
+    syncOfficialSummaryTriggerDataset(key, summary);
+
+    const modal = document.getElementById('officialRecordSummaryModal');
+    if (modal && !modal.hidden && modal.dataset.userId === key) {
+        const name = officialSummaryLastTrigger?.dataset?.officialSummaryName || '';
+        renderOfficialRecordSummary(name, summary);
+    }
+}
+
+function syncOfficialSummaryTriggerDataset(userId, summary) {
+    document.querySelectorAll(`[data-official-summary-user="${userId}"]`).forEach(trigger => {
+        trigger.dataset.officialSummaryShots = String(summary.shots);
+        trigger.dataset.officialSummaryHits = String(summary.hits);
+        trigger.dataset.officialSummaryRate = String(summary.rate);
+    });
+}
+
+function officialSummaryRate(shots, hits) {
+    return Math.round((hits / shots) * 1000) / 10;
+}
+
+function formatOfficialSummaryRate(rate) {
+    const rounded = Math.round((Number(rate) || 0) * 10) / 10;
+    return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
+}
+
+function formatOfficialSummaryDate(dateString) {
+    if (!dateString || !/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+        return '';
+    }
+
+    const [year, month, day] = dateString.split('-').map(value => parseInt(value, 10));
+    return `${year}年${month}月${day}日`;
 }
 
 async function printAfterReady() {
@@ -913,6 +1100,7 @@ function updateShot(el){
         el.dataset.officialMatchTeamCounters,
         (current !== 'hit' && next === 'hit') ? 1 : ((current === 'hit' && next !== 'hit') ? -1 : 0)
     );
+    updateOfficialDailySummary(userId, current, next);
 
     window.groupRecordPendingShotUpdates = window.groupRecordPendingShotUpdates || new Set();
 

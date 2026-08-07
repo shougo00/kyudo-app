@@ -118,7 +118,7 @@ it('uses the compacted member count as the official tate size when the last line
     $response->assertOk();
     $response->assertDontSee('empty-column', false);
     $this->assertMatchesRegularExpression(
-        '/class="tate-user-name\s+tate-border"[\s\S]*?<span>9<\/span>[\s\S]*?Member 9/',
+        '/class="tate-user-name[^"]*\btate-border\b[^"]*"[\s\S]*?<span>9<\/span>[\s\S]*?Member 9/',
         $response->getContent()
     );
 });
