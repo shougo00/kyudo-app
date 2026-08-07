@@ -41,9 +41,9 @@ class GroupHistoryController extends Controller
             $scoreTypes = ['all'];
         }
         $period = $request->input('period', 'today');
-        $limit = in_array((string) $request->input('limit', 10), ['5', '10'], true)
-            ? $request->input('limit', 10)
-            : 10;
+        $limit = in_array((string) $request->input('limit', 10), ['5', '10', '20', 'all'], true)
+            ? (string) $request->input('limit', 10)
+            : '10';
         $keyword = trim((string) $request->input('keyword', ''));
 
         // ===== 月間記録用 =====
@@ -100,6 +100,10 @@ class GroupHistoryController extends Controller
                         return $b['selected']['rate'] <=> $a['selected']['rate'];
                     })
                     ->values();
+
+                if ($limit === 'all') {
+                    return $items;
+                }
 
                 return $items->take((int) $limit)->values();
             };

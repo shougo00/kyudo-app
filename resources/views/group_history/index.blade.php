@@ -116,6 +116,8 @@
                     <select name="limit" class="form-select">
                         <option value="5" {{ (string)$limit === '5' ? 'selected' : '' }}>上位5人</option>
                         <option value="10" {{ (string)$limit === '10' ? 'selected' : '' }}>上位10人</option>
+                        <option value="20" {{ (string)$limit === '20' ? 'selected' : '' }}>上位20人</option>
+                        <option value="all" {{ (string)$limit === 'all' ? 'selected' : '' }}>全員</option>
                     </select>
                 </div>
 

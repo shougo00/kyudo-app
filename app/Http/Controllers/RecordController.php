@@ -278,7 +278,7 @@ class RecordController extends Controller
             $period = in_array($request->input('return_period'), ['today', 'week', 'month', 'year'], true)
                 ? $request->input('return_period')
                 : 'today';
-            $limit = in_array((string) $request->input('return_limit'), ['5', '10'], true)
+            $limit = in_array((string) $request->input('return_limit'), ['5', '10', '20', 'all'], true)
                 ? (string) $request->input('return_limit')
                 : '10';
             $scoreTypes = collect((array) $request->input('return_score_types', ['all']))

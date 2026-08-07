@@ -3,32 +3,46 @@
 use App\Models\Group;
 use App\Models\User;
 
-it('hides the 20 person and all member ranking limit options', function () {
+it('shows the 20 person and all member ranking limit options', function () {
     $host = User::factory()->create([
         'name' => 'Host',
         'username' => 'ranking-limit-host',
         'is_admin' => true,
     ]);
-    $member = User::factory()->create([
-        'name' => 'Ranking Member',
-        'username' => 'ranking-limit-member',
-        'is_admin' => false,
-    ]);
+    $members = User::factory()
+        ->count(21)
+        ->sequence(fn($sequence) => [
+            'name' => 'Ranking Member ' . ($sequence->index + 1),
+            'username' => 'ranking-limit-member-' . ($sequence->index + 1),
+            'is_admin' => false,
+            'gender' => 'male',
+        ])
+        ->create();
     $group = Group::create([
         'name' => 'Ranking Limit Group',
         'host_user_id' => $host->id,
         'invite_code' => '7284',
     ]);
-    $group->users()->attach([$host->id, $member->id]);
+    $group->users()->attach($members->pluck('id')->push($host->id)->all());
 
-    $this->actingAs($host)
-        ->get("/group/{$group->id}/history?view=ranking&limit=all")
+    $limitResponse = $this->actingAs($host)
+        ->get("/group/{$group->id}/history?view=ranking&limit=20")
         ->assertOk()
         ->assertSee('上位5人')
         ->assertSee('上位10人')
-        ->assertDontSee('上位20人')
-        ->assertDontSee('全員')
-        ->assertSee('limit=10', false);
+        ->assertSee('上位20人')
+        ->assertSee('全員')
+        ->assertSee('value="20" selected', false);
+
+    expect(substr_count($limitResponse->getContent(), 'class="rank-card"'))->toBe(20);
+
+    $allResponse = $this->actingAs($host)
+        ->get("/group/{$group->id}/history?view=ranking&limit=all")
+        ->assertOk()
+        ->assertSee('value="all" selected', false)
+        ->assertSee('limit=all', false);
+
+    expect(substr_count($allResponse->getContent(), 'class="rank-card"'))->toBe(21);
 });
 
 it('keeps ranking filters when opening member details and returning', function () {
