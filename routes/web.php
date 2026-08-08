@@ -22,7 +22,7 @@ use App\Http\Controllers\SettingController;
 use App\Http\Controllers\Admin\SystemController;
 use App\Http\Controllers\Admin\NewsController as AdminNewsController;
 Route::get('/', function () {
-    return redirect('/login');
+    return view('landing');
 });
 
 
