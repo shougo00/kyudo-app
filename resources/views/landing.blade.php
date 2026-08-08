@@ -67,6 +67,15 @@
     }
   </script>
   <link rel="stylesheet" href="{{ asset('landing/style.css') }}?v={{ filemtime(public_path('landing/style.css')) }}">
+  <script>
+        const isStandalone =
+            window.matchMedia('(display-mode: standalone)').matches ||
+            window.navigator.standalone === true;
+
+        if (isStandalone && window.location.pathname === '/') {
+            window.location.replace('/login');
+        }
+    </script>
 </head>
 <body>
   <header class="site-header" data-header>
