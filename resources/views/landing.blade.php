@@ -66,7 +66,7 @@
       ]
     }
   </script>
-  <link rel="stylesheet" href="{{ asset('landing/style.css') }}">
+  <link rel="stylesheet" href="{{ asset('landing/style.css') }}?v={{ filemtime(public_path('landing/style.css')) }}">
 </head>
 <body>
   <header class="site-header" data-header>
@@ -283,6 +283,6 @@
 
   <button class="back-to-top" type="button" data-back-to-top aria-label="ページの一番上に戻る">↑</button>
 
-  <script src="{{ asset('landing/script.js') }}"></script>
+  <script src="{{ asset('landing/script.js') }}?v={{ filemtime(public_path('landing/script.js')) }}"></script>
 </body>
 </html>
