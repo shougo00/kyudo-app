@@ -11,10 +11,10 @@
     <meta name="theme-color" content="#2f5d46">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="弓道">
+    <meta name="apple-mobile-web-app-title" content="MATOWA">
     <link rel="apple-touch-icon" href="/icons/icon-192.png">
 
-    <title>ログイン｜Kyudo Score</title>
+    <title>ログイン｜MATOWA</title>
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
@@ -129,7 +129,7 @@ window.addEventListener('pageshow', function (event) {
 
         <!-- ヘッダー -->
         <div class="header-area">
-            <div class="title">Kyudo Score</div>
+            <div class="title">MATOWA</div>
             <div class="subtitle">的中・出欠管理</div>
         </div>
 

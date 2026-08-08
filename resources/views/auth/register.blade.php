@@ -7,7 +7,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#2f5d46">
 
-    <title>新規登録｜弓道スコア</title>
+    <title>新規登録｜MATOWA</title>
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
@@ -106,7 +106,7 @@ body {
         <!-- ヘッダー -->
         <div class="header-area">
             <div class="title">新規ユーザー登録</div>
-            <div class="subtitle">Kyudo Scoreを始める</div>
+            <div class="subtitle">MATOWAを始める</div>
         </div>
 
         <div class="card-body">

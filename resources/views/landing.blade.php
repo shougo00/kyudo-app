@@ -3,16 +3,16 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="kyudoScore は、弓道部・道場向けの弓道記録アプリです。的中記録、立順管理、出欠管理、成績分析をタブレットでまとめて管理できます。">
+  <meta name="description" content="MATOWA は、弓道部・道場向けの弓道記録アプリです。的中記録、立順管理、出欠管理、成績分析をタブレットでまとめて管理できます。">
   <meta name="csrf-token" content="{{ csrf_token() }}">
   <meta name="robots" content="index, follow">
   <meta property="og:type" content="website">
-  <meta property="og:site_name" content="kyudoScore">
-  <meta property="og:title" content="kyudoScore | 弓道 記録 アプリ">
+  <meta property="og:site_name" content="MATOWA">
+  <meta property="og:title" content="MATOWA | 弓道 記録 アプリ">
   <meta property="og:description" content="弓道部・道場の的中記録、立順管理、出欠管理、成績分析をまとめる団体向け弓道記録アプリ。">
   <meta property="og:image" content="{{ asset('landing/assets/タブレット写真.png') }}">
   <meta name="twitter:card" content="summary_large_image">
-  <title>kyudoScore | 弓道 記録 アプリ - 的中記録・立順管理・成績分析</title>
+  <title>MATOWA | 弓道 記録 アプリ - 的中記録・立順管理・成績分析</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800&family=Noto+Sans+JP:wght@500;700;800;900&display=swap" rel="stylesheet">
@@ -21,10 +21,10 @@
     {
       "@@context": "https://schema.org",
       "@type": "SoftwareApplication",
-      "name": "kyudoScore",
+      "name": "MATOWA",
       "applicationCategory": "SportsApplication",
       "operatingSystem": "Web",
-      "description": "kyudoScoreは、弓道部・道場向けの弓道記録アプリです。的中記録、立順管理、出欠管理、成績分析をタブレットでまとめて管理できます。",
+      "description": "MATOWAは、弓道部・道場向けの弓道記録アプリです。的中記録、立順管理、出欠管理、成績分析をタブレットでまとめて管理できます。",
       "featureList": [
         "弓道の的中記録",
         "弓道部の立順管理",
@@ -41,10 +41,10 @@
       "mainEntity": [
         {
           "@type": "Question",
-          "name": "kyudoScoreはどんな弓道記録アプリですか？",
+          "name": "MATOWAはどんな弓道記録アプリですか？",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "kyudoScoreは、弓道部や道場など団体で使うことを想定した弓道記録アプリです。的中記録、立順管理、出欠管理、成績分析をひとつのシステムで管理できます。"
+            "text": "MATOWAは、弓道部や道場など団体で使うことを想定した弓道記録アプリです。的中記録、立順管理、出欠管理、成績分析をひとつのシステムで管理できます。"
           }
         },
         {
@@ -70,11 +70,11 @@
 </head>
 <body>
   <header class="site-header" data-header>
-    <a class="logo" href="#top" aria-label="kyudoScore ホーム">
+    <a class="logo" href="#top" aria-label="MATOWA ホーム">
       <span class="logo-mark" aria-hidden="true">
         <span></span>
       </span>
-      <span class="logo-text">kyudoScore</span>
+      <span class="logo-text">MATOWA</span>
     </a>
 
     <nav class="site-nav" aria-label="主要ナビゲーション">
@@ -107,7 +107,7 @@
       </div>
 
       <div class="device-stage reveal">
-        <img class="tablet-photo" src="{{ asset('landing/assets/タブレット写真.png') }}" alt="kyudoScoreの的中記録画面と立順設定画面を表示した2台のタブレット">
+        <img class="tablet-photo" src="{{ asset('landing/assets/タブレット写真.png') }}" alt="MATOWAの的中記録画面と立順設定画面を表示した2台のタブレット">
       </div>
     </section>
 
@@ -115,7 +115,7 @@
       <div class="seo-content reveal">
         <p class="section-kicker">Kyudo record app</p>
         <h2 id="seo-title">弓道 記録 アプリを、団体運営に合わせて使いやすく。</h2>
-        <p>kyudoScoreは、弓道部や道場の記録管理に特化した弓道記録アプリです。稽古や試合の的中記録、立順管理、出欠・遅刻管理、グループ成績、個人成績をまとめて扱えるため、紙の記録表や表計算で分かれていた作業を整理できます。</p>
+        <p>MATOWAは、弓道部や道場の記録管理に特化した弓道記録アプリです。稽古や試合の的中記録、立順管理、出欠・遅刻管理、グループ成績、個人成績をまとめて扱えるため、紙の記録表や表計算で分かれていた作業を整理できます。</p>
         <p>「弓道の的中を記録したい」「部活の立順を早く決めたい」「メンバーごとの成績を振り返りたい」といった団体での記録業務を、スマホやタブレットから確認しやすい形にまとめます。</p>
       </div>
     </section>
@@ -135,7 +135,7 @@
 
         <div class="feature-detail" id="hit-record-detail" hidden>
           <div class="feature-detail-image">
-            <img src="{{ asset('landing/assets/記録画面.png') }}" alt="複数人の的中結果を一つの画面で記録できるkyudoScoreの記録画面">
+            <img src="{{ asset('landing/assets/記録画面.png') }}" alt="複数人の的中結果を一つの画面で記録できるMATOWAの記録画面">
           </div>
           <div class="feature-detail-copy">
             <p class="section-kicker">Hit record</p>
@@ -155,7 +155,7 @@
 
         <div class="feature-detail" id="order-management-detail" hidden>
           <div class="feature-detail-image">
-            <img src="{{ asset('landing/assets/立順画面.png') }}" alt="出欠や遅刻を反映しながら立順を作成できるkyudoScoreの立順管理画面">
+            <img src="{{ asset('landing/assets/立順画面.png') }}" alt="出欠や遅刻を反映しながら立順を作成できるMATOWAの立順管理画面">
           </div>
           <div class="feature-detail-copy">
             <p class="section-kicker">Order management</p>
@@ -177,9 +177,9 @@
         <div class="feature-detail" id="score-analysis-detail" hidden>
           <div class="analysis-gallery" data-gallery aria-label="成績分析画面の切り替え">
             <div class="feature-detail-image analysis-image">
-              <img data-gallery-panel="group-history" src="{{ asset('landing/assets/グループ履歴.png') }}" alt="グループのランキングを確認できるkyudoScoreの履歴画面">
-              <img data-gallery-panel="group-monthly" src="{{ asset('landing/assets/グループ月間履歴.jpg') }}" alt="グループの月間記録を一覧で印刷できるkyudoScoreの月間履歴画面" hidden>
-              <img data-gallery-panel="personal-history" src="{{ asset('landing/assets/個人履歴.jpg') }}" alt="個人の月ごとの記録と的中率グラフを確認できるkyudoScoreの個人履歴画面" hidden>
+              <img data-gallery-panel="group-history" src="{{ asset('landing/assets/グループ履歴.png') }}" alt="グループのランキングを確認できるMATOWAの履歴画面">
+              <img data-gallery-panel="group-monthly" src="{{ asset('landing/assets/グループ月間履歴.jpg') }}" alt="グループの月間記録を一覧で印刷できるMATOWAの月間履歴画面" hidden>
+              <img data-gallery-panel="personal-history" src="{{ asset('landing/assets/個人履歴.jpg') }}" alt="個人の月ごとの記録と的中率グラフを確認できるMATOWAの個人履歴画面" hidden>
             </div>
             <button class="gallery-arrow gallery-arrow-prev" type="button" data-gallery-prev aria-label="前の画像を見る">&lt;</button>
             <button class="gallery-arrow gallery-arrow-next" type="button" data-gallery-next aria-label="次の画像を見る">&gt;</button>
@@ -228,7 +228,7 @@
       </div>
       <div class="faq-list reveal">
         <article>
-          <h3>kyudoScoreはどんな弓道記録アプリですか？</h3>
+          <h3>MATOWAはどんな弓道記録アプリですか？</h3>
           <p>弓道部・道場などの団体向けに、的中記録、立順管理、出欠管理、成績分析をまとめて扱えるWebアプリです。</p>
         </article>
         <article>
@@ -246,7 +246,7 @@
       <div class="contact-panel reveal">
         <div class="contact-copy">
           <p class="section-kicker">Contact</p>
-          <h2 id="contact-title">kyudoScoreについて相談する</h2>
+          <h2 id="contact-title">MATOWAについて相談する</h2>
           <p>導入時期や利用人数が決まっていなくても大丈夫です。まずは使い方のイメージからご相談ください。</p>
         </div>
 
@@ -277,7 +277,7 @@
   </main>
 
   <footer class="site-footer">
-    <span>kyudoScore</span>
+    <span>MATOWA</span>
     <span>弓道部・道場の記録管理を、もっとスムーズに。</span>
   </footer>
 
