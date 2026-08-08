@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\ContactInquiry;
 use App\Models\Group;
 use App\Models\KyudoResult;
 use App\Models\Lineup;
@@ -36,10 +37,32 @@ class SystemController extends Controller
             'recentGroups' => Group::with(['host', 'users'])->latest()->limit(8)->get(),
             'recentRecords' => Record::with('user')->latest()->limit(10)->get(),
             'recentLicenseCodes' => RegistrationLicenseCode::withCount('users')->latest()->limit(8)->get(),
+            'recentContactInquiries' => ContactInquiry::latest()->limit(5)->get(),
             'logFiles' => $logFiles,
             'selectedLog' => $selectedLog,
             'logLines' => $selectedLog ? $this->tailLog($selectedLog['path']) : [],
         ]);
+    }
+
+    public function inquiries(Request $request): View
+    {
+        $this->authorizeSystemAdmin($request);
+
+        $search = trim((string) $request->query('search', ''));
+
+        $inquiries = ContactInquiry::query()
+            ->when($search !== '', function ($query) use ($search) {
+                $query->where(function ($query) use ($search) {
+                    $query->where('group_name', 'like', "%{$search}%")
+                        ->orWhere('representative_name', 'like', "%{$search}%")
+                        ->orWhere('email', 'like', "%{$search}%");
+                });
+            })
+            ->latest()
+            ->paginate(20)
+            ->withQueryString();
+
+        return view('admin.system.inquiries', compact('inquiries', 'search'));
     }
 
     public function users(Request $request): View
@@ -268,6 +291,7 @@ class SystemController extends Controller
             'match_teams' => MatchTeam::count(),
             'kyudo_results' => KyudoResult::count(),
             'news' => News::count(),
+            'contact_inquiries' => ContactInquiry::count(),
             'sessions' => $this->tableCount('sessions'),
             'jobs' => $this->tableCount('jobs'),
         ];

@@ -36,20 +36,48 @@ if ("IntersectionObserver" in window) {
   revealItems.forEach((item) => item.classList.add("is-visible"));
 }
 
-contactForm?.addEventListener("submit", (event) => {
+contactForm?.addEventListener("submit", async (event) => {
   event.preventDefault();
   const formData = new FormData(contactForm);
   const groupName = formData.get("groupName");
   const representativeName = formData.get("representativeName");
   const email = formData.get("email");
 
+  formMessage?.classList.remove("is-error");
+
   if (!groupName || !representativeName || !email) {
     formMessage.textContent = "団体名、代表者名、メールアドレスを入力してください。";
     return;
   }
 
-  formMessage.textContent = "お問い合わせありがとうございます。担当者よりご連絡します。";
-  contactForm.reset();
+  const submitButton = contactForm.querySelector('button[type="submit"]');
+  if (submitButton) submitButton.disabled = true;
+
+  try {
+    const response = await fetch(contactForm.action, {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "X-Requested-With": "XMLHttpRequest",
+      },
+      body: formData,
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      const errors = data.errors ? Object.values(data.errors).flat() : [];
+      throw new Error(errors[0] || data.message || "送信に失敗しました。時間をおいてもう一度お試しください。");
+    }
+
+    formMessage.textContent = data.message || "お問い合わせありがとうございます。担当者よりご連絡します。";
+    contactForm.reset();
+  } catch (error) {
+    formMessage?.classList.add("is-error");
+    formMessage.textContent = error.message || "送信に失敗しました。時間をおいてもう一度お試しください。";
+  } finally {
+    if (submitButton) submitButton.disabled = false;
+  }
 });
 
 featureToggles.forEach((toggle) => {

@@ -19,11 +19,13 @@ use App\Http\Controllers\GroupHistoryController;
 use App\Http\Controllers\LineWebhookController;
 use App\Http\Controllers\MatchLineupController;
 use App\Http\Controllers\SettingController;
+use App\Http\Controllers\ContactInquiryController;
 use App\Http\Controllers\Admin\SystemController;
 use App\Http\Controllers\Admin\NewsController as AdminNewsController;
 Route::get('/', function () {
     return view('landing');
 });
+Route::post('/contact-inquiries', [ContactInquiryController::class, 'store'])->name('contact-inquiries.store');
 
 
 
@@ -50,6 +52,7 @@ Route::middleware([ 'verified'])->group(function () {
     Route::post('/admin/system/license-codes', [SystemController::class, 'storeLicenseCode'])->name('admin.system.license-codes.store');
     Route::patch('/admin/system/license-codes/{licenseCode}', [SystemController::class, 'updateLicenseCode'])->name('admin.system.license-codes.update');
     Route::delete('/admin/system/license-codes/{licenseCode}', [SystemController::class, 'destroyLicenseCode'])->name('admin.system.license-codes.destroy');
+    Route::get('/admin/system/inquiries', [SystemController::class, 'inquiries'])->name('admin.system.inquiries');
 
     // 3️⃣ ユーザ管理画面
     Route::get('/users', [UserController::class, 'index'])->name('users.index');

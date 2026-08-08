@@ -13,6 +13,7 @@
             <a href="{{ route('admin.system.groups') }}" class="btn btn-outline-primary">KANRIグループ管理</a>
             <a href="{{ route('admin.system.license-codes') }}" class="btn btn-outline-primary">ライセンスコード管理</a>
             <a href="{{ route('admin.news.index') }}" class="btn btn-outline-primary">お知らせ管理</a>
+            <a href="{{ route('admin.system.inquiries') }}" class="btn btn-outline-primary">お問い合わせ管理</a>
         </div>
     </div>
 
@@ -30,6 +31,7 @@
             '試合チーム' => $stats['match_teams'],
             '射形記録' => $stats['kyudo_results'],
             'お知らせ' => $stats['news'],
+            'お問い合わせ' => $stats['contact_inquiries'],
             'セッション' => $stats['sessions'],
             'ジョブ' => $stats['jobs'],
         ] as $label => $value)
@@ -122,6 +124,29 @@
                     @endforelse
                 </div>
             </div>
+        </div>
+    </div>
+
+    <div class="admin-panel mb-4">
+        <div class="d-flex justify-content-between align-items-center gap-2 flex-wrap mb-2">
+            <div>
+                <div class="admin-panel-head mb-0">最近のお問い合わせ</div>
+                <div class="text-muted small">トップページのお問い合わせフォームから届いた内容です。</div>
+            </div>
+            <a href="{{ route('admin.system.inquiries') }}" class="btn btn-sm btn-outline-primary">一覧を見る</a>
+        </div>
+
+        <div class="admin-list">
+            @forelse($recentContactInquiries as $inquiry)
+                <div class="admin-list-row inquiry-row">
+                    <div>
+                        <strong>{{ $inquiry->group_name }} / {{ $inquiry->representative_name }}</strong>
+                        <span>{{ $inquiry->email }} / {{ $inquiry->created_at?->format('Y-m-d H:i') }}</span>
+                    </div>
+                </div>
+            @empty
+                <div class="text-muted">お問い合わせはまだありません。</div>
+            @endforelse
         </div>
     </div>
 

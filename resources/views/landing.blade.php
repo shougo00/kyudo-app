@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="kyudoScore は、弓道部・道場向けの弓道記録アプリです。的中記録、立順管理、出欠管理、成績分析をタブレットでまとめて管理できます。">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
   <meta name="robots" content="index, follow">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="kyudoScore">
@@ -249,23 +250,27 @@
           <p>導入時期や利用人数が決まっていなくても大丈夫です。まずは使い方のイメージからご相談ください。</p>
         </div>
 
-        <form class="contact-form" aria-label="お問い合わせフォーム">
+        <form class="contact-form"
+              method="POST"
+              action="{{ route('contact-inquiries.store') }}"
+              aria-label="お問い合わせフォーム">
+          @csrf
           <div class="form-field">
             <label for="group-name">団体名</label>
-            <input id="group-name" name="groupName" type="text" placeholder="例：〇〇高校弓道部" autocomplete="organization" required>
+            <input id="group-name" name="groupName" type="text" value="{{ old('groupName') }}" placeholder="例：〇〇高校弓道部" autocomplete="organization" required>
           </div>
 
           <div class="form-field">
             <label for="representative-name">代表者名</label>
-            <input id="representative-name" name="representativeName" type="text" placeholder="例：山田 太郎" autocomplete="name" required>
+            <input id="representative-name" name="representativeName" type="text" value="{{ old('representativeName') }}" placeholder="例：山田 太郎" autocomplete="name" required>
           </div>
 
           <label for="email">メールアドレス</label>
           <div class="form-row">
-            <input id="email" name="email" type="email" placeholder="you@example.com" autocomplete="email" required>
+            <input id="email" name="email" type="email" value="{{ old('email') }}" placeholder="you@example.com" autocomplete="email" required>
             <button type="submit">送信する</button>
           </div>
-          <p class="form-message" role="status" aria-live="polite"></p>
+          <p class="form-message" role="status" aria-live="polite">{{ session('contact_success') }}</p>
         </form>
       </div>
     </section>
