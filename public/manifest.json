@@ -1,7 +1,7 @@
 {
   "name": "弓道",
   "short_name": "弓道",
-  "start_url": "/login",
+  "start_url": "/",
   "display": "standalone",
   "scope": "/",
   "background_color": "#ffffff",
