@@ -6,6 +6,8 @@
   <meta name="description" content="MATOWA は、弓道部・道場向けの弓道記録アプリです。的中記録、立順管理、出欠管理、成績分析をタブレットでまとめて管理できます。">
   <meta name="csrf-token" content="{{ csrf_token() }}">
   <meta name="robots" content="index, follow">
+  <link rel="canonical" href="https://www.kyudo-app.com/">
+  <meta property="og:url" content="https://www.kyudo-app.com/">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="MATOWA">
   <meta property="og:title" content="MATOWA | 弓道 記録 アプリ">
