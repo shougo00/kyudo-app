@@ -102,6 +102,7 @@
           <span>スムーズに。</span>
         </h1>
         <p class="hero-lead">弓道の的中記録・立順管理・成績の振り返りまで、団体運営に必要な記録をひとつのシステムで。</p>
+        <p class="brand-catch"><span>MATOWA</span> - 的と和。的を囲み、和をつなぐ。</p>
         <p class="hero-sub">タブレット1台で、団体の記録をかんたんに見やすく。</p>
 
         <div class="hero-actions">
