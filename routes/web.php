@@ -28,6 +28,10 @@ Route::domain('www.kyudo-app.com')->group(function () {
         return view('landing');
     });
 });
+Route::get('/privacy-policy', function () {
+    return view('privacy-policy');
+})->name('privacy-policy');
+
 Route::get('/', function () {
      return redirect()->route('login');
 });

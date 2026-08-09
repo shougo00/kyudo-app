@@ -282,6 +282,7 @@
   <footer class="site-footer">
     <span>MATOWA</span>
     <span>弓道部・道場の記録管理を、もっとスムーズに。</span>
+    <a href="/privacy-policy">プライバシーポリシー</a>
   </footer>
 
   <button class="back-to-top" type="button" data-back-to-top aria-label="ページの一番上に戻る">↑</button>
