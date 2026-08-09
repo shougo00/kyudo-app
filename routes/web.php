@@ -23,7 +23,7 @@ use App\Http\Controllers\ContactInquiryController;
 use App\Http\Controllers\Admin\SystemController;
 use App\Http\Controllers\Admin\NewsController as AdminNewsController;
 Route::get('/', function () {
-    return view('landing');
+     return redirect()->route('login');
 });
 Route::post('/contact-inquiries', [ContactInquiryController::class, 'store'])->name('contact-inquiries.store');
 
