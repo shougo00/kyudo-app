@@ -92,6 +92,7 @@
       <a href="#contact">お問い合わせ</a>
     </nav>
 
+    <a class="header-login-button" href="{{ route('login') }}">ログイン</a>
   </header>
 
   <main id="top">
