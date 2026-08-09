@@ -15,7 +15,7 @@
         @endif
 
         <div class="news-body">
-            {!! nl2br(e($news->body)) !!}
+            {{ $news->bodyHtml() }}
         </div>
     </article>
 </div>
@@ -53,6 +53,17 @@
     line-height: 1.8;
     overflow-wrap: anywhere;
     white-space: normal;
+}
+
+.news-body a {
+    color: #0d6efd;
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.news-body a:hover {
+    color: #0a58ca;
 }
 </style>
 @endsection
