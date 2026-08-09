@@ -22,6 +22,12 @@ use App\Http\Controllers\SettingController;
 use App\Http\Controllers\ContactInquiryController;
 use App\Http\Controllers\Admin\SystemController;
 use App\Http\Controllers\Admin\NewsController as AdminNewsController;
+// www.kyudo-app.comでは紹介ホームページを表示
+Route::domain('www.kyudo-app.com')->group(function () {
+    Route::get('/', function () {
+        return view('landing');
+    });
+});
 Route::get('/', function () {
      return redirect()->route('login');
 });
