@@ -84,7 +84,9 @@
       <a href="#contact">お問い合わせ</a>
     </nav>
 
-    <a class="header-login-button" href="{{ route('login') }}">ログイン</a>
+    <a class="header-login-button" href="https://kyudo-app.com/login">
+      ログイン
+  </a>
   </header>
 
   <main id="top">
