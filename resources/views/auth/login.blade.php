@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <link rel="manifest" href="/manifest.json">
+    @include('layouts.partials.app-icons')
 
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -12,7 +12,6 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="MATOWA">
-    <link rel="apple-touch-icon" href="/icons/icon-192.png">
 
     <title>ログイン｜MATOWA</title>
 
@@ -53,9 +52,12 @@ body {
     padding: 25px 20px 10px;
 }
 
-.kyudo-icon {
-    font-size: 36px;
-    margin-bottom: 8px;
+.auth-app-icon {
+    width: 72px;
+    height: 72px;
+    margin-bottom: 10px;
+    border-radius: 16px;
+    object-fit: contain;
 }
 
 .title {
@@ -129,6 +131,7 @@ window.addEventListener('pageshow', function (event) {
 
         <!-- ヘッダー -->
         <div class="header-area">
+            <img class="auth-app-icon" src="{{ asset('icons/app-icon.png') }}" alt="MATOWA">
             <div class="title">MATOWA</div>
             <div class="subtitle">的中・出欠管理</div>
         </div>

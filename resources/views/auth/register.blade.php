@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <link rel="manifest" href="/manifest.json">
+    @include('layouts.partials.app-icons')
 
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -46,9 +46,12 @@ body {
     padding: 25px 20px 10px;
 }
 
-.kyudo-icon {
-    font-size: 34px;
-    margin-bottom: 6px;
+.auth-app-icon {
+    width: 72px;
+    height: 72px;
+    margin-bottom: 10px;
+    border-radius: 16px;
+    object-fit: contain;
 }
 
 .title {
@@ -105,6 +108,7 @@ body {
 
         <!-- ヘッダー -->
         <div class="header-area">
+            <img class="auth-app-icon" src="{{ asset('icons/app-icon.png') }}" alt="MATOWA">
             <div class="title">新規ユーザー登録</div>
             <div class="subtitle">MATOWAを始める</div>
         </div>

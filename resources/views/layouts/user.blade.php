@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 <head>
-    <link rel="manifest" href="/manifest.json">
+@include('layouts.partials.app-icons')
 
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -40,6 +40,13 @@
 
 /* PC ロゴとアバター間の間隔 */
 .navbar-brand { display:flex; align-items:center; gap:0.3rem; }
+
+.system-brand-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    object-fit: contain;
+}
 
 /* ----------------------
    スマホ対応
@@ -88,6 +95,11 @@
 
     /* ナビメニュー文字を小さく */
     .navbar-nav .nav-link { font-size:0.9rem; }
+
+    .system-brand-icon {
+        width: 34px;
+        height: 34px;
+    }
 }
 
 .nav-unread-badge {
@@ -147,7 +159,7 @@
             @endif
         @endauth
 
-        <i class="bi bi-journal-bookmark-fill text-primary fs-3 me-2"></i>
+        <img src="{{ asset('icons/app-icon.png') }}" alt="" class="system-brand-icon me-2">
         <span class="fw-bold text-dark">MATOWA</span>
     </div>
 
@@ -156,7 +168,7 @@
     <div class="d-flex d-lg-none w-100 justify-content-between align-items-center">
 
         <!-- 左 -->
-        <i class="bi bi-journal-bookmark-fill text-primary fs-3"></i>
+        <img src="{{ asset('icons/app-icon.png') }}" alt="" class="system-brand-icon">
 
         <!-- 中央 -->
         <div class="navbar-mobile-center">

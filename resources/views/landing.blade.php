@@ -13,6 +13,7 @@
   <meta property="og:image" content="{{ asset('landing/assets/タブレット写真.png') }}">
   <meta name="twitter:card" content="summary_large_image">
   <title>MATOWA | 弓道 記録 アプリ - 的中記録・立順管理・成績分析</title>
+  @include('layouts.partials.app-icons')
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800&family=Noto+Sans+JP:wght@500;700;800;900&display=swap" rel="stylesheet">
@@ -80,9 +81,7 @@
 <body>
   <header class="site-header" data-header>
     <a class="logo" href="#top" aria-label="MATOWA ホーム">
-      <span class="logo-mark" aria-hidden="true">
-        <span></span>
-      </span>
+      <img class="logo-mark" src="{{ asset('icons/app-icon.png') }}" alt="" aria-hidden="true">
       <span class="logo-text">MATOWA</span>
     </a>
 
