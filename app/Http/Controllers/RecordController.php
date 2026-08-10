@@ -281,6 +281,9 @@ class RecordController extends Controller
             $limit = in_array((string) $request->input('return_limit'), ['5', '10', '20', 'all'], true)
                 ? (string) $request->input('return_limit')
                 : 'all';
+            $rankingGender = in_array((string) $request->input('return_ranking_gender'), ['male', 'female', 'all'], true)
+                ? (string) $request->input('return_ranking_gender')
+                : 'all';
             $scoreTypes = collect((array) $request->input('return_score_types', ['all']))
                 ->filter(fn($type) => in_array($type, ['all', 'official', 'self'], true))
                 ->values()
@@ -301,6 +304,7 @@ class RecordController extends Controller
                 'view' => 'ranking',
                 'period' => $period,
                 'limit' => $limit,
+                'ranking_gender' => $rankingGender,
                 'start_date' => $startDate,
                 'end_date' => $endDate,
                 'calendar_month' => $calendarMonth,

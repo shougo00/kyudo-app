@@ -66,6 +66,17 @@
     min-height: 38px;
 }
 
+.filter-actions .btn-dark {
+    border-color: #1f4e79;
+    background: #1f4e79;
+}
+
+.filter-actions .btn-dark:hover,
+.filter-actions .btn-dark:focus {
+    border-color: #163a5b;
+    background: #163a5b;
+}
+
 .ranking-preset-tabs,
 .ranking-calendar-mode {
     display: grid;
@@ -103,7 +114,7 @@
 
 .ranking-preset-tab.active,
 .ranking-mode-button.active {
-    background: #111;
+    background: #1f4e79;
     color: #fff;
 }
 
@@ -159,8 +170,8 @@
 }
 
 .ranking-calendar-toggle.active {
-    background: #111;
-    border-color: #111;
+    background: #1f4e79;
+    border-color: #1f4e79;
     color: #fff;
 }
 
@@ -303,6 +314,52 @@
     font-weight: 800;
 }
 
+.ranking-view-switch {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 4px;
+    margin: 14px 0 12px;
+    padding: 4px;
+    border: 1px solid #e1e6ed;
+    border-radius: 8px;
+    background: #f8f9fa;
+}
+
+.ranking-view-tab {
+    min-width: 0;
+    min-height: 36px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: #495057;
+    font-size: 13px;
+    font-weight: 800;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.ranking-view-tab.active {
+    background: #111;
+    color: #fff;
+}
+
+.ranking-view-tab[data-ranking-gender-tab="all"].active {
+    background: #111;
+}
+
+.ranking-view-tab[data-ranking-gender-tab="male"].active {
+    background: #111;
+}
+
+.ranking-view-tab[data-ranking-gender-tab="female"].active {
+    background: #111;
+}
+
+.ranking-view-tab:focus-visible {
+    outline: 2px solid rgba(17, 17, 17, 0.35);
+    outline-offset: 2px;
+}
+
 .section-title {
     background: #111;
     color: white;
@@ -310,6 +367,14 @@
     border-radius: 10px;
     margin: 20px 0 10px;
     font-weight: bold;
+}
+
+.section-title-male {
+    background: #111;
+}
+
+.section-title-female {
+    background: #111;
 }
 
 .rank-card {
@@ -446,7 +511,7 @@
 }
 
 .active-score-subtle {
-    background: #fff9e6;
+    background: #f2f2f2;
     border-radius: 6px;
     padding-left: 6px;
     padding-right: 6px;

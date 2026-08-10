@@ -15,6 +15,9 @@
     $rankingCalendarPrevMonth = $rankingCalendarPrevMonth ?? $rankingCalendarCurrentMonth->copy()->subMonth()->format('Y-m');
     $rankingCalendarNextMonth = $rankingCalendarNextMonth ?? $rankingCalendarCurrentMonth->copy()->addMonth()->format('Y-m');
     $rankingLineupDates = $rankingLineupDates ?? [];
+    $rankingGender = in_array($rankingGender ?? request('ranking_gender', ''), ['male', 'female', 'all'], true)
+        ? ($rankingGender ?? request('ranking_gender'))
+        : 'all';
     $rankingSelectedStart = min($startDate, $endDate);
     $rankingSelectedEnd = max($startDate, $endDate);
     $rankingCalendarOpen = request()->boolean('calendar_open', false);
@@ -43,6 +46,7 @@
         'start_date' => $startDate,
         'end_date' => $endDate,
         'calendar_month' => $rankingCalendarMonth,
+        'ranking_gender' => $rankingGender,
     ];
 
     if ($rankingRangeAnchor !== '') {
@@ -58,6 +62,7 @@
         'return_start_date' => $startDate,
         'return_end_date' => $endDate,
         'return_calendar_month' => $rankingCalendarMonth,
+        'return_ranking_gender' => $rankingGender,
         'return_score_types' => $scoreTypes,
     ];
     $monthlyDetailReturnQuery = [
@@ -133,6 +138,10 @@
                    name="range_anchor"
                    value="{{ $rankingRangeAnchor }}"
                    data-ranking-range-anchor>
+            <input type="hidden"
+                   name="ranking_gender"
+                   value="{{ $rankingGender }}"
+                   data-ranking-gender-value>
 
             <div class="row g-2 align-items-end ranking-filter-row">
                 <div class="col-12 col-lg-4">
@@ -319,31 +328,67 @@
             </div>
         </form>
 
-        <div class="section-title">男子の部</div>
+        <div class="ranking-view-switch" data-ranking-gender-switch>
+            @foreach ([
+                'all' => '両方',
+                'male' => '男子',
+                'female' => '女子',
+            ] as $genderKey => $genderLabel)
+                <button type="button"
+                        class="ranking-view-tab {{ $rankingGender === $genderKey ? 'active' : '' }}"
+                        data-ranking-gender-tab="{{ $genderKey }}"
+                        aria-pressed="{{ $rankingGender === $genderKey ? 'true' : 'false' }}">
+                    {{ $genderLabel }}
+                </button>
+            @endforeach
+        </div>
 
-        @forelse ($maleRanking as $index => $row)
-            @include('group_history.partials.rank_card', [
-                'rank' => $index + 1,
-                'row' => $row,
-                'scoreTypes' => $scoreTypes,
-                'detailReturnQuery' => $rankingDetailReturnQuery,
-            ])
-        @empty
-            <p>男子の記録はありません。</p>
-        @endforelse
+        <div class="ranking-panels" data-ranking-gender-panels>
+            <section data-ranking-gender-panel="all" {{ $rankingGender !== 'all' ? 'hidden' : '' }}>
+                <div class="section-title">全体ランキング</div>
 
-        <div class="section-title">女子の部</div>
+                @forelse ($allRanking as $index => $row)
+                    @include('group_history.partials.rank_card', [
+                        'rank' => $index + 1,
+                        'row' => $row,
+                        'scoreTypes' => $scoreTypes,
+                        'detailReturnQuery' => $rankingDetailReturnQuery,
+                    ])
+                @empty
+                    <p>記録はありません。</p>
+                @endforelse
+            </section>
 
-        @forelse ($femaleRanking as $index => $row)
-            @include('group_history.partials.rank_card', [
-                'rank' => $index + 1,
-                'row' => $row,
-                'scoreTypes' => $scoreTypes,
-                'detailReturnQuery' => $rankingDetailReturnQuery,
-            ])
-        @empty
-            <p>女子の記録はありません。</p>
-        @endforelse
+            <section data-ranking-gender-panel="male" {{ $rankingGender !== 'male' ? 'hidden' : '' }}>
+                <div class="section-title section-title-male">男子の部</div>
+
+                @forelse ($maleRanking as $index => $row)
+                    @include('group_history.partials.rank_card', [
+                        'rank' => $index + 1,
+                        'row' => $row,
+                        'scoreTypes' => $scoreTypes,
+                        'detailReturnQuery' => $rankingDetailReturnQuery,
+                    ])
+                @empty
+                    <p>男子の記録はありません。</p>
+                @endforelse
+            </section>
+
+            <section data-ranking-gender-panel="female" {{ $rankingGender !== 'female' ? 'hidden' : '' }}>
+                <div class="section-title section-title-female">女子の部</div>
+
+                @forelse ($femaleRanking as $index => $row)
+                    @include('group_history.partials.rank_card', [
+                        'rank' => $index + 1,
+                        'row' => $row,
+                        'scoreTypes' => $scoreTypes,
+                        'detailReturnQuery' => $rankingDetailReturnQuery,
+                    ])
+                @empty
+                    <p>女子の記録はありません。</p>
+                @endforelse
+            </section>
+        </div>
 
     @else
 
@@ -564,8 +609,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const periodValueInput = document.querySelector('[data-ranking-period-value]');
     const calendarModeInput = document.querySelector('[data-ranking-calendar-mode-value]');
     const rangeAnchorInput = document.querySelector('[data-ranking-range-anchor]');
+    const rankingGenderInput = document.querySelector('[data-ranking-gender-value]');
     const presetButtons = [...document.querySelectorAll('[data-ranking-preset]')];
     const modeButtons = [...document.querySelectorAll('[data-ranking-select-mode]')];
+    const rankingGenderTabs = [...document.querySelectorAll('[data-ranking-gender-tab]')];
+    const rankingGenderPanels = [...document.querySelectorAll('[data-ranking-gender-panel]')];
     const summaryEl = document.querySelector('[data-ranking-date-summary]');
     const rankingDateFields = document.querySelector('[data-ranking-date-fields]');
     const startDateInput = document.getElementById('ranking-start-date');
@@ -743,6 +791,10 @@ document.addEventListener('DOMContentLoaded', () => {
             url.searchParams.set('limit', limitSelect.value);
         }
 
+        if (rankingGenderInput?.value) {
+            url.searchParams.set('ranking_gender', rankingGenderInput.value);
+        }
+
         [...url.searchParams.keys()]
             .filter(key => key === 'score_types[]' || key.startsWith('score_types['))
             .forEach(key => url.searchParams.delete(key));
@@ -771,6 +823,42 @@ document.addEventListener('DOMContentLoaded', () => {
             window.location.href = url.toString();
         });
     });
+
+    const syncRankingGenderView = gender => {
+        const nextGender = ['male', 'female', 'all'].includes(gender) ? gender : 'all';
+
+        if (rankingGenderInput) {
+            rankingGenderInput.value = nextGender;
+        }
+
+        rankingGenderTabs.forEach(button => {
+            const active = button.dataset.rankingGenderTab === nextGender;
+
+            button.classList.toggle('active', active);
+            button.setAttribute('aria-pressed', active ? 'true' : 'false');
+        });
+
+        rankingGenderPanels.forEach(panel => {
+            panel.hidden = panel.dataset.rankingGenderPanel !== nextGender;
+        });
+
+        document.querySelectorAll('a.detail-link').forEach(link => {
+            const url = new URL(link.href, window.location.origin);
+
+            if (url.searchParams.get('return_view') !== 'ranking') return;
+
+            url.searchParams.set('return_ranking_gender', nextGender);
+            link.href = url.toString();
+        });
+    };
+
+    rankingGenderTabs.forEach(button => {
+        button.addEventListener('click', () => {
+            syncRankingGenderView(button.dataset.rankingGenderTab);
+        });
+    });
+
+    syncRankingGenderView(rankingGenderInput?.value || 'all');
 
     document.addEventListener('click', event => {
         if (!rankingCalendarOpen || !rankingDateFields || rankingDateFields.contains(event.target)) return;

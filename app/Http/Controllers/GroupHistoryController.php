@@ -48,6 +48,10 @@ class GroupHistoryController extends Controller
         $limit = in_array($requestedLimit, ['5', '10', '20', 'all'], true)
             ? $requestedLimit
             : 'all';
+        $requestedRankingGender = (string) $request->input('ranking_gender', '');
+        $rankingGender = in_array($requestedRankingGender, ['male', 'female', 'all'], true)
+            ? $requestedRankingGender
+            : 'all';
         [$rangeStart, $rangeEnd, $startDate, $endDate] = $this->rankingDateRange($request, $period);
         $rankingCalendarMonth = $this->validMonthOr(
             (string) $request->input('calendar_month', ''),
@@ -64,6 +68,7 @@ class GroupHistoryController extends Controller
         $prevMonth = $currentMonth->copy()->subMonth()->format('Y-m');
         $nextMonth = $currentMonth->copy()->addMonth()->format('Y-m');
 
+        $allRanking = collect();
         $maleRanking = collect();
         $femaleRanking = collect();
         $monthlyRecords = collect();
@@ -119,6 +124,8 @@ class GroupHistoryController extends Controller
                 return $items->take((int) $limit)->values();
             };
 
+            $allRanking = $sortRanking($ranking);
+
             $maleRanking = $sortRanking(
                 $ranking->filter(fn($row) => $row['user']->gender === 'male')
             );
@@ -146,6 +153,7 @@ class GroupHistoryController extends Controller
             'view',
             'period',
             'limit',
+            'rankingGender',
             'startDate',
             'endDate',
             'rankingCalendarMonth',
@@ -156,6 +164,7 @@ class GroupHistoryController extends Controller
             'keyword',
             'scoreTypes',
             'availableScoreTypes',
+            'allRanking',
             'maleRanking',
             'femaleRanking',
             'month',
