@@ -330,7 +330,7 @@
 
         <div class="ranking-view-switch" data-ranking-gender-switch>
             @foreach ([
-                'all' => '両方',
+                'all' => '全体',
                 'male' => '男子',
                 'female' => '女子',
             ] as $genderKey => $genderLabel)

@@ -36,6 +36,7 @@ it('shows the 20 person and all member ranking limit options', function () {
         ->assertSee('上位10人')
         ->assertSee('上位20人')
         ->assertSee('全員')
+        ->assertSee('全体')
         ->assertSee('value="20" selected', false);
 
     $limitContent = $limitResponse->getContent();
