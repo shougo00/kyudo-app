@@ -54,7 +54,7 @@ it('orders monthly group records by grade and puts users without a grade last', 
         $secondGrade->id,
     ]);
 
-    $this->actingAs($host)
+    $response = $this->actingAs($host)
         ->get("/group/{$group->id}/history?view=monthly&month=2026-07")
         ->assertOk()
         ->assertSeeInOrder([
@@ -63,4 +63,9 @@ it('orders monthly group records by grade and puts users without a grade last', 
             'First Grade',
             'No Grade',
         ]);
+
+    $content = $response->getContent();
+
+    expect($content)->toContain('CSV出力');
+    expect(preg_match('/<a[^>]+monthly-csv[^>]*data-monthly-loading/s', $content))->toBe(0);
 });

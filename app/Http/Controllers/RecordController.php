@@ -275,12 +275,12 @@ class RecordController extends Controller
     private function historyBackQuery(Request $request, string $month): array
     {
         if ($request->input('return_view') === 'ranking') {
-            $period = in_array($request->input('return_period'), ['today', 'week', 'month', 'year'], true)
+            $period = in_array($request->input('return_period'), ['today', 'week', 'month', 'year', 'date', 'custom'], true)
                 ? $request->input('return_period')
                 : 'today';
             $limit = in_array((string) $request->input('return_limit'), ['5', '10', '20', 'all'], true)
                 ? (string) $request->input('return_limit')
-                : '10';
+                : 'all';
             $scoreTypes = collect((array) $request->input('return_score_types', ['all']))
                 ->filter(fn($type) => in_array($type, ['all', 'official', 'self'], true))
                 ->values()
@@ -290,10 +290,20 @@ class RecordController extends Controller
                 $scoreTypes = ['all'];
             }
 
+            $startDate = $this->validDateOr((string) $request->input('return_start_date', ''), now()->format('Y-m-d'));
+            $endDate = $this->validDateOr((string) $request->input('return_end_date', ''), $startDate);
+            $calendarMonth = $this->validMonthOr(
+                (string) $request->input('return_calendar_month', ''),
+                Carbon::parse($startDate)->format('Y-m')
+            );
+
             return [
                 'view' => 'ranking',
                 'period' => $period,
                 'limit' => $limit,
+                'start_date' => $startDate,
+                'end_date' => $endDate,
+                'calendar_month' => $calendarMonth,
                 'score_types' => $scoreTypes,
             ];
         }
@@ -315,5 +325,35 @@ class RecordController extends Controller
             'view' => 'monthly',
             'month' => $month,
         ];
+    }
+
+    private function validDateOr(string $date, string $fallback): string
+    {
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+            return $fallback;
+        }
+
+        [$year, $month, $day] = array_map('intval', explode('-', $date));
+
+        if (!checkdate($month, $day, $year)) {
+            return $fallback;
+        }
+
+        return sprintf('%04d-%02d-%02d', $year, $month, $day);
+    }
+
+    private function validMonthOr(string $month, string $fallback): string
+    {
+        if (!preg_match('/^\d{4}-\d{2}$/', $month)) {
+            return $fallback;
+        }
+
+        [$year, $monthValue] = array_map('intval', explode('-', $month));
+
+        if ($monthValue < 1 || $monthValue > 12) {
+            return $fallback;
+        }
+
+        return sprintf('%04d-%02d', $year, $monthValue);
     }
 }

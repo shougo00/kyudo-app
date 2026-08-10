@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Group;
+use App\Models\Lineup;
 use App\Models\Record;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -40,10 +41,21 @@ class GroupHistoryController extends Controller
         if (empty($scoreTypes) || in_array('all', $scoreTypes, true)) {
             $scoreTypes = ['all'];
         }
-        $period = $request->input('period', 'today');
-        $limit = in_array((string) $request->input('limit', 10), ['5', '10', '20', 'all'], true)
-            ? (string) $request->input('limit', 10)
-            : '10';
+        $period = in_array($request->input('period', 'today'), ['today', 'week', 'month', 'year', 'date', 'custom'], true)
+            ? $request->input('period', 'today')
+            : 'today';
+        $requestedLimit = (string) $request->input('limit', 'all');
+        $limit = in_array($requestedLimit, ['5', '10', '20', 'all'], true)
+            ? $requestedLimit
+            : 'all';
+        [$rangeStart, $rangeEnd, $startDate, $endDate] = $this->rankingDateRange($request, $period);
+        $rankingCalendarMonth = $this->validMonthOr(
+            (string) $request->input('calendar_month', ''),
+            Carbon::parse($startDate)->format('Y-m')
+        );
+        $rankingCalendarCurrentMonth = Carbon::parse($rankingCalendarMonth . '-01')->startOfMonth();
+        $rankingCalendarPrevMonth = $rankingCalendarCurrentMonth->copy()->subMonth()->format('Y-m');
+        $rankingCalendarNextMonth = $rankingCalendarCurrentMonth->copy()->addMonth()->format('Y-m');
         $keyword = trim((string) $request->input('keyword', ''));
 
         // ===== 月間記録用 =====
@@ -55,6 +67,7 @@ class GroupHistoryController extends Controller
         $maleRanking = collect();
         $femaleRanking = collect();
         $monthlyRecords = collect();
+        $rankingLineupDates = [];
 
         if ($view === 'ranking') {
             // ===== グループメンバー =====
@@ -64,13 +77,11 @@ class GroupHistoryController extends Controller
                 ->get();
 
             // ===== ランキング用 =====
-            [$start, $end] = $this->periodRange($period);
-
             $memberIds = $members->pluck('id');
 
             $rankingSourceRecords = Record::with('shots')
                 ->whereIn('user_id', $memberIds)
-                ->whereBetween('date', [$start, $end])
+                ->whereBetween('date', [$rangeStart, $rangeEnd])
                 ->whereIn('practice_type', array_keys($availableScoreTypes))
                 ->get()
                 ->groupBy('user_id');
@@ -115,6 +126,17 @@ class GroupHistoryController extends Controller
             $femaleRanking = $sortRanking(
                 $ranking->filter(fn($row) => $row['user']->gender === 'female')
             );
+
+            $rankingLineupDates = Lineup::where('group_id', $group->id)
+                ->whereYear('date', $rankingCalendarCurrentMonth->year)
+                ->whereMonth('date', $rankingCalendarCurrentMonth->month)
+                ->whereHas('members', function ($q) {
+                    $q->where('is_absent', false)
+                        ->whereNotNull('position');
+                })
+                ->pluck('date')
+                ->map(fn($date) => Carbon::parse($date)->format('Y-m-d'))
+                ->toArray();
         } else {
             $monthlyRecords = $this->monthlyRows($group, $currentMonth, $keyword);
         }
@@ -124,6 +146,13 @@ class GroupHistoryController extends Controller
             'view',
             'period',
             'limit',
+            'startDate',
+            'endDate',
+            'rankingCalendarMonth',
+            'rankingCalendarCurrentMonth',
+            'rankingCalendarPrevMonth',
+            'rankingCalendarNextMonth',
+            'rankingLineupDates',
             'keyword',
             'scoreTypes',
             'availableScoreTypes',
@@ -197,34 +226,111 @@ class GroupHistoryController extends Controller
             ->values();
     }
 
-    private function periodRange($period)
+    private function rankingDateRange(Request $request, string $period): array
     {
+        $today = now()->format('Y-m-d');
+
         if ($period === 'week') {
+            $start = now()->subDays(6)->format('Y-m-d');
+            $end = $today;
+
             return [
-                now()->subDays(6)->format('Y-m-d'),
-                now()->format('Y-m-d'),
+                $start,
+                $end,
+                $start,
+                $end,
             ];
         }
 
         if ($period === 'month') {
+            $start = now()->subDays(29)->format('Y-m-d');
+            $end = $today;
+
             return [
-                now()->subDays(29)->format('Y-m-d'),
-                now()->format('Y-m-d'),
+                $start,
+                $end,
+                $start,
+                $end,
             ];
         }
 
         if ($period === 'year') {
+            $start = now()->subDays(364)->format('Y-m-d');
+            $end = $today;
+
             return [
-                now()->subDays(364)->format('Y-m-d'),
-                now()->format('Y-m-d'),
+                $start,
+                $end,
+                $start,
+                $end,
+            ];
+        }
+
+        if ($period === 'date') {
+            $date = $this->validDateOr((string) $request->input('start_date', ''), $today);
+
+            return [
+                $date,
+                $date,
+                $date,
+                $date,
+            ];
+        }
+
+        if ($period === 'custom') {
+            $start = $this->validDateOr((string) $request->input('start_date', ''), $today);
+            $end = $this->validDateOr((string) $request->input('end_date', ''), $start);
+
+            if ($end < $start) {
+                [$start, $end] = [$end, $start];
+            }
+
+            return [
+                $start,
+                $end,
+                $start,
+                $end,
             ];
         }
 
         return [
-            now()->format('Y-m-d'),
-            now()->format('Y-m-d'),
+            $today,
+            $today,
+            $today,
+            $today,
         ];
     }
+
+    private function validDateOr(string $date, string $fallback): string
+    {
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+            return $fallback;
+        }
+
+        [$year, $month, $day] = array_map('intval', explode('-', $date));
+
+        if (!checkdate($month, $day, $year)) {
+            return $fallback;
+        }
+
+        return sprintf('%04d-%02d-%02d', $year, $month, $day);
+    }
+
+    private function validMonthOr(string $month, string $fallback): string
+    {
+        if (!preg_match('/^\d{4}-\d{2}$/', $month)) {
+            return $fallback;
+        }
+
+        [$year, $monthValue] = array_map('intval', explode('-', $month));
+
+        if ($monthValue < 1 || $monthValue > 12) {
+            return $fallback;
+        }
+
+        return sprintf('%04d-%02d', $year, $monthValue);
+    }
+
     public function monthlyPrint(Request $request, Group $group)
     {
         // ★ 所属チェック

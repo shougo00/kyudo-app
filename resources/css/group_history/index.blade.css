@@ -1,4 +1,5 @@
 .history-page {
+    width: min(100% - 20px, 900px);
     max-width: 900px;
     margin: 16px auto;
     padding: 10px;
@@ -17,11 +18,14 @@
     margin-bottom: 16px;
     background: #fff;
     border: 1px solid #eee;
+    overflow: visible;
+    position: relative;
+    z-index: 20;
 }
 
 .score-checks {
-    display: flex;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(84px, 1fr));
     gap: 8px;
 }
 
@@ -39,6 +43,8 @@
     font-weight: 700;
     cursor: pointer;
     user-select: none;
+    min-width: 0;
+    white-space: nowrap;
 }
 
 .score-check input {
@@ -54,6 +60,247 @@
 .filter-actions {
     display: flex;
     justify-content: flex-end;
+}
+
+.filter-actions .btn {
+    min-height: 38px;
+}
+
+.ranking-preset-tabs,
+.ranking-calendar-mode {
+    display: grid;
+    gap: 4px;
+    padding: 3px;
+    border: 1px solid #e1e6ed;
+    border-radius: 8px;
+    background: #f8f9fa;
+}
+
+.ranking-preset-tabs {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    min-height: 38px;
+}
+
+.ranking-calendar-mode {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 136px;
+    flex: 0 0 auto;
+}
+
+.ranking-preset-tab,
+.ranking-mode-button {
+    min-width: 0;
+    min-height: 30px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: #495057;
+    font-size: 12px;
+    font-weight: 800;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.ranking-preset-tab.active,
+.ranking-mode-button.active {
+    background: #111;
+    color: #fff;
+}
+
+.ranking-date-fields {
+    margin-top: 0;
+    position: relative;
+    z-index: 30;
+}
+
+.ranking-date-fields.calendar-open {
+    z-index: 100;
+}
+
+.ranking-date-grid {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.ranking-date-field {
+    flex: 0 1 180px;
+}
+
+.ranking-date-input {
+    min-height: 38px;
+}
+
+.ranking-calendar-toggle-bar {
+    width: 100%;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 4px;
+    border: 1px solid #e1e6ed;
+    border-radius: 8px;
+    background: #f8f9fa;
+    padding: 3px 4px 3px 8px;
+}
+
+.ranking-calendar-toggle {
+    width: 32px;
+    min-width: 32px;
+    height: 30px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+.ranking-calendar-toggle.active {
+    background: #111;
+    border-color: #111;
+    color: #fff;
+}
+
+.ranking-calendar-box {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 50%;
+    z-index: 1000;
+    width: min(520px, calc(100vw - 28px));
+    max-width: calc(100vw - 28px);
+    max-height: min(72vh, 640px);
+    margin: 0;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    background: #fff;
+    padding: 8px;
+    overflow-y: auto;
+    box-shadow: 0 14px 34px rgba(15, 23, 42, 0.18);
+    transform: translateX(-50%);
+}
+
+.ranking-calendar-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    margin-bottom: 8px;
+}
+
+.ranking-date-summary {
+    min-width: 0;
+    min-height: 30px;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    color: #212529;
+    font-size: 12px;
+    font-weight: 800;
+    line-height: 1.1;
+    overflow: hidden;
+    text-align: left;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ranking-calendar-month-nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+
+.ranking-calendar-month-nav strong {
+    font-size: 15px;
+    font-weight: 800;
+}
+
+.ranking-calendar-wrapper {
+    overflow-x: auto;
+}
+
+.ranking-calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    border: 1px solid #ccc;
+}
+
+.ranking-calendar-day-header,
+.ranking-calendar-day,
+.ranking-calendar-empty {
+    min-height: 46px;
+    border: 1px solid #ccc;
+    padding: 3px 2px;
+    text-align: center;
+    font-size: 11px;
+}
+
+.ranking-calendar-day-header {
+    min-height: auto;
+    background: #f0f0f0;
+    font-weight: 800;
+}
+
+.ranking-calendar-empty {
+    background: #f7f7f7;
+}
+
+.ranking-calendar-day {
+    width: 100%;
+    background: #fff;
+    color: inherit;
+    cursor: pointer;
+    appearance: none;
+}
+
+.ranking-calendar-day:hover,
+.ranking-calendar-day:focus-visible {
+    background: #f8fbff;
+    outline: 0;
+    box-shadow: inset 0 0 0 2px rgba(13, 110, 253, 0.35);
+}
+
+.ranking-calendar-day.has-lineup {
+    background: #fff3cd;
+}
+
+.ranking-calendar-day.has-lineup .data {
+    display: block;
+    color: #9a6a00;
+    font-size: 9px;
+    font-weight: 800;
+}
+
+.ranking-calendar-day.selected {
+    background: #d1e7dd !important;
+}
+
+.ranking-calendar-day.range-start,
+.ranking-calendar-day.range-end {
+    background: #bfe7d0 !important;
+    box-shadow: inset 0 0 0 2px #198754;
+}
+
+.ranking-calendar-day.range-pending {
+    background: #bfe7d0 !important;
+    box-shadow: inset 0 0 0 2px #0d6efd;
+}
+
+.ranking-calendar-day.sunday .date {
+    color: red;
+}
+
+.ranking-calendar-day.saturday .date {
+    color: blue;
+}
+
+.ranking-calendar-day .date {
+    display: block;
+    font-weight: 800;
 }
 
 .section-title {
@@ -140,6 +387,7 @@
 
 .rank-info {
     flex: 1;
+    min-width: 0;
 }
 
 .user-name {
@@ -182,9 +430,15 @@
 .score-line {
     display: flex;
     justify-content: space-between;
+    gap: 10px;
     border-bottom: 1px solid #eee;
     padding: 3px 0;
     font-size: 14px;
+}
+
+.score-line span:last-child {
+    flex-shrink: 0;
+    text-align: right;
 }
 
 .score-line:last-child {
@@ -247,7 +501,14 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 8px;
     margin-bottom: 10px;
+}
+
+.title-bar h3 {
+    min-width: 0;
+    margin-bottom: 0;
+    overflow-wrap: anywhere;
 }
 
 .history-loading-overlay {
@@ -308,14 +569,74 @@
     display: none;
 }
 
-@media (max-width: 600px) {
+@media (max-width: 991.98px) {
+    .ranking-calendar-toggle-bar {
+        width: 240px;
+        max-width: 100%;
+    }
+
+    .ranking-calendar-box {
+        left: 0;
+        transform: none;
+    }
+
+    .filter-actions {
+        justify-content: flex-end;
+    }
+
+    .filter-actions .btn {
+        min-width: 128px;
+    }
+}
+
+@media (max-width: 767.98px) {
+    .history-page {
+        width: min(100% - 16px, 900px);
+        margin-top: 10px;
+        padding: 8px;
+    }
+
+    .filter-box,
     .rank-card {
-        gap: 8px;
+        border-radius: 8px;
         padding: 10px;
     }
 
-    .score-line {
+    .title-bar {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .title-bar .d-flex {
+        width: 100%;
+    }
+
+    .title-bar .btn {
+        flex: 1;
+    }
+
+    .page-tabs {
+        gap: 4px;
+        padding: 4px;
+        border-radius: 8px;
+    }
+
+    .page-tab {
+        padding: 8px 6px;
+        border-radius: 6px;
         font-size: 13px;
+    }
+
+    .ranking-filter-row {
+        align-items: flex-start !important;
+    }
+
+    .ranking-period-fields .ranking-preset-tabs {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .ranking-period-fields .ranking-preset-tab {
+        padding: 0 2px;
     }
 
     .filter-actions {
@@ -324,6 +645,63 @@
 
     .filter-actions .btn {
         width: 100%;
+        min-width: 0;
+    }
+}
+
+@media (max-width: 600px) {
+    .rank-card {
+        align-items: flex-start;
+        gap: 8px;
+        padding: 10px;
+    }
+
+    .rank-no {
+        width: 28px;
+        font-size: 18px;
+        flex-shrink: 0;
+    }
+
+    .name-with-action {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .detail-link {
+        min-height: 26px;
+        padding: 4px 8px;
+    }
+
+    .score-line {
+        font-size: 13px;
+    }
+
+    .ranking-date-grid {
+        justify-content: stretch;
+    }
+
+    .ranking-date-field {
+        flex: 1 1 100%;
+    }
+
+    .ranking-calendar-toolbar {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .ranking-calendar-mode {
+        width: 100%;
+    }
+
+    .ranking-date-summary {
+        justify-content: center;
+        text-align: center;
+    }
+
+    .ranking-calendar-day,
+    .ranking-calendar-empty {
+        min-height: 42px;
     }
 
 }
@@ -344,6 +722,7 @@
     }
 
     .history-page {
+        width: auto !important;
         max-width: none !important;
         margin: 0 !important;
         padding: 0 !important;
