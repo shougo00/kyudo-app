@@ -114,15 +114,7 @@ body {
 }
 </style>
 
-<script>
-window.addEventListener('pageshow', function (event) {
-    const navigation = performance.getEntriesByType('navigation')[0];
 
-    if (event.persisted || navigation?.type === 'back_forward') {
-        window.location.reload();
-    }
-});
-</script>
 
 <body>
 
