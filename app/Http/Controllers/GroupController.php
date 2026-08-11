@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use App\Models\Avatar;
 use App\Models\Group;
 use Illuminate\Support\Facades\DB;
 
@@ -11,7 +12,14 @@ class GroupController extends Controller
     // 一覧
     public function index()
     {
-        $groups = auth()->user()->groups()->with('users.avatar')->get();
+        $userAvatarRelations = array_map(
+            fn(string $relation): string => 'users.' . $relation,
+            Avatar::itemRelations()
+        );
+
+        $groups = auth()->user()->groups()
+            ->with(array_merge(['users.avatar'], $userAvatarRelations))
+            ->get();
 
         return view('groups.index', compact('groups'));
     }

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Group;
+use App\Models\Avatar;
 use App\Models\Lineup;
 use App\Models\Record;
 use Carbon\Carbon;
@@ -78,7 +79,7 @@ class GroupHistoryController extends Controller
             // ===== グループメンバー =====
             $members = $group->users()
                 ->where('is_admin', false)
-                ->with('avatar')
+                ->with(array_merge(['avatar'], Avatar::itemRelations()))
                 ->get();
 
             // ===== ランキング用 =====
@@ -198,7 +199,7 @@ class GroupHistoryController extends Controller
     {
         $monthlyMembersQuery = $group->users()
             ->where('is_admin', false)
-            ->with('avatar')
+            ->with(array_merge(['avatar'], Avatar::itemRelations()))
             ->when($group->uses_grades, function ($query) {
                 $query
                     ->orderByRaw('users.grade_level IS NULL')

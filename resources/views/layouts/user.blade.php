@@ -14,32 +14,14 @@
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
 
 <style>
-/* ----------------------
-   アバター全体
----------------------- */
-.navbar-avatar-box {
-    position: relative;
-    width: 40px;
-    height: 50px;
-    cursor: pointer;
-}
-
-/* パーツ共通 */
-.navbar-avatar-layer {
-    position: absolute;
-    object-fit: contain;
-}
-
-/* PC用パーツ位置 */
-.navbar-avatar-layer.hair { top:0; left:0; width:100%; height:20px; z-index:6; }
-.navbar-avatar-layer.face { top:10px; left:10px; width:20px; height:20px; z-index:5; }
-.navbar-avatar-layer.top { top:25px; left:0; width:40px; height:15px; z-index:4; }
-.navbar-avatar-layer.bottom { top:35px; left:0; width:40px; height:10px; z-index:3; }
-.navbar-avatar-layer.shoes { top:45px; left:5px; width:30px; height:5px; z-index:2; }
-.navbar-avatar-layer.accessory { top:0; left:5px; width:30px; height:10px; z-index:7; }
-
 /* PC ロゴとアバター間の間隔 */
 .navbar-brand { display:flex; align-items:center; gap:0.3rem; }
+
+.navbar-avatar-link {
+    display: inline-flex;
+    align-items: center;
+    line-height: 0;
+}
 
 .system-brand-icon {
     width: 36px;
@@ -52,29 +34,6 @@
    スマホ対応
 ---------------------- */
 @media (max-width: 991px) {
-    /* アバター縮小＆中央寄せ */
-    .navbar-avatar-box {
-        width: 35px;
-        height: 45px;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-    }
-
-   .navbar-avatar-layer {
-    width: 80%;
-    height: auto;
-    position: absolute;
-}
-
-    /* パーツ縦位置調整 */
-    .navbar-avatar-layer.hair { top:0%;left: 8%; }
-    .navbar-avatar-layer.face { top:20%; }
-    .navbar-avatar-layer.top { top:50%; }
-    .navbar-avatar-layer.bottom { top:70%; }
-    .navbar-avatar-layer.shoes { top:85%; }
-    .navbar-avatar-layer.accessory { top:5%; }
-
     /* アバター + FAMLEVEL 中央揃え */
     .navbar-mobile-center {
         display:flex;
@@ -140,23 +99,9 @@
     <div class="d-none d-lg-flex align-items-center">
         @auth
             @php $avatar = Auth::user()->avatar; @endphp
-            @if($avatar)
-                <a href="{{ route('avatar.show') }}" class="me-2">
-                    <div class="navbar-avatar-box">
-                        @foreach(['bottom','shoes','top','face','hair','accessory'] as $part)
-                            @if($avatar->$part)
-                                <img src="{{ asset('avatars/'.$part.'/'.$avatar->$part->image_path) }}"
-                                    class="navbar-avatar-layer {{ $part }}">
-                            @endif
-                        @endforeach
-                    </div>
-                </a>
-            @else
-                <a href="{{ route('avatar.show') }}" class="me-2">
-                    <img src="{{ asset('avatars/default.png') }}"
-                         style="width:40px;height:50px;object-fit:contain;">
-                </a>
-            @endif
+            <a href="{{ route('avatar.show') }}" class="navbar-avatar-link me-2">
+                @include('avatar.partials.stack', ['avatar' => $avatar, 'scale' => 0.115])
+            </a>
         @endauth
 
         <img src="{{ asset('icons/app-icon.png') }}" alt="" class="system-brand-icon me-2">
@@ -174,23 +119,9 @@
         <div class="navbar-mobile-center">
             @auth
                 @php $avatar = Auth::user()->avatar; @endphp
-                @if($avatar)
-                    <a href="{{ route('avatar.show') }}">
-                        <div class="navbar-avatar-box">
-                            @foreach(['bottom','shoes','top','face','hair','accessory'] as $part)
-                                @if($avatar->$part)
-                                    <img src="{{ asset('avatars/'.$part.'/'.$avatar->$part->image_path) }}"
-                                    class="navbar-avatar-layer {{ $part }}">
-                                @endif
-                            @endforeach
-                        </div>
-                    </a>
-                @else
-                    <a href="{{ route('avatar.show') }}">
-                        <img src="{{ asset('avatars/default.png') }}"
-                             style="width:35px;height:45px;object-fit:contain;">
-                    </a>
-                @endif
+                <a href="{{ route('avatar.show') }}" class="navbar-avatar-link">
+                    @include('avatar.partials.stack', ['avatar' => $avatar, 'scale' => 0.1])
+                </a>
             @endauth
             <span class="fw-bold text-dark ms-1">MATOWA</span>
         </div>
@@ -345,19 +276,7 @@
             @php $avatar = Auth::user()->avatar; @endphp
 
             <div class="text-center mb-3">
-                @if($avatar)
-                    <div class="navbar-avatar-box mx-auto">
-                        @foreach(['bottom','shoes','top','face','hair','accessory'] as $part)
-                            @if($avatar->$part)
-                                    <img src="{{ asset('avatars/'.$part.'/'.$avatar->$part->image_path) }}"
-                                    class="navbar-avatar-layer {{ $part }}">
-                            @endif
-                        @endforeach
-                    </div>
-                @else
-                    <img src="{{ asset('avatars/default.png') }}"
-                         style="width:50px;height:60px;">
-                @endif
+                @include('avatar.partials.stack', ['avatar' => $avatar, 'scale' => 0.13])
 
                 <div class="mt-2 fw-bold">{{ Auth::user()->name }}</div>
             </div>

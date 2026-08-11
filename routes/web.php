@@ -20,6 +20,7 @@ use App\Http\Controllers\LineWebhookController;
 use App\Http\Controllers\MatchLineupController;
 use App\Http\Controllers\SettingController;
 use App\Http\Controllers\ContactInquiryController;
+use App\Http\Controllers\Admin\AvatarItemController;
 use App\Http\Controllers\Admin\SystemController;
 use App\Http\Controllers\Admin\NewsController as AdminNewsController;
 // www.kyudo-app.comでは紹介ホームページを表示
@@ -63,6 +64,10 @@ Route::middleware([ 'verified'])->group(function () {
     Route::patch('/admin/system/license-codes/{licenseCode}', [SystemController::class, 'updateLicenseCode'])->name('admin.system.license-codes.update');
     Route::delete('/admin/system/license-codes/{licenseCode}', [SystemController::class, 'destroyLicenseCode'])->name('admin.system.license-codes.destroy');
     Route::get('/admin/system/inquiries', [SystemController::class, 'inquiries'])->name('admin.system.inquiries');
+    Route::get('/admin/system/avatar-items', [AvatarItemController::class, 'index'])->name('admin.system.avatar-items');
+    Route::post('/admin/system/avatar-items', [AvatarItemController::class, 'store'])->name('admin.system.avatar-items.store');
+    Route::patch('/admin/system/avatar-items/{item}', [AvatarItemController::class, 'update'])->name('admin.system.avatar-items.update');
+    Route::get('/admin/system/avatar-items/export', [AvatarItemController::class, 'export'])->name('admin.system.avatar-items.export');
 
     // 3️⃣ ユーザ管理画面
     Route::get('/users', [UserController::class, 'index'])->name('users.index');

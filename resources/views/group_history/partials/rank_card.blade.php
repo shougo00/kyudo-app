@@ -12,17 +12,7 @@
             $avatar = $row['user']->avatar;
         @endphp
 
-        @if ($avatar)
-            @foreach(['bottom','shoes','top','face','hair','accessory'] as $part)
-                @if($avatar->$part)
-                    <img src="{{ asset('avatars/'.$part.'/'.$avatar->$part->image_path) }}"
-                         class="avatar-layer {{ $part }}">
-                @endif
-            @endforeach
-        @else
-            <img src="{{ asset('avatars/default.png') }}"
-                 style="width:52px;height:62px;object-fit:contain;">
-        @endif
+        @include('avatar.partials.stack', ['avatar' => $avatar, 'scale' => 0.17])
     </div>
 
     <div class="rank-info">

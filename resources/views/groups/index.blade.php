@@ -45,25 +45,7 @@
 
                             @php $avatar = $user->avatar; @endphp
 
-                            @if($avatar)
-
-                                <div class="group-member-avatar-box">
-                                    @foreach(['bottom','shoes','top','face','hair','accessory'] as $part)
-
-                                        @if($avatar->$part)
-                                            <img src="{{ asset('avatars/'.$part.'/'.$avatar->$part->image_path) }}"
-                                                 class="group-member-avatar-layer {{ $part }}">
-                                        @endif
-
-                                    @endforeach
-                                </div>
-
-                            @else
-
-                                <img src="{{ asset('avatars/default.png') }}"
-                                     style="width:40px;height:50px;object-fit:contain;">
-
-                            @endif
+                            @include('avatar.partials.stack', ['avatar' => $avatar, 'scale' => 0.15])
 
                             <div style="
                                 font-size:12px;
@@ -134,66 +116,4 @@
     </div>
 </div>
 
-<style>
-.group-member-avatar-box {
-    position: relative;
-    width: 52px;
-    height: 62px;
-    margin: 0 auto;
-    flex-shrink: 0;
-}
-
-.group-member-avatar-layer {
-    position: absolute;
-    object-fit: contain;
-}
-
-.group-member-avatar-layer.hair {
-    top: 0;
-    left: 0;
-    width: 52px;
-    height: 24px;
-    z-index: 6;
-}
-
-.group-member-avatar-layer.face {
-    top: 13px;
-    left: 13px;
-    width: 26px;
-    height: 26px;
-    z-index: 5;
-}
-
-.group-member-avatar-layer.top {
-    top: 32px;
-    left: 0;
-    width: 52px;
-    height: 18px;
-    z-index: 4;
-}
-
-.group-member-avatar-layer.bottom {
-    top: 45px;
-    left: 0;
-    width: 52px;
-    height: 12px;
-    z-index: 3;
-}
-
-.group-member-avatar-layer.shoes {
-    top: 56px;
-    left: 8px;
-    width: 36px;
-    height: 6px;
-    z-index: 2;
-}
-
-.group-member-avatar-layer.accessory {
-    top: 0;
-    left: 8px;
-    width: 36px;
-    height: 12px;
-    z-index: 7;
-}
-</style>
 @endsection
