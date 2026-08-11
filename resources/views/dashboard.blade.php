@@ -49,6 +49,7 @@ window.historyPageData = {
                     'view' => 'monthly',
                     'month' => $month,
                 ])) }}"
+               data-history-back-button
                class="history-back-button">
                 戻る
             </a>

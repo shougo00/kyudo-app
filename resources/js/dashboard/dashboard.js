@@ -226,6 +226,26 @@ function renderAll(){
     updateMonthLinks();
 }
 
+function setupHistoryBackButton(){
+    const backButton = document.querySelector('[data-history-back-button]');
+    if(!backButton) return;
+
+    backButton.addEventListener('click', event => {
+        if(!document.referrer || window.history.length <= 1) return;
+
+        const referrerUrl = new URL(document.referrer, window.location.origin);
+        const fallbackUrl = new URL(backButton.href, window.location.origin);
+        const isGroupHistoryReferrer =
+            referrerUrl.origin === window.location.origin &&
+            referrerUrl.pathname === fallbackUrl.pathname;
+
+        if(!isGroupHistoryReferrer) return;
+
+        event.preventDefault();
+        window.history.back();
+    });
+}
+
 function initializeDashboard(){
     const filterEnabledInput = document.getElementById('chartShotFilterEnabled');
     const thresholdSelect = document.getElementById('chartShotThreshold');
@@ -254,6 +274,7 @@ function initializeDashboard(){
             changeType(event, button.dataset.recordType);
         });
     });
+    setupHistoryBackButton();
     renderAll();
     window.changeType = changeType;
 }

@@ -105,6 +105,7 @@ it('keeps ranking filters when opening member details and returning', function (
         ->get("/dashboard?group_id={$group->id}&user_id={$member->id}&return_view=ranking&return_period=week&return_limit=5&return_ranking_gender=female&return_score_types[]=official&return_score_types[]=self");
 
     $detailResponse->assertOk();
+    $detailResponse->assertSee('data-history-back-button', false);
     $detailResponse->assertSee('view=ranking', false);
     $detailResponse->assertSee('period=week', false);
     $detailResponse->assertSee('limit=5', false);
