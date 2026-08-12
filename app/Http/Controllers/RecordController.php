@@ -19,9 +19,9 @@ class RecordController extends Controller
     {
         // リクエストから日付と練習タイプを取得、なければデフォルトを設定
         $date = $request->date ?? date('Y-m-d');
-        $type = $request->type ?? 'official'; // デフォルトは正規練
+        $type = $request->type ?? 'self'; // デフォルトは自主練
         if (!in_array($type, ['official', 'self'], true)) {
-            $type = 'official';
+            $type = 'self';
         }
 
         // 該当ユーザーのレコードを取得（shotsリレーションも読み込む）

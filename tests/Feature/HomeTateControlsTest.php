@@ -22,6 +22,21 @@ function createRecordWithShotsForTateControls(User $user, string $practiceType):
     }
 }
 
+it('opens personal records on self practice by default', function () {
+    $user = User::factory()->create(['is_admin' => false]);
+    createRecordWithShotsForTateControls($user, 'official');
+    createRecordWithShotsForTateControls($user, 'self');
+
+    $this->actingAs($user)
+        ->get(route('home', [
+            'date' => '2026-08-02',
+        ]))
+        ->assertOk()
+        ->assertSee('data-type="self"', false)
+        ->assertSee('自主練')
+        ->assertSee('btn-primary', false);
+});
+
 it('shows official tate controls when the user is not in a group', function () {
     $user = User::factory()->create(['is_admin' => false]);
     createRecordWithShotsForTateControls($user, 'official');

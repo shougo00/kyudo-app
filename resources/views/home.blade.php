@@ -25,7 +25,7 @@
 
         return 'background:' . $color . '; border-color:' . $color . '; color:#111;';
     };
-    $canManageTates = (bool) ($canManageTates ?? (($type ?? 'official') === 'self'));
+    $canManageTates = (bool) ($canManageTates ?? (($type ?? 'self') === 'self'));
 @endphp
 
 <div class="container py-3 {{ $type == 'self' ? 'self-bg' : 'official-bg' }}" id="records-container" data-type="{{ $type }}">
@@ -45,12 +45,12 @@
                 <!-- ボタン -->
                 <div class="practice-type-buttons">
                     <a href="{{ route('home', ['date'=>$date, 'type'=>'official']) }}" 
-                    class="btn btn-sm {{ ($type ?? 'official') == 'official' ? 'btn-danger' : 'btn-outline-danger' }}">
+                    class="btn btn-sm {{ ($type ?? 'self') == 'official' ? 'btn-danger' : 'btn-outline-danger' }}">
                         正規練
                     </a>
 
                     <a href="{{ route('home', ['date'=>$date, 'type'=>'self']) }}" 
-                    class="btn btn-sm {{ ($type ?? 'official') == 'self' ? 'btn-primary' : 'btn-outline-primary' }}">
+                    class="btn btn-sm {{ ($type ?? 'self') == 'self' ? 'btn-primary' : 'btn-outline-primary' }}">
                         自主練
                     </a>
                 </div>
@@ -74,7 +74,7 @@
                 @csrf
                 <input type="hidden" name="date" value="{{ $date }}">
                 <input type="hidden" name="practice_type" value="{{ $type }}">
-                <button class="btn {{ ($type ?? 'official') === 'self' ? 'btn-primary' : 'btn-danger' }} w-100">＋ 立を追加</button>
+                <button class="btn {{ ($type ?? 'self') === 'self' ? 'btn-primary' : 'btn-danger' }} w-100">＋ 立を追加</button>
             </form>
         @endif
     </div>
