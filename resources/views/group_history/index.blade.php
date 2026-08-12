@@ -501,6 +501,9 @@
                         <th colspan="3">正規練</th>
                         <th colspan="3">自主練</th>
                         <th colspan="3">総合</th>
+                        @if($group->show_monthly_rank_on_print)
+                            <th rowspan="2">順位</th>
+                        @endif
                     </tr>
                     <tr>
                         <th>射数</th>
@@ -534,6 +537,9 @@
                             <td>{{ $row['all']['shots'] }}</td>
                             <td>{{ $row['all']['hits'] }}</td>
                             <td>{{ $row['all']['rate'] }}%</td>
+                            @if($group->show_monthly_rank_on_print)
+                                <td>{{ $row['rank'] ? $row['rank'] . '位' : '' }}</td>
+                            @endif
                         </tr>
                     @endforeach
                 </tbody>

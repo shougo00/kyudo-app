@@ -55,6 +55,7 @@ class SettingController extends Controller
             'official_tates_per_page' => ['required', 'integer', 'min:1', 'max:10'],
             'show_group_records_to_members' => ['nullable', 'boolean'],
             'allow_members_edit_group_records' => ['nullable', 'boolean'],
+            'show_monthly_rank_on_print' => ['nullable', 'boolean'],
             'uses_grades' => ['nullable', 'boolean'],
             'grade_count' => ['required', 'integer', 'min:1', 'max:12'],
             'grade_colors' => ['array'],
@@ -92,6 +93,7 @@ class SettingController extends Controller
             'show_group_records_to_members' => $request->boolean('show_group_records_to_members'),
             'allow_members_edit_group_records' => $request->boolean('show_group_records_to_members')
                 && $request->boolean('allow_members_edit_group_records'),
+            'show_monthly_rank_on_print' => $request->boolean('show_monthly_rank_on_print'),
             'uses_grades' => $request->boolean('uses_grades'),
             'grade_count' => $gradeCount,
             'grade_colors' => $gradeColors,

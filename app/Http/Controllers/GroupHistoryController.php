@@ -203,7 +203,8 @@ class GroupHistoryController extends Controller
             ->when($group->uses_grades, function ($query) {
                 $query
                     ->orderByRaw('users.grade_level IS NULL')
-                    ->orderByDesc('users.grade_level');
+                    ->orderByDesc('users.grade_level')
+                    ->orderByRaw("case users.gender when 'male' then 0 when 'female' then 1 else 2 end");
             })
             ->orderBy('users.name');
 
@@ -222,7 +223,7 @@ class GroupHistoryController extends Controller
             ->whereIn('practice_type', ['official', 'self'])
             ->get();
 
-        return $monthlyMembers
+        $rows = $monthlyMembers
             ->map(function ($user) use ($monthlySourceRecords) {
                 $records = $monthlySourceRecords->where('user_id', $user->id);
 
@@ -232,6 +233,51 @@ class GroupHistoryController extends Controller
                     'official' => $this->calc($records->where('practice_type', 'official')),
                     'self' => $this->calc($records->where('practice_type', 'self')),
                 ];
+            })
+            ->values();
+
+        return $this->withMonthlyRanks($rows);
+    }
+
+    private function withMonthlyRanks($rows)
+    {
+        $sortedRows = $rows
+            ->sort(function ($a, $b) {
+                if ($a['all']['rate'] == $b['all']['rate']) {
+                    if ($a['all']['hits'] === $b['all']['hits']) {
+                        if ($a['all']['shots'] === $b['all']['shots']) {
+                            return strcmp($a['user']->name, $b['user']->name);
+                        }
+
+                        return $b['all']['shots'] <=> $a['all']['shots'];
+                    }
+
+                    return $b['all']['hits'] <=> $a['all']['hits'];
+                }
+
+                return $b['all']['rate'] <=> $a['all']['rate'];
+            })
+            ->values();
+
+        $rankByUserId = collect();
+        $previousRate = null;
+        $previousRank = null;
+
+        foreach ($sortedRows as $index => $row) {
+            $rank = $previousRate !== null && $row['all']['rate'] == $previousRate
+                ? $previousRank
+                : $index + 1;
+
+            $rankByUserId[$row['user']->id] = $rank;
+            $previousRate = $row['all']['rate'];
+            $previousRank = $rank;
+        }
+
+        return $rows
+            ->map(function ($row) use ($rankByUserId) {
+                $row['rank'] = $rankByUserId[$row['user']->id] ?? null;
+
+                return $row;
             })
             ->values();
     }
@@ -358,6 +404,7 @@ class GroupHistoryController extends Controller
                 'official' => $row['official'],
                 'self' => $row['self'],
                 'all' => $row['all'],
+                'rank' => $row['rank'],
             ]);
 
         return view('group_history.monthly_print', compact(
