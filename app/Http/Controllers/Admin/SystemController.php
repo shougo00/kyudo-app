@@ -178,7 +178,7 @@ class SystemController extends Controller
         $search = trim((string) $request->query('search', ''));
 
         $licenseCodes = RegistrationLicenseCode::query()
-            ->with('creator')
+            ->with(['creator', 'group'])
             ->withCount('users')
             ->when($search !== '', function ($query) use ($search) {
                 $query->where(function ($query) use ($search) {
@@ -190,7 +190,12 @@ class SystemController extends Controller
             ->paginate(20)
             ->withQueryString();
 
-        return view('admin.system.license_codes', compact('licenseCodes', 'search'));
+        $groups = Group::query()
+            ->orderBy('name')
+            ->orderBy('id')
+            ->get(['id', 'name', 'invite_code']);
+
+        return view('admin.system.license_codes', compact('licenseCodes', 'search', 'groups'));
     }
 
     public function storeLicenseCode(Request $request): RedirectResponse
@@ -203,6 +208,7 @@ class SystemController extends Controller
             'code' => RegistrationLicenseCode::normalize($validated['code']),
             'memo' => $validated['memo'] ?? null,
             'is_active' => $request->boolean('is_active'),
+            'group_id' => $validated['group_id'] ?? null,
             'created_by' => $request->user()->id,
         ]);
 
@@ -219,6 +225,7 @@ class SystemController extends Controller
             'code' => RegistrationLicenseCode::normalize($validated['code']),
             'memo' => $validated['memo'] ?? null,
             'is_active' => $request->boolean('is_active'),
+            'group_id' => $validated['group_id'] ?? null,
         ]);
 
         return back()->with('success', 'ライセンスコードを更新しました。');
@@ -312,12 +319,14 @@ class SystemController extends Controller
                 Rule::unique('registration_license_codes', 'code')->ignore($licenseCode?->id),
             ],
             'memo' => ['nullable', 'string', 'max:255'],
+            'group_id' => ['nullable', 'integer', 'exists:groups,id'],
             'is_active' => ['nullable', 'boolean'],
         ], [
             'code.required' => 'ライセンスコードを入力してください。',
             'code.regex' => 'ライセンスコードは英数字とハイフンのみ使用できます。',
             'code.unique' => 'このライセンスコードはすでに登録されています。',
             'memo.max' => 'メモは255文字以内で入力してください。',
+            'group_id.exists' => '紐づけるグループを選び直してください。',
         ]);
     }
 

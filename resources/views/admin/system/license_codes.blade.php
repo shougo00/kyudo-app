@@ -51,6 +51,17 @@
                        maxlength="255"
                        placeholder="配布先や用途">
             </label>
+            <label>
+                <span>紐づけグループ</span>
+                <select name="group_id" class="form-select">
+                    <option value="">なし</option>
+                    @foreach($groups as $group)
+                        <option value="{{ $group->id }}" {{ (string) old('group_id') === (string) $group->id ? 'selected' : '' }}>
+                            {{ $group->name }}（{{ $group->invite_code }}）
+                        </option>
+                    @endforeach
+                </select>
+            </label>
             <label class="admin-check">
                 <input type="checkbox" name="is_active" value="1" checked>
                 <span>有効</span>
@@ -87,6 +98,9 @@
                                 @if($licenseCode->creator)
                                     / 作成者: {{ $licenseCode->creator->name }}
                                 @endif
+                                @if($licenseCode->group)
+                                    / グループ: {{ $licenseCode->group->name }}
+                                @endif
                             </span>
                         </div>
                         <span class="badge {{ $licenseCode->is_active ? 'text-bg-success' : 'text-bg-secondary' }}">
@@ -112,6 +126,20 @@
                                    value="{{ old("license_codes.{$licenseCode->id}.memo", $licenseCode->memo) }}"
                                    class="form-control"
                                    maxlength="255">
+                        </label>
+                        <label>
+                            <span>紐づけグループ</span>
+                            <select name="group_id" class="form-select">
+                                <option value="">なし</option>
+                                @foreach($groups as $group)
+                                    @php
+                                        $selectedGroupId = old("license_codes.{$licenseCode->id}.group_id", old('group_id', $licenseCode->group_id));
+                                    @endphp
+                                    <option value="{{ $group->id }}" {{ (string) $selectedGroupId === (string) $group->id ? 'selected' : '' }}>
+                                        {{ $group->name }}（{{ $group->invite_code }}）
+                                    </option>
+                                @endforeach
+                            </select>
                         </label>
                         <label class="admin-check">
                             <input type="checkbox"
@@ -158,7 +186,7 @@
 .admin-search,
 .license-create-form {
     display: grid;
-    grid-template-columns: minmax(150px, 0.7fr) minmax(180px, 1fr) auto auto;
+    grid-template-columns: minmax(150px, 0.7fr) minmax(180px, 1fr) minmax(180px, 1fr) auto auto;
     gap: 8px;
     align-items: end;
 }
@@ -205,7 +233,7 @@
 
 .admin-form-grid {
     display: grid;
-    grid-template-columns: minmax(160px, 0.7fr) minmax(180px, 1fr) auto;
+    grid-template-columns: minmax(160px, 0.7fr) minmax(180px, 1fr) minmax(180px, 1fr) auto;
     gap: 10px;
     align-items: end;
 }

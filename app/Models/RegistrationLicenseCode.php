@@ -12,11 +12,13 @@ class RegistrationLicenseCode extends Model
         'code',
         'memo',
         'is_active',
+        'group_id',
         'created_by',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
+        'group_id' => 'integer',
     ];
 
     public static function normalize(string $code): string
@@ -32,5 +34,10 @@ class RegistrationLicenseCode extends Model
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function group(): BelongsTo
+    {
+        return $this->belongsTo(Group::class);
     }
 }
