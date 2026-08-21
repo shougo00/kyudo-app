@@ -34,7 +34,7 @@ Route::get('/privacy-policy', function () {
 })->name('privacy-policy');
 
 Route::get('/', function () {
-     return redirect()->route('login', [], 301);
+   return view('landing');
 });
 Route::post('/contact-inquiries', [ContactInquiryController::class, 'store'])->name('contact-inquiries.store');
 
