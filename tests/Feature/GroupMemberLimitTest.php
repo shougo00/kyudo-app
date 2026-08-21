@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Group;
+use App\Models\SystemSetting;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
@@ -112,6 +113,59 @@ it('allows the system admin to update a group invite code and member limit', fun
         ->assertRedirect();
 
     expect($group->fresh()->max_members)->toBe(12);
+});
+
+it('allows the system admin to stop and resume group creation', function () {
+    $admin = User::where('username', 'KANRI')->first()
+        ?? User::factory()->create([
+            'name' => 'System Admin',
+            'username' => 'KANRI',
+            'is_admin' => true,
+        ]);
+
+    $this->actingAs($admin)
+        ->get(route('admin.system.groups'))
+        ->assertOk()
+        ->assertSee('グループの作成を停止する');
+
+    $this->actingAs($admin)
+        ->patch(route('admin.system.groups.settings.update'), [
+            'group_creation_disabled' => '1',
+        ])
+        ->assertRedirect();
+
+    expect(SystemSetting::bool('group_creation_disabled'))->toBeTrue();
+
+    $this->actingAs($admin)
+        ->patch(route('admin.system.groups.settings.update'), [])
+        ->assertRedirect();
+
+    expect(SystemSetting::bool('group_creation_disabled'))->toBeFalse();
+});
+
+it('blocks group creation when the system setting is enabled', function () {
+    SystemSetting::setBool('group_creation_disabled', true);
+
+    $user = User::factory()->create([
+        'name' => 'Blocked Creator',
+        'username' => 'blocked-creator',
+        'is_admin' => false,
+    ]);
+    $message = 'グループ作成にはライセンスが必要です。管理者にご相談ください。';
+
+    $this->actingAs($user)
+        ->get('/groups/create')
+        ->assertRedirect('/groups')
+        ->assertSessionHas('error', $message);
+
+    $this->actingAs($user)
+        ->post('/groups', [
+            'name' => 'Blocked Group',
+        ])
+        ->assertRedirect('/groups')
+        ->assertSessionHas('error', $message);
+
+    expect(Group::where('name', 'Blocked Group')->exists())->toBeFalse();
 });
 
 it('prevents joining a group that has reached its member limit', function () {

@@ -5,12 +5,14 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Avatar;
 use App\Models\Group;
+use App\Models\SystemSetting;
 use Illuminate\Support\Facades\DB;
 
 class GroupController extends Controller
 {
     private const INVITE_CODE_LENGTH = 5;
     private const INVITE_CODE_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    private const GROUP_CREATION_DISABLED_MESSAGE = 'グループ作成にはライセンスが必要です。管理者にご相談ください。';
 
     // 一覧
     public function index()
@@ -29,12 +31,20 @@ class GroupController extends Controller
     // 作成画面
     public function create()
     {
+        if ($this->groupCreationDisabled()) {
+            return redirect('/groups')->with('error', self::GROUP_CREATION_DISABLED_MESSAGE);
+        }
+
         return view('groups.create');
     }
 
     // 作成処理
     public function store(Request $request)
     {
+        if ($this->groupCreationDisabled()) {
+            return redirect('/groups')->with('error', self::GROUP_CREATION_DISABLED_MESSAGE);
+        }
+
         // ★すでにグループに所属してるかチェック
         if (auth()->user()->groups()->exists()) {
             return back()->with('error', 'すでにグループに参加しています');
@@ -132,6 +142,11 @@ class GroupController extends Controller
         } while (Group::where('invite_code', $code)->exists());
 
         return $code;
+    }
+
+    private function groupCreationDisabled(): bool
+    {
+        return SystemSetting::bool('group_creation_disabled');
     }
 
     private function groupIsFull(Group $group): bool

@@ -12,6 +12,7 @@ use App\Models\News;
 use App\Models\Record;
 use App\Models\RegistrationLicenseCode;
 use App\Models\Shot;
+use App\Models\SystemSetting;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -168,7 +169,9 @@ class SystemController extends Controller
             ->paginate(20)
             ->withQueryString();
 
-        return view('admin.system.groups', compact('groups', 'search'));
+        $groupCreationDisabled = SystemSetting::bool('group_creation_disabled');
+
+        return view('admin.system.groups', compact('groups', 'search', 'groupCreationDisabled'));
     }
 
     public function licenseCodes(Request $request): View
@@ -287,6 +290,19 @@ class SystemController extends Controller
         }
 
         return back()->with('success', "{$group->name} の設定を更新しました。");
+    }
+
+    public function updateGroupSettings(Request $request): RedirectResponse
+    {
+        $this->authorizeSystemAdmin($request);
+
+        $request->validate([
+            'group_creation_disabled' => ['nullable', 'boolean'],
+        ]);
+
+        SystemSetting::setBool('group_creation_disabled', $request->boolean('group_creation_disabled'));
+
+        return back()->with('success', 'グループの全体設定を更新しました。');
     }
 
     public function destroyGroup(Request $request, Group $group): RedirectResponse

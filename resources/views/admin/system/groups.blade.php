@@ -25,6 +25,23 @@
         <div class="alert alert-danger">入力内容を確認してください。</div>
     @endif
 
+    <form method="POST" action="{{ route('admin.system.groups.settings.update') }}" class="admin-settings-card mb-3">
+        @csrf
+        @method('PATCH')
+        <div>
+            <h5 class="mb-1">全体設定</h5>
+            <div class="text-muted small">オンにすると、通常のグループ作成を停止します。既存グループへの参加は引き続き利用できます。</div>
+        </div>
+        <label class="admin-toggle">
+            <input type="checkbox"
+                   name="group_creation_disabled"
+                   value="1"
+                   @checked($groupCreationDisabled)>
+            <span>グループの作成を停止する</span>
+        </label>
+        <button type="submit" class="btn btn-dark">保存</button>
+    </form>
+
     <form method="GET" action="{{ route('admin.system.groups') }}" class="admin-search mb-3">
         <input type="search"
                name="search"
@@ -145,6 +162,31 @@
     gap: 8px;
 }
 
+.admin-settings-card {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    gap: 12px;
+    align-items: center;
+    padding: 14px 16px;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    background: #fff;
+}
+
+.admin-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.admin-toggle input {
+    width: 18px;
+    height: 18px;
+}
+
 .admin-table-wrap {
     border: 1px solid #dee2e6;
     border-radius: 8px;
@@ -173,6 +215,14 @@
 }
 
 @media (max-width: 600px) {
+    .admin-settings-card {
+        grid-template-columns: 1fr;
+    }
+
+    .admin-settings-card .btn {
+        width: 100%;
+    }
+
     .admin-search {
         grid-template-columns: 1fr;
     }
