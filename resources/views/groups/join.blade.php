@@ -20,11 +20,12 @@
                    name="invite_code"
                    class="form-control @error('invite_code') is-invalid @enderror"
                    value="{{ old('invite_code') }}"
-                   inputmode="numeric"
-                   pattern="\d{4}"
-                   maxlength="4"
+                   inputmode="text"
+                   pattern="[A-Za-z0-9]{5}"
+                   maxlength="5"
                    autocomplete="one-time-code"
-                   placeholder="例：1234">
+                   placeholder="例：A1B2C"
+                   style="text-transform: uppercase;">
             @error('invite_code')
                 <div class="invalid-feedback">{{ $message }}</div>
             @enderror

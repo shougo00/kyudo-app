@@ -9,6 +9,9 @@ use Illuminate\Support\Facades\DB;
 
 class GroupController extends Controller
 {
+    private const INVITE_CODE_LENGTH = 5;
+    private const INVITE_CODE_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+
     // 一覧
     public function index()
     {
@@ -70,14 +73,14 @@ class GroupController extends Controller
    public function join(Request $request)
     {
         $request->merge([
-            'invite_code' => trim((string) $request->invite_code),
+            'invite_code' => strtoupper(trim((string) $request->invite_code)),
         ]);
 
         $request->validate([
-            'invite_code' => ['required', 'regex:/^\d{4}$/'],
+            'invite_code' => ['required', 'regex:/^[A-Z0-9]{5}$/'],
         ], [
             'invite_code.required' => '招待コードを入力してください',
-            'invite_code.regex' => '招待コードは4桁の数字で入力してください',
+            'invite_code.regex' => '招待コードは5桁の英数字で入力してください',
         ]);
 
         $group = Group::where('invite_code', $request->invite_code)->first();
@@ -123,7 +126,9 @@ class GroupController extends Controller
     private function generateInviteCode(): string
     {
         do {
-            $code = str_pad((string) random_int(0, 9999), 4, '0', STR_PAD_LEFT);
+            $code = collect(range(1, self::INVITE_CODE_LENGTH))
+                ->map(fn() => self::INVITE_CODE_ALPHABET[random_int(0, strlen(self::INVITE_CODE_ALPHABET) - 1)])
+                ->implode('');
         } while (Group::where('invite_code', $code)->exists());
 
         return $code;

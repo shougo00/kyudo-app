@@ -18,7 +18,7 @@ it('restores a soft-deleted group membership when a former member rejoins', func
     $group = Group::create([
         'name' => 'Restore Membership Group',
         'host_user_id' => $host->id,
-        'invite_code' => '1350',
+        'invite_code' => 'C1350',
     ]);
 
     $group->users()->attach($host->id);

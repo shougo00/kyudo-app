@@ -248,21 +248,45 @@ class SystemController extends Controller
     {
         $this->authorizeSystemAdmin($request);
 
+        if ($request->has('invite_code')) {
+            $request->merge([
+                'invite_code' => strtoupper(trim((string) $request->input('invite_code'))),
+            ]);
+        }
+
         $validated = $request->validate([
-            'max_members' => ['nullable', 'integer', 'min:1', 'max:999'],
+            'invite_code' => [
+                'sometimes',
+                'required',
+                'string',
+                'regex:/^[A-Z0-9]{5}$/',
+                Rule::unique('groups', 'invite_code')->ignore($group->id),
+            ],
+            'max_members' => ['sometimes', 'nullable', 'integer', 'min:1', 'max:999'],
         ], [
+            'invite_code.required' => '招待コードを入力してください。',
+            'invite_code.regex' => '招待コードは5桁の英数字で入力してください。',
+            'invite_code.unique' => 'この招待コードはすでに使用されています。',
             'max_members.integer' => '最大人数は数字で入力してください。',
             'max_members.min' => '最大人数は1人以上で入力してください。',
             'max_members.max' => '最大人数は999人以下で入力してください。',
         ]);
 
-        $group->update([
-            'max_members' => $validated['max_members'] ?? null,
-        ]);
+        $updates = [];
 
-        $maxMembersLabel = $group->max_members ? "{$group->max_members}人" : '無制限';
+        if (array_key_exists('invite_code', $validated)) {
+            $updates['invite_code'] = $validated['invite_code'];
+        }
 
-        return back()->with('success', "{$group->name} の最大人数を {$maxMembersLabel} に更新しました。");
+        if (array_key_exists('max_members', $validated)) {
+            $updates['max_members'] = $validated['max_members'] ?? null;
+        }
+
+        if ($updates) {
+            $group->update($updates);
+        }
+
+        return back()->with('success', "{$group->name} の設定を更新しました。");
     }
 
     public function destroyGroup(Request $request, Group $group): RedirectResponse

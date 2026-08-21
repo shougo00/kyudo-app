@@ -4,7 +4,76 @@ use App\Models\Group;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
-it('allows the system admin to update a group member limit', function () {
+it('shows a five character alphanumeric invite code field on the group join page', function () {
+    $user = User::factory()->create([
+        'name' => 'Join Form User',
+        'username' => 'join-form-user',
+        'is_admin' => false,
+    ]);
+
+    $this->actingAs($user)
+        ->get('/groups/join')
+        ->assertOk()
+        ->assertSee('maxlength="5"', false)
+        ->assertSee('pattern="[A-Za-z0-9]{5}"', false)
+        ->assertSee('例：A1B2C')
+        ->assertDontSee('maxlength="4"', false);
+});
+
+it('creates groups with five character alphanumeric invite codes', function () {
+    $host = User::factory()->create([
+        'name' => 'Generated Code Host',
+        'username' => 'generated-code-host',
+        'is_admin' => false,
+    ]);
+
+    $this->actingAs($host)
+        ->post('/groups', [
+            'name' => 'Generated Code Group',
+        ])
+        ->assertRedirect('/groups');
+
+    $group = Group::where('host_user_id', $host->id)->firstOrFail();
+
+    expect($group->invite_code)->toMatch('/^[A-Z0-9]{5}$/');
+});
+
+it('accepts lowercase alphanumeric group invite codes and rejects old four digit codes', function () {
+    $host = User::factory()->create([
+        'name' => 'Alpha Host',
+        'username' => 'alpha-code-host',
+        'is_admin' => true,
+    ]);
+    $member = User::factory()->create([
+        'name' => 'Alpha Member',
+        'username' => 'alpha-code-member',
+        'is_admin' => false,
+    ]);
+    $group = Group::create([
+        'name' => 'Alpha Code Group',
+        'host_user_id' => $host->id,
+        'invite_code' => 'A1B2C',
+    ]);
+    $group->users()->attach($host->id);
+
+    $this->actingAs($member)
+        ->post('/groups/join', [
+            'invite_code' => '1234',
+        ])
+        ->assertSessionHasErrors('invite_code');
+
+    expect($member->fresh()->groups()->where('groups.id', $group->id)->exists())->toBeFalse();
+
+    $this->actingAs($member)
+        ->post('/groups/join', [
+            'invite_code' => 'a1b2c',
+        ])
+        ->assertRedirect('/groups');
+
+    expect($member->fresh()->groups()->where('groups.id', $group->id)->exists())->toBeTrue();
+});
+
+it('allows the system admin to update a group invite code and member limit', function () {
     $admin = User::where('username', 'KANRI')->first()
         ?? User::factory()->create([
             'name' => 'System Admin',
@@ -21,6 +90,20 @@ it('allows the system admin to update a group member limit', function () {
         'host_user_id' => $host->id,
         'invite_code' => '2469',
     ]);
+
+    $this->actingAs($admin)
+        ->get(route('admin.system.groups'))
+        ->assertOk()
+        ->assertSee('name="invite_code"', false)
+        ->assertSee('招待コード');
+
+    $this->actingAs($admin)
+        ->patch(route('admin.system.groups.update', $group), [
+            'invite_code' => 'x9z8y',
+        ])
+        ->assertRedirect();
+
+    expect($group->fresh()->invite_code)->toBe('X9Z8Y');
 
     $this->actingAs($admin)
         ->patch(route('admin.system.groups.update', $group), [
@@ -50,7 +133,7 @@ it('prevents joining a group that has reached its member limit', function () {
     $group = Group::create([
         'name' => 'Full Group',
         'host_user_id' => $host->id,
-        'invite_code' => '9751',
+        'invite_code' => 'A9751',
         'max_members' => 2,
     ]);
     $group->users()->attach([$host->id, $member->id]);
@@ -84,7 +167,7 @@ it('does not count soft-deleted memberships toward the member limit', function (
     $group = Group::create([
         'name' => 'Soft Limit Group',
         'host_user_id' => $host->id,
-        'invite_code' => '1351',
+        'invite_code' => 'B1351',
         'max_members' => 2,
     ]);
     $group->users()->attach($host->id);

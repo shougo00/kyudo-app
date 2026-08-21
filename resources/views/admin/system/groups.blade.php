@@ -6,7 +6,7 @@
     <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap mb-3">
         <div>
             <h4 class="mb-1">KANRIグループ管理</h4>
-            <div class="text-muted">作成済みグループの確認、最大人数の設定、削除ができます。</div>
+            <div class="text-muted">作成済みグループの確認、招待コード・最大人数の設定、削除ができます。</div>
         </div>
         <div class="d-flex gap-2 flex-wrap">
             <a href="{{ route('admin.system.index') }}" class="btn btn-outline-secondary">システム管理</a>
@@ -63,7 +63,23 @@
                                 <span class="text-muted">未設定</span>
                             @endif
                         </td>
-                        <td>{{ $managedGroup->invite_code }}</td>
+                        <td>
+                            <form method="POST"
+                                  action="{{ route('admin.system.groups.update', $managedGroup) }}"
+                                  class="admin-code-form">
+                                @csrf
+                                @method('PATCH')
+                                <input type="text"
+                                       name="invite_code"
+                                       value="{{ old("groups.{$managedGroup->id}.invite_code", $managedGroup->invite_code) }}"
+                                       class="form-control form-control-sm admin-code-input"
+                                       maxlength="5"
+                                       pattern="[A-Za-z0-9]{5}"
+                                       placeholder="A1B2C"
+                                       required>
+                                <button type="submit" class="btn btn-sm btn-primary">保存</button>
+                            </form>
+                        </td>
                         <td>
                             {{ $managedGroup->users_count }}人
                             @if($managedGroup->max_members)
@@ -141,10 +157,15 @@
     flex-wrap: wrap;
 }
 
+.admin-code-form,
 .admin-limit-form {
     display: grid;
     grid-template-columns: minmax(80px, 1fr) auto;
     gap: 6px;
+}
+
+.admin-code-input {
+    text-transform: uppercase;
 }
 
 .admin-actions form {
@@ -158,11 +179,14 @@
 
     .admin-actions .btn,
     .admin-actions form,
+    .admin-code-form,
+    .admin-code-form .btn,
     .admin-limit-form,
     .admin-limit-form .btn {
         width: 100%;
     }
 
+    .admin-code-form,
     .admin-limit-form {
         grid-template-columns: 1fr;
     }
