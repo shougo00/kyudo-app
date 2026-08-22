@@ -325,6 +325,8 @@ h3 {
 .features,
 .seo-section,
 .intro,
+.records,
+.license,
 .faq,
 .contact {
   padding: clamp(58px, 7vw, 84px) max(28px, calc((100vw - 1360px) / 2));
@@ -734,6 +736,174 @@ h3 {
   font-weight: 700;
 }
 
+.records {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 360px);
+  gap: clamp(24px, 4vw, 48px);
+  align-items: center;
+  background: #ffffff;
+}
+
+.records-copy {
+  max-width: 720px;
+}
+
+.records-copy p:not(.section-kicker) {
+  color: var(--ink-muted);
+  font-weight: 700;
+}
+
+.records-metric {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  min-height: 210px;
+  padding: 30px 28px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background:
+    linear-gradient(180deg, rgba(0, 102, 255, 0.06), rgba(255, 255, 255, 0) 62%),
+    var(--surface-soft);
+  box-shadow: var(--shadow);
+  text-align: center;
+}
+
+.records-metric-label {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 14px;
+  border: 1px solid rgba(0, 102, 255, 0.16);
+  border-radius: 999px;
+  color: var(--blue);
+  background: #ffffff;
+  font-size: 0.86rem;
+  font-weight: 900;
+}
+
+.records-metric-value {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 8px;
+  margin: 0;
+  color: var(--ink);
+}
+
+.records-metric-value strong {
+  color: var(--blue);
+  font-size: clamp(4rem, 7vw, 6.4rem);
+  font-weight: 900;
+  line-height: 1;
+}
+
+.records-metric-value span {
+  color: var(--ink);
+  font-size: clamp(1.35rem, 2.4vw, 1.8rem);
+  font-weight: 900;
+}
+
+.records-metric-note {
+  max-width: 220px;
+  margin: 0;
+  color: var(--ink-muted);
+  font-size: 0.94rem;
+  font-weight: 800;
+  line-height: 1.6;
+}
+
+.license {
+  display: grid;
+  grid-template-columns: minmax(0, 0.84fr) minmax(420px, 1fr);
+  gap: clamp(30px, 5vw, 64px);
+  align-items: center;
+  background:
+    radial-gradient(circle at 100% 12%, rgba(34, 181, 115, 0.12), rgba(34, 181, 115, 0) 32%),
+    #ffffff;
+}
+
+.license-copy {
+  max-width: 640px;
+}
+
+.license-copy p:not(.section-kicker) {
+  color: var(--ink-muted);
+  font-weight: 700;
+}
+
+.license-note {
+  margin-top: 18px;
+  padding: 14px 16px;
+  border-left: 4px solid var(--green);
+  border-radius: 8px;
+  background: rgba(34, 181, 115, 0.08);
+  font-size: 0.92rem;
+}
+
+.license-panel {
+  padding: clamp(24px, 3vw, 36px);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface-soft);
+  box-shadow: var(--shadow);
+}
+
+.license-price-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.license-price-list div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  min-height: 74px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #ffffff;
+}
+
+.license-price-list span {
+  display: block;
+  color: var(--ink-muted);
+  font-size: 0.96rem;
+  font-weight: 900;
+  line-height: 1.4;
+}
+
+.license-price-list strong {
+  color: var(--ink);
+  font-size: clamp(1.18rem, 2vw, 1.42rem);
+  font-weight: 900;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.license-contact {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 54px;
+  margin-top: 16px;
+  border-radius: 8px;
+  color: var(--surface);
+  background: var(--ink);
+  font-weight: 900;
+  transition: transform 160ms ease, background 160ms ease;
+}
+
+.license-contact:hover,
+.license-contact:focus-visible {
+  color: var(--surface);
+  background: var(--blue-deep);
+  outline: none;
+  transform: translateY(-1px);
+}
+
 .faq {
   background: linear-gradient(180deg, #ffffff 0%, #f7fbff 100%);
 }
@@ -1019,6 +1189,8 @@ h3 {
   }
 
   .intro,
+  .records,
+  .license,
   .contact-panel {
     grid-template-columns: 1fr;
   }
@@ -1052,6 +1224,8 @@ h3 {
   .features,
   .seo-section,
   .intro,
+  .records,
+  .license,
   .faq,
   .contact {
     padding-left: 20px;
@@ -1176,6 +1350,8 @@ h3 {
   .features,
   .seo-section,
   .intro,
+  .records,
+  .license,
   .faq,
   .contact {
     padding-top: 62px;
@@ -1198,6 +1374,14 @@ h3 {
 
   .feature-detail {
     padding: 18px;
+  }
+
+  .license-panel {
+    padding: 20px;
+  }
+
+  .license-price-list {
+    grid-template-columns: 1fr;
   }
 
   .feature-detail-image {

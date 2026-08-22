@@ -22,6 +22,7 @@
     <nav class="site-nav" aria-label="主要ナビゲーション">
       <a href="/#features">機能</a>
       <a href="/#intro">導入について</a>
+      <a href="/#license">料金</a>
       <a href="/#faq">FAQ</a>
       <a href="/#contact">お問い合わせ</a>
     </nav>

@@ -65,6 +65,22 @@
             "@type": "Answer",
             "text": "Webアプリとして、インターネット環境があればスマホやタブレットで利用できます。団体利用ではタブレット端末を団体様でご準備ください。"
           }
+        },
+        {
+          "@type": "Question",
+          "name": "ライセンスの利用人数は選べますか？",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "はい。1人あたり月80円の月額料金で、20名、30名、40名、50名、60名、70名までの人数枠から選べます。"
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "利用に必要なものはありますか？",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "インターネットに接続できるタブレット端末が必要です。端末と通信環境は団体様でご準備ください。"
+          }
         }
       ]
     }
@@ -82,6 +98,8 @@
     <nav class="site-nav" aria-label="主要ナビゲーション">
       <a href="#features">機能</a>
       <a href="#intro">導入について</a>
+      <a href="#records">導入実績</a>
+      <a href="#license">料金</a>
       <a href="#faq">FAQ</a>
       <a href="#contact">お問い合わせ</a>
     </nav>
@@ -227,6 +245,63 @@
       </div>
     </section>
 
+    <section class="records" id="records" aria-labelledby="records-title">
+      <div class="records-copy reveal">
+        <p class="section-kicker">Track record</p>
+        <h2 id="records-title">導入実績</h2>
+        <p>現在、弓道団体1団体に導入いただいています。日々の記録運用をより扱いやすくするため、現場の声を反映しながら改善を続けています。</p>
+      </div>
+
+      <div class="records-metric reveal" aria-label="現在の導入実績">
+        <span class="records-metric-label">現場で運用中</span>
+        <p class="records-metric-value">
+          <strong>1</strong>
+          <span>団体</span>
+        </p>
+        <p class="records-metric-note">弓道団体にご利用いただいています</p>
+      </div>
+    </section>
+
+    <section class="license" id="license" aria-labelledby="license-title">
+      <div class="license-copy reveal">
+        <p class="section-kicker">License</p>
+        <h2 id="license-title">月額で使えるライセンス制です。</h2>
+        <p>MATOWAは団体ごとに最大利用人数を決めてライセンスを発行します。1人あたり月80円で、20名から70名までの人数枠を選べます。</p>
+        <p class="license-note">ご利用にはインターネットに接続できるタブレット端末が必要です。タブレット端末と通信環境は団体様でご準備ください。</p>
+      </div>
+
+      <div class="license-panel reveal" aria-label="ライセンス料金の目安">
+        <div class="license-price-list" aria-label="ライセンス料金表">
+          <div>
+            <span>最大20名まで</span>
+            <strong>月額1,600円</strong>
+          </div>
+          <div>
+            <span>最大30名まで</span>
+            <strong>月額2,400円</strong>
+          </div>
+          <div>
+            <span>最大40名まで</span>
+            <strong>月額3,200円</strong>
+          </div>
+          <div>
+            <span>最大50名まで</span>
+            <strong>月額4,000円</strong>
+          </div>
+          <div>
+            <span>最大60名まで</span>
+            <strong>月額4,800円</strong>
+          </div>
+          <div>
+            <span>最大70名まで</span>
+            <strong>月額5,600円</strong>
+          </div>
+        </div>
+
+        <a class="license-contact" href="#contact">導入費用を相談する</a>
+      </div>
+    </section>
+
     <section class="faq" id="faq" aria-labelledby="faq-title">
       <div class="section-heading reveal">
         <p class="section-kicker">FAQ</p>
@@ -244,6 +319,14 @@
         <article>
           <h3>スマホやタブレットで使えますか？</h3>
           <p>インターネット環境があれば、スマホやタブレットで利用できます。団体利用の場合、タブレット端末は団体様でご準備ください。</p>
+        </article>
+        <article>
+          <h3>ライセンスの利用人数は選べますか？</h3>
+          <p>はい。1人あたり月80円の月額料金で、20名、30名、40名、50名、60名、70名までの人数枠から選べます。</p>
+        </article>
+        <article>
+          <h3>利用に必要なものはありますか？</h3>
+          <p>インターネットに接続できるタブレット端末が必要です。端末と通信環境は団体様でご準備ください。</p>
         </article>
       </div>
     </section>
