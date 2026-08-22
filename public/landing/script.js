@@ -5,6 +5,15 @@ const formMessage = document.querySelector(".form-message");
 const featureToggles = document.querySelectorAll("[data-feature-toggle]");
 const galleries = document.querySelectorAll("[data-gallery]");
 const backToTop = document.querySelector("[data-back-to-top]");
+const menuToggle = document.querySelector("[data-menu-toggle]");
+const siteMenu = document.querySelector("[data-site-menu]");
+const mobileMenuQuery = window.matchMedia("(max-width: 860px)");
+
+const setMenuOpen = (isOpen) => {
+  header?.classList.toggle("is-menu-open", isOpen);
+  menuToggle?.setAttribute("aria-expanded", String(isOpen));
+  menuToggle?.setAttribute("aria-label", isOpen ? "メニューを閉じる" : "メニューを開く");
+};
 
 const updateHeader = () => {
   header?.classList.toggle("is-scrolled", window.scrollY > 12);
@@ -17,6 +26,34 @@ window.addEventListener("scroll", updateHeader, { passive: true });
 backToTop?.addEventListener("click", () => {
   window.scrollTo({ top: 0, behavior: "smooth" });
 });
+
+menuToggle?.addEventListener("click", () => {
+  const isOpen = !header?.classList.contains("is-menu-open");
+  setMenuOpen(isOpen);
+});
+
+siteMenu?.querySelectorAll("a").forEach((link) => {
+  link.addEventListener("click", () => setMenuOpen(false));
+});
+
+document.addEventListener("click", (event) => {
+  if (!mobileMenuQuery.matches || !header?.classList.contains("is-menu-open")) return;
+  if (event.target instanceof Node && !header.contains(event.target)) {
+    setMenuOpen(false);
+  }
+});
+
+window.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") {
+    setMenuOpen(false);
+  }
+});
+
+if (typeof mobileMenuQuery.addEventListener === "function") {
+  mobileMenuQuery.addEventListener("change", () => setMenuOpen(false));
+} else if (typeof mobileMenuQuery.addListener === "function") {
+  mobileMenuQuery.addListener(() => setMenuOpen(false));
+}
 
 if ("IntersectionObserver" in window) {
   const revealObserver = new IntersectionObserver(

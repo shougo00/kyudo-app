@@ -95,18 +95,26 @@
       <span class="logo-text">MATOWA</span>
     </a>
 
-    <nav class="site-nav" aria-label="主要ナビゲーション">
-      <a href="#features">機能</a>
-      <a href="#intro">導入について</a>
-      <a href="#records">導入実績</a>
-      <a href="#license">料金</a>
-      <a href="#faq">FAQ</a>
-      <a href="#contact">お問い合わせ</a>
-    </nav>
+    <button class="menu-toggle" type="button" data-menu-toggle aria-controls="site-menu" aria-expanded="false" aria-label="メニューを開く">
+      <span aria-hidden="true"></span>
+      <span aria-hidden="true"></span>
+      <span aria-hidden="true"></span>
+    </button>
 
-    <a class="header-login-button" href="https://kyudo-app.com/login">
-      ログイン
-  </a>
+    <div class="site-menu" id="site-menu" data-site-menu>
+      <nav class="site-nav" aria-label="主要ナビゲーション">
+        <a href="#features">機能</a>
+        <a href="#intro">導入について</a>
+        <a href="#records">導入実績</a>
+        <a href="#license">料金</a>
+        <a href="#faq">FAQ</a>
+        <a href="#contact">お問い合わせ</a>
+      </nav>
+
+      <a class="header-login-button" href="https://kyudo-app.com/login">
+        ログイン
+      </a>
+    </div>
   </header>
 
   <main id="top">
