@@ -13,6 +13,7 @@ class GroupController extends Controller
     private const INVITE_CODE_LENGTH = 5;
     private const INVITE_CODE_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     private const GROUP_CREATION_DISABLED_MESSAGE = 'グループ作成にはライセンスが必要です。管理者にご相談ください。';
+    private const LICENSE_GROUP_LOCK_MESSAGE = 'このライセンスでは指定されたグループにのみ参加できます。';
 
     // 一覧
     public function index()
@@ -35,6 +36,10 @@ class GroupController extends Controller
             return redirect('/groups')->with('error', self::GROUP_CREATION_DISABLED_MESSAGE);
         }
 
+        if ($this->licenseLockedGroupId(auth()->user())) {
+            return redirect('/groups')->with('error', self::LICENSE_GROUP_LOCK_MESSAGE);
+        }
+
         return view('groups.create');
     }
 
@@ -43,6 +48,10 @@ class GroupController extends Controller
     {
         if ($this->groupCreationDisabled()) {
             return redirect('/groups')->with('error', self::GROUP_CREATION_DISABLED_MESSAGE);
+        }
+
+        if ($this->licenseLockedGroupId(auth()->user())) {
+            return redirect('/groups')->with('error', self::LICENSE_GROUP_LOCK_MESSAGE);
         }
 
         // ★すでにグループに所属してるかチェック
@@ -99,7 +108,23 @@ class GroupController extends Controller
             return back()->with('error', 'グループが見つかりません');
         }
 
+        $licensedGroupId = $this->licenseLockedGroupId(auth()->user());
+
+        if ($licensedGroupId && (int) $group->id !== $licensedGroupId) {
+            return back()->with('error', self::LICENSE_GROUP_LOCK_MESSAGE);
+        }
+
         $userId = auth()->id();
+        $activeOtherMembership = DB::table('group_user')
+            ->where('user_id', $userId)
+            ->where('group_id', '<>', $group->id)
+            ->whereNull('deleted_at')
+            ->exists();
+
+        if ($activeOtherMembership) {
+            return back()->with('error', 'すでに別のグループに参加しています');
+        }
+
         $hasActiveMembership = DB::table('group_user')
             ->where('group_id', $group->id)
             ->where('user_id', $userId)
@@ -163,6 +188,19 @@ class GroupController extends Controller
             ->count();
 
         return $activeMemberCount >= $maxMembers;
+    }
+
+    private function licenseLockedGroupId($user): ?int
+    {
+        if (!$user) {
+            return null;
+        }
+
+        $user->loadMissing('registrationLicenseCode');
+
+        return $user->registrationLicenseCode?->group_id
+            ? (int) $user->registrationLicenseCode->group_id
+            : null;
     }
 
     public function leave(Group $group)
