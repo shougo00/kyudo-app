@@ -14,6 +14,7 @@ use App\Models\RegistrationLicenseCode;
 use App\Models\Shot;
 use App\Models\SystemSetting;
 use App\Models\User;
+use App\Rules\PasswordPolicy;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -22,9 +23,19 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use SplFileObject;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class SystemController extends Controller
 {
+    private const USER_IMPORT_HEADERS = [
+        '表示名',
+        'ユーザー名',
+        'パスワード',
+        '性別',
+        '学年',
+        'ライセンスコード',
+    ];
+
     public function index(Request $request): View
     {
         $this->authorizeSystemAdmin($request);
@@ -86,6 +97,83 @@ class SystemController extends Controller
             ->withQueryString();
 
         return view('admin.system.users', compact('users', 'search'));
+    }
+
+    public function userImportTemplate(Request $request): StreamedResponse
+    {
+        $this->authorizeSystemAdmin($request);
+
+        $filename = 'user_import_template.csv';
+
+        return response()->streamDownload(function () {
+            $handle = fopen('php://output', 'w');
+            fwrite($handle, "\xEF\xBB\xBF");
+            fputcsv($handle, self::USER_IMPORT_HEADERS);
+            fclose($handle);
+        }, $filename, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+        ]);
+    }
+
+    public function importUsers(Request $request): RedirectResponse
+    {
+        $this->authorizeSystemAdmin($request);
+
+        $request->validate([
+            'csv_file' => ['required', 'file', 'max:2048'],
+        ], [
+            'csv_file.required' => 'CSVファイルを選択してください。',
+            'csv_file.file' => 'CSVファイルを選択してください。',
+            'csv_file.max' => 'CSVファイルは2MB以内でアップロードしてください。',
+        ]);
+
+        [$rows, $errors] = $this->readUserImportCsv($request->file('csv_file')->getRealPath());
+
+        if ($errors) {
+            return back()
+                ->with('error', 'CSVを取り込めませんでした。内容を確認してください。')
+                ->with('import_errors', $errors);
+        }
+
+        if ($rows === []) {
+            return back()
+                ->with('error', '取り込み対象の行がありません。')
+                ->with('import_errors', ['2行目以降にユーザー情報を入力してください。']);
+        }
+
+        [$rows, $errors] = $this->validateUserImportRows($rows);
+
+        if ($errors) {
+            return back()
+                ->with('error', 'CSVを取り込めませんでした。内容を確認してください。')
+                ->with('import_errors', $errors);
+        }
+
+        DB::transaction(function () use ($rows) {
+            foreach ($rows as $row) {
+                $licenseCode = $row['license_code_model'];
+
+                $user = User::create([
+                    'name' => $row['name'],
+                    'registration_license_code_id' => $licenseCode->id,
+                    'username' => $row['username'],
+                    'email' => null,
+                    'password' => Hash::make($row['password']),
+                    'is_admin' => false,
+                    'gender' => $row['gender'],
+                    'grade_level' => $row['grade_level'],
+                ]);
+
+                if ($licenseCode->group_id) {
+                    DB::table('group_user')->insert([
+                        'group_id' => $licenseCode->group_id,
+                        'user_id' => $user->id,
+                    ]);
+                }
+            }
+        });
+
+        return back()->with('success', count($rows) . '件のユーザーを取り込みました。');
     }
 
     public function updateUser(Request $request, User $user): RedirectResponse
@@ -312,6 +400,294 @@ class SystemController extends Controller
         DB::transaction(fn() => $this->deleteGroupAndMemberships($group));
 
         return back()->with('success', "{$group->name} を削除し、全員を退会状態にしました。");
+    }
+
+    private function readUserImportCsv(string $path): array
+    {
+        $handle = fopen($path, 'r');
+
+        if (!$handle) {
+            return [[], ['CSVファイルを開けませんでした。']];
+        }
+
+        $headerRow = fgetcsv($handle);
+
+        if ($headerRow === false) {
+            fclose($handle);
+
+            return [[], ['CSVのヘッダー行がありません。']];
+        }
+
+        $headers = array_map(fn($value) => $this->normalizeCsvHeader($value), $headerRow);
+        [$headerMap, $missingHeaders] = $this->userImportHeaderMap($headers);
+
+        if ($missingHeaders) {
+            fclose($handle);
+
+            return [[], ['必要な列がありません: ' . implode('、', $missingHeaders)]];
+        }
+
+        $rows = [];
+        $lineNumber = 1;
+
+        while (($csvRow = fgetcsv($handle)) !== false) {
+            $lineNumber++;
+            $csvRow = array_map(fn($value) => $this->cleanCsvCell($value), $csvRow);
+
+            if (collect($csvRow)->every(fn($value) => trim((string) $value) === '')) {
+                continue;
+            }
+
+            $rows[] = [
+                'line' => $lineNumber,
+                'name' => $csvRow[$headerMap['name']] ?? '',
+                'username' => $csvRow[$headerMap['username']] ?? '',
+                'password' => $csvRow[$headerMap['password']] ?? '',
+                'gender_raw' => $csvRow[$headerMap['gender']] ?? '',
+                'grade_level_raw' => $csvRow[$headerMap['grade_level']] ?? '',
+                'license_code_raw' => $csvRow[$headerMap['license_code']] ?? '',
+            ];
+        }
+
+        fclose($handle);
+
+        return [$rows, []];
+    }
+
+    private function userImportHeaderMap(array $headers): array
+    {
+        $aliases = [
+            'name' => ['表示名', '名前', 'name'],
+            'username' => ['ユーザー名', 'ユーザ名', 'username'],
+            'password' => ['パスワード', 'password'],
+            'gender' => ['性別', 'gender'],
+            'grade_level' => ['学年', 'grade', 'grade_level'],
+            'license_code' => ['ライセンスコード', 'license_code', 'license'],
+        ];
+        $headerMap = [];
+        $missing = [];
+
+        foreach ($aliases as $key => $candidates) {
+            $index = collect($candidates)
+                ->map(fn($candidate) => $this->normalizeCsvHeader($candidate))
+                ->map(fn($candidate) => array_search($candidate, $headers, true))
+                ->first(fn($candidateIndex) => $candidateIndex !== false);
+
+            if ($index === null) {
+                $missing[] = self::USER_IMPORT_HEADERS[
+                    array_search($key, ['name', 'username', 'password', 'gender', 'grade_level', 'license_code'], true)
+                ];
+                continue;
+            }
+
+            $headerMap[$key] = (int) $index;
+        }
+
+        return [$headerMap, $missing];
+    }
+
+    private function validateUserImportRows(array $rows): array
+    {
+        $errors = [];
+        $passwordPolicy = new PasswordPolicy();
+
+        foreach ($rows as $index => $row) {
+            $rows[$index]['name'] = trim($row['name']);
+            $rows[$index]['username'] = trim($row['username']);
+            $rows[$index]['password'] = trim($row['password']);
+            $rows[$index]['license_code'] = RegistrationLicenseCode::normalize($row['license_code_raw']);
+            $rows[$index]['gender'] = $this->normalizeImportGender($row['gender_raw']);
+            $rows[$index]['grade_level'] = $this->normalizeImportGradeLevel($row['grade_level_raw']);
+        }
+
+        $licenseCodes = RegistrationLicenseCode::with('group')
+            ->whereIn('code', collect($rows)->pluck('license_code')->filter()->unique())
+            ->get()
+            ->keyBy('code');
+        $importUsernames = collect($rows)
+            ->pluck('username')
+            ->filter()
+            ->map(fn($username) => strtolower($username))
+            ->unique()
+            ->values();
+        $existingUsernames = User::query()
+            ->when($importUsernames->isNotEmpty(), function ($query) use ($importUsernames) {
+                $query->where(function ($query) use ($importUsernames) {
+                    foreach ($importUsernames as $username) {
+                        $query->orWhereRaw('LOWER(username) = ?', [$username]);
+                    }
+                });
+            }, fn($query) => $query->whereRaw('1 = 0'))
+            ->pluck('username')
+            ->map(fn($username) => strtolower($username))
+            ->all();
+        $seenUsernames = [];
+        $groupImportCounts = [];
+
+        foreach ($rows as $index => $row) {
+            $line = $row['line'];
+
+            if ($row['name'] === '') {
+                $errors[] = "{$line}行目: 表示名を入力してください。";
+            } elseif (mb_strlen($row['name']) > 255) {
+                $errors[] = "{$line}行目: 表示名は255文字以内で入力してください。";
+            }
+
+            if ($row['username'] === '') {
+                $errors[] = "{$line}行目: ユーザー名を入力してください。";
+            } elseif (!preg_match('/^[a-zA-Z0-9]+$/', $row['username'])) {
+                $errors[] = "{$line}行目: ユーザー名は英数字のみ使用できます。";
+            } elseif (mb_strlen($row['username']) < 5) {
+                $errors[] = "{$line}行目: ユーザー名は5文字以上で入力してください。";
+            } elseif (mb_strlen($row['username']) > 255) {
+                $errors[] = "{$line}行目: ユーザー名は255文字以内で入力してください。";
+            } elseif (strtoupper($row['username']) === 'KANRI') {
+                $errors[] = "{$line}行目: KANRIは使用できません。";
+            } else {
+                $lowerUsername = strtolower($row['username']);
+
+                if (in_array($lowerUsername, $existingUsernames, true)) {
+                    $errors[] = "{$line}行目: このユーザー名はすでに使われています。";
+                } elseif (isset($seenUsernames[$lowerUsername])) {
+                    $errors[] = "{$line}行目: CSV内でユーザー名が重複しています。";
+                }
+
+                $seenUsernames[$lowerUsername] = true;
+            }
+
+            if ($row['password'] === '') {
+                $errors[] = "{$line}行目: パスワードを入力してください。";
+            } else {
+                $passwordError = null;
+                $passwordPolicy->validate('password', $row['password'], function ($message) use (&$passwordError) {
+                    $passwordError = $message;
+                });
+
+                if ($passwordError) {
+                    $errors[] = "{$line}行目: {$passwordError}";
+                }
+            }
+
+            if ($row['gender'] === false) {
+                $errors[] = "{$line}行目: 性別は空欄、male、female、男、女のいずれかで入力してください。";
+            }
+
+            if ($row['grade_level'] === false) {
+                $errors[] = "{$line}行目: 学年は空欄、または1以上の数字で入力してください。";
+            }
+
+            $licenseCode = $licenseCodes->get($row['license_code']);
+
+            if ($row['license_code'] === '') {
+                $errors[] = "{$line}行目: ライセンスコードを入力してください。";
+                continue;
+            }
+
+            if (!$licenseCode || !$licenseCode->is_active) {
+                $errors[] = "{$line}行目: 有効なライセンスコードを入力してください。";
+                continue;
+            }
+
+            if ($row['grade_level'] !== false && $row['grade_level'] !== null) {
+                $maxGrade = $licenseCode->group?->uses_grades
+                    ? max(1, (int) $licenseCode->group->grade_count)
+                    : 12;
+
+                if ($row['grade_level'] > $maxGrade) {
+                    $errors[] = "{$line}行目: 学年は{$maxGrade}以下で入力してください。";
+                }
+            }
+
+            $rows[$index]['license_code_model'] = $licenseCode;
+
+            if ($licenseCode->group_id) {
+                $groupImportCounts[$licenseCode->group_id] = ($groupImportCounts[$licenseCode->group_id] ?? 0) + 1;
+            }
+        }
+
+        foreach ($groupImportCounts as $groupId => $importCount) {
+            $group = $licenseCodes
+                ->first(fn($licenseCode) => (int) $licenseCode->group_id === (int) $groupId)
+                ?->group;
+
+            if (!$group || (int) ($group->max_members ?? 0) <= 0) {
+                continue;
+            }
+
+            $activeMemberCount = DB::table('group_user')
+                ->where('group_id', $group->id)
+                ->whereNull('deleted_at')
+                ->count();
+            $maxMembers = (int) $group->max_members;
+
+            if ($activeMemberCount + $importCount > $maxMembers) {
+                $errors[] = "グループ「{$group->name}」は最大人数（{$maxMembers}人）を超えます。現在{$activeMemberCount}人、取り込み予定{$importCount}人です。";
+            }
+        }
+
+        if ($errors) {
+            return [[], $errors];
+        }
+
+        return [$rows, []];
+    }
+
+    private function normalizeImportGender(string $value): string|false|null
+    {
+        $value = strtolower($this->normalizeLooseText($value));
+
+        return match ($value) {
+            '' => null,
+            'male', 'm', '男', '男性', '男子' => 'male',
+            'female', 'f', '女', '女性', '女子' => 'female',
+            default => false,
+        };
+    }
+
+    private function normalizeImportGradeLevel(string $value): int|false|null
+    {
+        $value = $this->normalizeLooseText($value);
+
+        if ($value === '') {
+            return null;
+        }
+
+        $value = str_replace(['学年', '年'], '', $value);
+
+        if (!preg_match('/^[0-9]+$/', $value)) {
+            return false;
+        }
+
+        $grade = (int) $value;
+
+        return $grade >= 1 ? $grade : false;
+    }
+
+    private function normalizeLooseText(string $value): string
+    {
+        $value = trim($value);
+
+        if (function_exists('mb_convert_kana')) {
+            $value = mb_convert_kana($value, 'asKV', 'UTF-8');
+        }
+
+        return trim($value);
+    }
+
+    private function normalizeCsvHeader($value): string
+    {
+        return strtolower(str_replace([' ', '　'], '', $this->cleanCsvCell($value)));
+    }
+
+    private function cleanCsvCell($value): string
+    {
+        $value = (string) $value;
+
+        if ($value !== '' && function_exists('mb_check_encoding') && !mb_check_encoding($value, 'UTF-8')) {
+            $value = mb_convert_encoding($value, 'UTF-8', 'SJIS-win,UTF-8');
+        }
+
+        return trim(preg_replace('/^\xEF\xBB\xBF/', '', $value));
     }
 
     private function authorizeSystemAdmin(Request $request): void

@@ -3,6 +3,8 @@
 use App\Models\Group;
 use App\Models\RegistrationLicenseCode;
 use App\Models\User;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 
 it('lets KANRI manage registration license codes', function () {
     $admin = User::where('username', 'KANRI')->firstOrFail();
@@ -64,4 +66,131 @@ it('blocks non KANRI users from the license code master', function () {
     $this->actingAs($user)
         ->get(route('admin.system.license-codes'))
         ->assertForbidden();
+});
+
+it('lets KANRI download a user import template', function () {
+    $admin = User::where('username', 'KANRI')->firstOrFail();
+
+    $this->actingAs($admin)
+        ->get(route('admin.system.users.import-template'))
+        ->assertOk()
+        ->assertDownload('user_import_template.csv');
+});
+
+it('imports users from CSV and joins the license group', function () {
+    $admin = User::where('username', 'KANRI')->firstOrFail();
+    $group = Group::create([
+        'name' => 'CSV Import Group',
+        'host_user_id' => $admin->id,
+        'invite_code' => 'CSV01',
+        'uses_grades' => true,
+        'grade_count' => 4,
+    ]);
+    $licenseCode = RegistrationLicenseCode::create([
+        'code' => 'CSV-GROUP',
+        'memo' => 'CSV import',
+        'is_active' => true,
+        'group_id' => $group->id,
+        'created_by' => $admin->id,
+    ]);
+    $csv = "\xEF\xBB\xBF表示名,ユーザー名,パスワード,性別,学年,ライセンスコード\n"
+        . "山田太郎,yamada001,12345,男,2,CSV-GROUP\n"
+        . "佐藤花子,sato002,password8,女性,,csv-group\n";
+
+    $this->actingAs($admin)
+        ->post(route('admin.system.users.import'), [
+            'csv_file' => UploadedFile::fake()->createWithContent('users.csv', $csv),
+        ])
+        ->assertRedirect()
+        ->assertSessionHas('success', '2件のユーザーを取り込みました。');
+
+    $yamada = User::where('username', 'yamada001')->firstOrFail();
+    $sato = User::where('username', 'sato002')->firstOrFail();
+
+    expect($yamada->name)->toBe('山田太郎');
+    expect($yamada->registration_license_code_id)->toBe($licenseCode->id);
+    expect($yamada->gender)->toBe('male');
+    expect($yamada->grade_level)->toBe(2);
+    expect($sato->gender)->toBe('female');
+    expect($sato->grade_level)->toBeNull();
+
+    expect(DB::table('group_user')
+        ->where('group_id', $group->id)
+        ->where('user_id', $yamada->id)
+        ->whereNull('deleted_at')
+        ->exists())->toBeTrue();
+    expect(DB::table('group_user')
+        ->where('group_id', $group->id)
+        ->where('user_id', $sato->id)
+        ->whereNull('deleted_at')
+        ->exists())->toBeTrue();
+});
+
+it('imports users into a license group that does not use grade settings', function () {
+    $admin = User::where('username', 'KANRI')->firstOrFail();
+    $group = Group::create([
+        'name' => 'No Grade CSV Group',
+        'host_user_id' => $admin->id,
+        'invite_code' => 'NG001',
+        'uses_grades' => false,
+        'grade_count' => 3,
+    ]);
+    $licenseCode = RegistrationLicenseCode::create([
+        'code' => 'NO-GRADE',
+        'memo' => 'No grade import',
+        'is_active' => true,
+        'group_id' => $group->id,
+        'created_by' => $admin->id,
+    ]);
+    $csv = "\xEF\xBB\xBF表示名,ユーザー名,パスワード,性別,学年,ライセンスコード\n"
+        . "学年なしユーザー,nograde001,password8,男,,NO-GRADE\n"
+        . "学年ありユーザー,nograde002,password8,女,4,NO-GRADE\n";
+
+    $this->actingAs($admin)
+        ->post(route('admin.system.users.import'), [
+            'csv_file' => UploadedFile::fake()->createWithContent('users.csv', $csv),
+        ])
+        ->assertRedirect()
+        ->assertSessionHas('success', '2件のユーザーを取り込みました。');
+
+    $userWithoutGrade = User::where('username', 'nograde001')->firstOrFail();
+    $userWithGrade = User::where('username', 'nograde002')->firstOrFail();
+
+    expect($userWithoutGrade->registration_license_code_id)->toBe($licenseCode->id);
+    expect($userWithoutGrade->grade_level)->toBeNull();
+    expect($userWithGrade->registration_license_code_id)->toBe($licenseCode->id);
+    expect($userWithGrade->grade_level)->toBe(4);
+    expect(DB::table('group_user')
+        ->where('group_id', $group->id)
+        ->where('user_id', $userWithoutGrade->id)
+        ->whereNull('deleted_at')
+        ->exists())->toBeTrue();
+    expect(DB::table('group_user')
+        ->where('group_id', $group->id)
+        ->where('user_id', $userWithGrade->id)
+        ->whereNull('deleted_at')
+        ->exists())->toBeTrue();
+});
+
+it('does not import any users when the CSV has validation errors', function () {
+    $admin = User::where('username', 'KANRI')->firstOrFail();
+    RegistrationLicenseCode::create([
+        'code' => 'CSV-VALID',
+        'memo' => 'CSV import',
+        'is_active' => true,
+        'created_by' => $admin->id,
+    ]);
+    $csv = "\xEF\xBB\xBF表示名,ユーザー名,パスワード,性別,学年,ライセンスコード\n"
+        . "有効な人,valid001,password8,,,CSV-VALID\n"
+        . "重複する人,valid001,password8,,,CSV-VALID\n";
+
+    $this->actingAs($admin)
+        ->post(route('admin.system.users.import'), [
+            'csv_file' => UploadedFile::fake()->createWithContent('users.csv', $csv),
+        ])
+        ->assertRedirect()
+        ->assertSessionHas('error', 'CSVを取り込めませんでした。内容を確認してください。')
+        ->assertSessionHas('import_errors');
+
+    expect(User::whereIn('username', ['valid001'])->exists())->toBeFalse();
 });

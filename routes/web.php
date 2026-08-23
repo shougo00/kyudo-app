@@ -54,6 +54,8 @@ Route::middleware([ 'verified'])->group(function () {
     Route::post('/settings/promote-grades', [SettingController::class, 'promoteGrades'])->name('settings.promote-grades');
     Route::get('/admin/system', [SystemController::class, 'index'])->name('admin.system.index');
     Route::get('/admin/system/users', [SystemController::class, 'users'])->name('admin.system.users');
+    Route::get('/admin/system/users/import-template', [SystemController::class, 'userImportTemplate'])->name('admin.system.users.import-template');
+    Route::post('/admin/system/users/import', [SystemController::class, 'importUsers'])->name('admin.system.users.import');
     Route::patch('/admin/system/users/{user}', [SystemController::class, 'updateUser'])->name('admin.system.users.update');
     Route::delete('/admin/system/users/{user}', [SystemController::class, 'destroyUser'])->name('admin.system.users.destroy');
     Route::get('/admin/system/groups', [SystemController::class, 'groups'])->name('admin.system.groups');

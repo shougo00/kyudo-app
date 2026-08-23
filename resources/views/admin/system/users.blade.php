@@ -21,11 +21,43 @@
     @if(session('error'))
         <div class="alert alert-danger">{{ session('error') }}</div>
     @endif
+    @if(session('import_errors'))
+        <div class="alert alert-danger">
+            <div class="fw-bold mb-1">CSVの確認が必要です</div>
+            <ul class="mb-0">
+                @foreach(session('import_errors') as $importError)
+                    <li>{{ $importError }}</li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
     @if($errors->any())
         <div class="alert alert-danger">
             入力内容を確認してください。
         </div>
     @endif
+
+    <div class="admin-card user-import-card mb-3">
+        <div>
+            <strong>CSV取り込み</strong>
+            <div class="user-import-note">
+                表示名、ユーザー名、パスワード、性別、学年、ライセンスコードを取り込めます。性別・学年は空欄なら設定なしになります。
+            </div>
+        </div>
+        <div class="user-import-actions">
+            <a href="{{ route('admin.system.users.import-template') }}" class="btn btn-outline-primary">
+                テンプレートCSV
+            </a>
+            <form method="POST"
+                  action="{{ route('admin.system.users.import') }}"
+                  enctype="multipart/form-data"
+                  class="user-import-form">
+                @csrf
+                <input type="file" name="csv_file" class="form-control" accept=".csv,text/csv" required>
+                <button type="submit" class="btn btn-primary">CSV取り込み</button>
+            </form>
+        </div>
+    </div>
 
     <form method="GET" action="{{ route('admin.system.users') }}" class="admin-search mb-3">
         <input type="search"
@@ -128,6 +160,38 @@
     padding: 14px;
 }
 
+.user-import-card {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(280px, 520px);
+    gap: 12px;
+    align-items: center;
+}
+
+.user-import-note {
+    color: #6c757d;
+    font-size: 13px;
+    margin-top: 4px;
+}
+
+.user-import-actions,
+.user-import-form {
+    display: flex;
+    gap: 8px;
+}
+
+.user-import-actions {
+    justify-content: flex-end;
+    flex-wrap: wrap;
+}
+
+.user-import-form {
+    flex: 1 1 320px;
+}
+
+.user-import-form .form-control {
+    min-width: 160px;
+}
+
 .admin-card-head {
     display: flex;
     justify-content: space-between;
@@ -170,8 +234,15 @@
 }
 
 @media (max-width: 600px) {
+    .user-import-card,
     .admin-search {
         grid-template-columns: 1fr;
+    }
+
+    .user-import-actions,
+    .user-import-form {
+        display: grid;
+        width: 100%;
     }
 
     .admin-card-head {
