@@ -66,14 +66,14 @@
             "text": "Webアプリとして、インターネット環境があればスマホやタブレットで利用できます。団体利用ではタブレット端末を団体様でご準備ください。"
           }
         },
-        {
+        {{-- {
           "@type": "Question",
           "name": "ライセンスの利用人数は選べますか？",
           "acceptedAnswer": {
             "@type": "Answer",
             "text": "はい。1人あたり月80円の月額料金で、20名、30名、40名、50名、60名、70名までの人数枠から選べます。"
           }
-        },
+        }, --}}
         {
           "@type": "Question",
           "name": "利用に必要なものはありますか？",
@@ -106,7 +106,7 @@
         <a href="#features">機能</a>
         <a href="#intro">導入について</a>
         <a href="#records">導入実績</a>
-        <a href="#license">料金</a>
+        {{-- <a href="#license">料金</a> --}}
         <a href="#faq">FAQ</a>
         <a href="#contact">お問い合わせ</a>
       </nav>
@@ -270,7 +270,7 @@
       </div>
     </section>
 
-    <section class="license" id="license" aria-labelledby="license-title">
+    {{-- <section class="license" id="license" aria-labelledby="license-title">
       <div class="license-copy reveal">
         <p class="section-kicker">License</p>
         <h2 id="license-title">月額で使えるライセンス制です。</h2>
@@ -308,7 +308,7 @@
 
         <a class="license-contact" href="#contact">導入費用を相談する</a>
       </div>
-    </section>
+    </section> --}}
 
     <section class="faq" id="faq" aria-labelledby="faq-title">
       <div class="section-heading reveal">
@@ -328,10 +328,10 @@
           <h3>スマホやタブレットで使えますか？</h3>
           <p>インターネット環境があれば、スマホやタブレットで利用できます。団体利用の場合、タブレット端末は団体様でご準備ください。</p>
         </article>
-        <article>
+        {{-- <article>
           <h3>ライセンスの利用人数は選べますか？</h3>
           <p>はい。1人あたり月80円の月額料金で、20名、30名、40名、50名、60名、70名までの人数枠から選べます。</p>
-        </article>
+        </article> --}}
         <article>
           <h3>利用に必要なものはありますか？</h3>
           <p>インターネットに接続できるタブレット端末が必要です。端末と通信環境は団体様でご準備ください。</p>
@@ -344,7 +344,7 @@
         <div class="contact-copy">
           <p class="section-kicker">Contact</p>
           <h2 id="contact-title">MATOWAについて相談する</h2>
-          <p>導入時期や利用人数が決まっていなくても大丈夫です。まずは使い方のイメージからご相談ください。</p>
+          <p>導入時期や導入費用、利用人数が決まっていなくても大丈夫です。まずは使い方のイメージからご相談ください。</p>
         </div>
 
         <form class="contact-form"
