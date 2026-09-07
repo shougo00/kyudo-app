@@ -248,6 +248,88 @@ it('updates active match teams and uses their saved order on the match records p
     );
 });
 
+it('shows disbanded match teams before active teams on the match records page', function () {
+    $date = '2026-09-07';
+    $host = User::factory()->create([
+        'name' => 'Host',
+        'username' => 'match-team-disbanded-left-host',
+        'is_admin' => true,
+    ]);
+    $member = User::factory()->create([
+        'name' => 'Disbanded Archer',
+        'username' => 'match-team-disbanded-left-member',
+        'is_admin' => false,
+    ]);
+    $group = Group::create([
+        'name' => 'Match Team Disbanded Left Group',
+        'host_user_id' => $host->id,
+        'invite_code' => '9112',
+    ]);
+    $group->users()->attach([$host->id, $member->id]);
+
+    $activeTeam = MatchTeam::create([
+        'group_id' => $group->id,
+        'date' => $date,
+        'name' => '現役チーム',
+        'division' => 'mixed',
+        'color' => '#198754',
+        'tate_size' => 3,
+        'sort_order' => 1,
+    ]);
+    $disbandedTeam = MatchTeam::create([
+        'group_id' => $group->id,
+        'date' => $date,
+        'name' => '解散済みチーム',
+        'division' => 'mixed',
+        'color' => '#dc3545',
+        'tate_size' => 3,
+        'sort_order' => 2,
+    ]);
+    MatchTeamMember::create([
+        'match_team_id' => $disbandedTeam->id,
+        'date' => $date,
+        'user_id' => $member->id,
+        'tate_no' => 1,
+        'position' => 1,
+        'is_absent' => false,
+        'is_late' => false,
+    ]);
+    $record = Record::create([
+        'user_id' => $member->id,
+        'date' => $date,
+        'tate_no' => 1,
+        'practice_type' => 'match',
+        'match_team_id' => $disbandedTeam->id,
+        'official_sheet_no' => 1,
+        'lineup_position' => 1,
+        'lineup_tate_size' => 3,
+    ]);
+
+    foreach (range(1, 4) as $shotNo) {
+        Shot::create([
+            'record_id' => $record->id,
+            'shot_no' => $shotNo,
+            'result' => $shotNo === 1 ? 'hit' : null,
+        ]);
+    }
+
+    $disbandedTeam->delete();
+
+    $page = $this->actingAs($host)
+        ->get("/group/{$group->id}/match-records?date={$date}");
+
+    $page->assertOk()
+        ->assertSee('現役チーム', false)
+        ->assertSee('解散済みチーム', false)
+        ->assertSee('/ 解散済み', false);
+
+    $content = $page->getContent();
+    $this->assertLessThan(
+        strpos($content, 'id="match-team-' . $activeTeam->id . '"'),
+        strpos($content, 'id="match-team-' . $disbandedTeam->id . '"')
+    );
+});
+
 it('keeps existing match tate slots when a team size is changed later', function () {
     $date = '2026-09-07';
     $host = User::factory()->create([

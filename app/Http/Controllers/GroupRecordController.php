@@ -451,7 +451,7 @@ class GroupRecordController extends Controller
                             ->whereNotNull('official_record_id');
                     });
             })
-            ->orderByRaw('CASE WHEN deleted_at IS NULL THEN 0 ELSE 1 END')
+            ->orderByRaw('CASE WHEN deleted_at IS NULL THEN 1 ELSE 0 END')
             ->orderBy('sort_order')
             ->orderBy('id')
             ->get();
