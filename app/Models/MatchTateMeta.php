@@ -10,6 +10,7 @@ class MatchTateMeta extends Model
         'match_team_id',
         'date',
         'tate_no',
+        'tate_size',
         'elapsed_seconds',
         'is_timer_running',
         'timer_started_at',
@@ -17,6 +18,7 @@ class MatchTateMeta extends Model
     ];
 
     protected $casts = [
+        'tate_size' => 'integer',
         'is_timer_running' => 'boolean',
         'timer_started_at' => 'datetime',
     ];

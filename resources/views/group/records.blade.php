@@ -151,6 +151,7 @@
     ] : null;
     $latestMatchAssignmentsByRecordId = $latestMatchAssignmentsByRecordId ?? collect();
     $officialMatchTeamControls = $officialMatchTeamControls ?? collect();
+    $matchTeamTateSizes = $matchTeamTateSizes ?? collect();
 @endphp
 
 <script>
@@ -249,6 +250,9 @@ if (isOfficialRecordPage || isMatchRecordPage) {
             @if($practiceType === 'match')
                 <button type="button" class="btn btn-primary" onclick="openMatchTeamCreateModal()">
                     ＋ チーム作成
+                </button>
+                <button type="button" class="btn btn-success" onclick="openMatchTeamEditModal()" {{ ($teams ?? collect())->filter(fn($team) => !$team->trashed())->isEmpty() ? 'disabled' : '' }}>
+                    チーム編集
                 </button>
             @endif
             @if($canEditGroupRecords)
@@ -353,6 +357,12 @@ if (isOfficialRecordPage || isMatchRecordPage) {
 @endif
 
 @if($practiceType === 'match')
+    @php
+        $editableMatchTeams = ($teams ?? collect())
+            ->filter(fn($team) => !$team->trashed())
+            ->values();
+    @endphp
+
     <div class="match-control-layer">
         <div id="matchTeamCreateModal" class="match-lineup-modal" hidden>
             <div class="match-lineup-dialog match-team-create-dialog">
@@ -399,15 +409,79 @@ if (isOfficialRecordPage || isMatchRecordPage) {
             </div>
         </div>
 
+        <div id="matchTeamEditModal" class="match-lineup-modal" hidden>
+            <div class="match-lineup-dialog match-team-edit-dialog">
+                <div class="match-lineup-dialog-head">
+                    <div>
+                        <strong>チーム編集</strong>
+                        <span>{{ \Carbon\Carbon::parse($date)->locale('ja')->isoFormat('YYYY年M月D日（ddd）') }}</span>
+                    </div>
+                    <button type="button" class="btn-close" aria-label="閉じる" onclick="closeMatchTeamEditModal()"></button>
+                </div>
+
+                <form method="POST" action="/group/{{ $group->id }}/match-teams" class="match-team-edit-form" data-match-team-edit-form>
+                    @csrf
+                    @method('PATCH')
+
+                    <div class="match-team-edit-list" data-match-team-edit-list>
+                        @foreach($editableMatchTeams as $team)
+                            @php
+                                $editTeamColor = $matchTeamColorsById->get((int) $team->id, '#198754');
+                            @endphp
+                            <div class="match-team-edit-row" data-match-team-edit-row>
+                                <input type="hidden" name="teams[{{ $loop->index }}][id]" value="{{ $team->id }}" data-team-field="id">
+
+                                <label class="match-team-edit-field team-name-field">
+                                    <span>チーム名</span>
+                                    <input type="text" name="teams[{{ $loop->index }}][name]" class="form-control" value="{{ $team->name }}" required data-team-field="name">
+                                </label>
+
+                                <label class="match-team-edit-field team-size-field">
+                                    <span>人数</span>
+                                    <select name="teams[{{ $loop->index }}][tate_size]" class="form-select" data-team-field="tate_size">
+                                        @for($i = 1; $i <= 15; $i++)
+                                            <option value="{{ $i }}" {{ $i === (int) $team->tate_size ? 'selected' : '' }}>{{ $i }}人</option>
+                                        @endfor
+                                    </select>
+                                </label>
+
+                                <label class="match-team-edit-field team-color-field">
+                                    <span>色</span>
+                                    <input type="color" name="teams[{{ $loop->index }}][color]" value="{{ $editTeamColor }}" data-team-field="color" aria-label="{{ $team->name }}のチーム色">
+                                </label>
+
+                                <button type="button" class="match-team-edit-handle" data-match-team-edit-handle aria-label="{{ $team->name }}の並び替え" title="長押しして並び替え">
+                                    <span class="match-team-edit-grip" aria-hidden="true">
+                                        <span></span>
+                                        <span></span>
+                                        <span></span>
+                                    </span>
+                                </button>
+                            </div>
+                        @endforeach
+                    </div>
+
+                    <div class="match-create-actions">
+                        <span class="match-save-status" data-match-team-edit-status></span>
+                        <button type="button" class="btn btn-outline-secondary" onclick="closeMatchTeamEditModal()">キャンセル</button>
+                        <button class="btn btn-primary">保存</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
         <div id="matchLineupSources" hidden>
             @foreach(($teams ?? collect()) as $team)
                 @foreach(($matchTeamTates->get($team->id, collect())) as $sourceTateNo)
+                    @php
+                        $sourceTateSize = optional($matchTeamTateSizes->get($team->id))->get($sourceTateNo, $team->tate_size);
+                    @endphp
                     <div class="lineup-source"
                          data-team-id="{{ $team->id }}"
                          data-team-name="{{ $team->name }}"
                          data-date="{{ $date }}"
                          data-tate-no="{{ $sourceTateNo }}"
-                         data-tate-size="{{ $team->tate_size }}">
+                         data-tate-size="{{ $sourceTateSize }}">
                         @foreach($group->users->where('is_admin', false)->filter(fn($user) => $team->division === 'mixed' || $user->gender === $team->division) as $user)
                             @php
                                 $saved = $team->members
@@ -673,6 +747,7 @@ if (isOfficialRecordPage || isMatchRecordPage) {
     @php
         $teamTates = $matchTeamTates->get($team->id, collect());
         $teamSlots = $matchTeamSlots->get($team->id, collect());
+        $teamTateSizes = $matchTeamTateSizes->get($team->id, collect());
         $matchTeamColor = $matchTeamColorsById->get((int) $team->id, '#198754');
         $latestTeamTateNoForDelete = max(1, (int) ($teamTates->max() ?? 1));
     @endphp
@@ -726,6 +801,7 @@ if (isOfficialRecordPage || isMatchRecordPage) {
         @foreach($teamTates as $tateNo)
             @php
                 $slots = $teamSlots->get($tateNo, collect());
+                $tateSizeForDisplay = max(1, (int) $teamTateSizes->get($tateNo, $team->tate_size));
                 $tateMeta = optional($matchTateMetas->get($team->id))->get($tateNo);
                 $matchScoringMode = $tateMeta?->scoring_mode ?? 'hit_miss';
                 $hasOfficialLinkedRecords = collect($slots)->contains(fn($slot) => ($slot->record_source ?? null) === 'official');
@@ -810,7 +886,7 @@ if (isOfficialRecordPage || isMatchRecordPage) {
                     </div>
                 </div>
 
-                <div class="match-vertical-row {{ $team->tate_size <= 5 ? 'compact-tate' : '' }}">
+                <div class="match-vertical-row {{ $tateSizeForDisplay <= 5 ? 'compact-tate' : '' }}">
                     @foreach($slots as $slot)
                         @if($slot->is_empty)
                             <div class="match-vertical-column empty-column">
@@ -1129,6 +1205,7 @@ if (isOfficialRecordPage || isMatchRecordPage) {
         @php
             $printTeamTates = $matchTeamTates->get($printTeam->id, collect());
             $printTeamSlots = $matchTeamSlots->get($printTeam->id, collect());
+            $printTeamTateSizes = $matchTeamTateSizes->get($printTeam->id, collect());
             $printTeamTotalHits = 0;
             $printTeamTotalPoints = 0;
             $printTeamUsesNumeric = false;
@@ -1177,6 +1254,7 @@ if (isOfficialRecordPage || isMatchRecordPage) {
         @foreach($printTeamTates as $tateNo)
             @php
                 $slots = $printTeamSlots->get($tateNo, collect());
+                $printTateSizeForDisplay = max(1, (int) $printTeamTateSizes->get($tateNo, $printTeam->tate_size));
                 $tateMeta = optional($matchTateMetas->get($printTeam->id))->get($tateNo);
                 $matchScoringMode = $tateMeta?->scoring_mode ?? 'hit_miss';
                 $hasOfficialLinkedRecords = collect($slots)->contains(fn($slot) => ($slot->record_source ?? null) === 'official');
@@ -1216,7 +1294,7 @@ if (isOfficialRecordPage || isMatchRecordPage) {
                                 : 0;
                         @endphp
 
-                        <div class="print-score {{ (($loop->index + 1) % $printTeam->tate_size == 0) ? 'print-tate-border' : '' }}">
+                        <div class="print-score {{ (($loop->index + 1) % $printTateSizeForDisplay == 0) ? 'print-tate-border' : '' }}">
                             {{ $slot->is_empty ? '-' : ($printRecordScoringMode === 'numeric' ? $printPointCount . '点' : $printHitCount . '中') }}
                         </div>
                     @endforeach
@@ -1232,7 +1310,7 @@ if (isOfficialRecordPage || isMatchRecordPage) {
                                 $recordScoringMode = ($slot->scoring_mode ?? null) ?: $matchScoringMode;
                             @endphp
 
-                            <div class="print-user-column {{ (($loop->index + 1) % $printTeam->tate_size == 0) ? 'print-tate-border' : '' }}">
+                            <div class="print-user-column {{ (($loop->index + 1) % $printTateSizeForDisplay == 0) ? 'print-tate-border' : '' }}">
                                 @for($i=4;$i>=1;$i--)
                                     @php
                                         $shot = $record
@@ -1257,7 +1335,7 @@ if (isOfficialRecordPage || isMatchRecordPage) {
                 <div class="print-name-row">
                     <div class="print-name-spacer"></div>
                     @foreach($slots as $slot)
-                        <div class="print-name {{ (($loop->index + 1) % $printTeam->tate_size == 0) ? 'print-tate-border' : '' }}">
+                        <div class="print-name {{ (($loop->index + 1) % $printTateSizeForDisplay == 0) ? 'print-tate-border' : '' }}">
                             {{ $slot->is_empty ? '空き' : $slot->user->name }}
                             @if(($slot->record_source ?? null) === 'official')
                                 <small>正{{ $slot->official_tate_no }}</small>

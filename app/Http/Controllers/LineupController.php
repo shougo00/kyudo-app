@@ -8,16 +8,11 @@ use App\Models\Lineup;
 use App\Models\LineupMember;
 use App\Models\MatchTeam;
 use App\Models\Record;
+use App\Support\MatchTeamColor;
 use Illuminate\Support\Facades\DB;
 
 class LineupController extends Controller
 {
-    private const MATCH_TEAM_COLORS = [
-        'male' => '#0d6efd',
-        'female' => '#dc3545',
-        'mixed' => '#198754',
-    ];
-
     public function index(Request $request, $groupId)
     {
         $this->checkGroupAccess($groupId, true);
@@ -197,12 +192,15 @@ class LineupController extends Controller
             ->with(['members' => fn($query) => $query->where('date', $date)])
             ->where('group_id', $group->id)
             ->whereHas('members', fn($query) => $query->where('date', $date))
+            ->orderBy('sort_order')
             ->orderBy('id')
             ->get()
             ->values();
 
+        $matchTeamColorsById = MatchTeamColor::colorsByTeamId($teams);
+
         return $teams
-            ->flatMap(function ($team) {
+            ->flatMap(function ($team) use ($matchTeamColorsById) {
                 $latestTateNo = $team->members
                     ->pluck('tate_no')
                     ->filter()
@@ -212,7 +210,6 @@ class LineupController extends Controller
                     return collect();
                 }
 
-                $teamColor = self::MATCH_TEAM_COLORS[$team->division] ?? self::MATCH_TEAM_COLORS['mixed'];
                 $tateSize = max(1, (int) $team->tate_size);
 
                 return $team->members
@@ -221,7 +218,7 @@ class LineupController extends Controller
                     ->where('is_absent', false)
                     ->map(fn($member) => [
                         'user_id' => (int) $member->user_id,
-                        'color' => $teamColor,
+                        'color' => $matchTeamColorsById->get((int) $team->id, MatchTeamColor::defaultForDivision('mixed')),
                         'position_label' => $this->matchPositionLabel((int) $member->position, $tateSize),
                     ]);
             })

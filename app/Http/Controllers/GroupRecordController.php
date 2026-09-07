@@ -11,16 +11,11 @@ use App\Models\LineupMember;
 use App\Models\MatchTeam;
 use App\Models\MatchTeamMember;
 use App\Models\MatchTateMeta;
+use App\Support\MatchTeamColor;
 use Illuminate\Support\Facades\DB;
 
 class GroupRecordController extends Controller
 {
-    private const MATCH_TEAM_COLORS = [
-        'male' => '#0d6efd',
-        'female' => '#dc3545',
-        'mixed' => '#198754',
-    ];
-
     public function index(Request $request, $groupId)
     {
         return $this->showRecords($request, $groupId, 'official');
@@ -60,7 +55,8 @@ class GroupRecordController extends Controller
 
             if ($selectionTeam) {
                 $selectionTateNo = max(1, $request->integer('match_tate_no'));
-                $selectionPosition = max(1, min($selectionTeam->tate_size, $request->integer('match_position')));
+                $selectionTateSize = $this->matchTateSize($selectionTeam, $date, $selectionTateNo);
+                $selectionPosition = max(1, min($selectionTateSize, $request->integer('match_position')));
                 $selectionReturnToOfficial = $request->input('return_to') === 'official';
                 $selectionMonth = $request->month ?? \Carbon\Carbon::parse($date)->format('Y-m');
                 $selectionSheetNo = max(1, (int) ($request->input('sheet_no') ?? 1));
@@ -78,7 +74,7 @@ class GroupRecordController extends Controller
                     'team_name' => $selectionTeam->name,
                     'tate_no' => $selectionTateNo,
                     'position' => $selectionPosition,
-                    'tate_size' => $selectionTeam->tate_size,
+                    'tate_size' => $selectionTateSize,
                     'color' => $this->matchTeamColorFor($matchTeamColorsById, $selectionTeam->id),
                     'assigned_members' => $assignedMembers,
                     'return_to' => $selectionReturnToOfficial ? 'official' : 'match',
@@ -455,6 +451,8 @@ class GroupRecordController extends Controller
                             ->whereNotNull('official_record_id');
                     });
             })
+            ->orderByRaw('CASE WHEN deleted_at IS NULL THEN 0 ELSE 1 END')
+            ->orderBy('sort_order')
             ->orderBy('id')
             ->get();
 
@@ -500,6 +498,7 @@ class GroupRecordController extends Controller
         $tates = collect();
         $matchTeamTates = collect();
         $matchTeamSlots = collect();
+        $matchTeamTateSizes = collect();
         $matchTeamUsers = collect();
         $users = collect();
 
@@ -521,11 +520,25 @@ class GroupRecordController extends Controller
             }
 
             $matchTeamTates->put($team->id, $teamTates);
+            $teamMetas = $matchTateMetaRows
+                ->where('match_team_id', $team->id)
+                ->keyBy('tate_no');
 
             if ($team->members->isNotEmpty()) {
                 foreach ($teamTates as $tateNo) {
-                    $members = $team->members
+                    $allTateMembers = $team->members
                         ->where('tate_no', $tateNo)
+                        ->values();
+                    $legacyTateRecords = ($legacyRecords->get($team->id, collect()))
+                        ->flatMap(fn($userRecords) => $userRecords)
+                        ->where('tate_no', $tateNo)
+                        ->values();
+                    $tateMeta = $teamMetas->get($tateNo);
+                    $tateSizeForDisplay = $this->matchTateSizeForDisplay($team, $tateMeta, $allTateMembers, $legacyTateRecords);
+                    $teamTateSizes = $matchTeamTateSizes->get($team->id, collect());
+                    $teamTateSizes->put($tateNo, $tateSizeForDisplay);
+                    $matchTeamTateSizes->put($team->id, $teamTateSizes);
+                    $members = $allTateMembers
                         ->filter(function ($member) use ($matchAttendanceByUserId) {
                             $attendance = $matchAttendanceByUserId->get($member->user_id);
 
@@ -539,7 +552,7 @@ class GroupRecordController extends Controller
                     $matchTeamUsers->put($team->id, $matchTeamUsers->get($team->id, collect())->merge($members->pluck('user')->filter()));
                     $slots = collect();
 
-                    for ($pos = 1; $pos <= $team->tate_size; $pos++) {
+                    for ($pos = 1; $pos <= $tateSizeForDisplay; $pos++) {
                         $member = $members->firstWhere('position', $pos);
                         $legacyRecord = $member
                             ? (($legacyRecords->get($team->id, collect())->get($member->user_id, collect()))
@@ -573,8 +586,10 @@ class GroupRecordController extends Controller
                 }
             } elseif (!$team->trashed()) {
                 $slots = collect();
+                $tateSizeForDisplay = max(1, (int) $team->tate_size);
+                $matchTeamTateSizes->put($team->id, collect([1 => $tateSizeForDisplay]));
 
-                for ($pos = 1; $pos <= $team->tate_size; $pos++) {
+                for ($pos = 1; $pos <= $tateSizeForDisplay; $pos++) {
                     $slots->push((object) [
                         'position' => $pos,
                         'member' => null,
@@ -700,6 +715,7 @@ class GroupRecordController extends Controller
             'selectedTateNo',
             'matchTeamTates',
             'matchTeamSlots',
+            'matchTeamTateSizes',
             'matchTateMetas',
             'matchAttendanceByUserId',
             'matchTeamColorsById',
@@ -983,6 +999,7 @@ class GroupRecordController extends Controller
         $newTate = $maxTate + 1;
         $sourceTate = $memberMaxTate > 0 ? $memberMaxTate : null;
         $previousMeta = null;
+        $targetTateSize = max(1, (int) $team->tate_size);
 
         if (!$sourceTate) {
             $message = '先に1立目でメンバーを選択してから、＋立を押してください。';
@@ -1043,8 +1060,9 @@ class GroupRecordController extends Controller
 
             $missingNextOfficialMembers = collect();
             $plannedMembers = $sourceMembers
-                ->map(function ($member) use (&$linkedOfficialRecordIds, $missingNextOfficialMembers) {
+                ->map(function ($member) use (&$linkedOfficialRecordIds, $missingNextOfficialMembers, $targetTateSize) {
                     $shouldLinkNextRecord = !is_null($member->position)
+                        && (int) $member->position <= $targetTateSize
                         && !$member->is_absent;
                     $nextOfficialRecord = $shouldLinkNextRecord
                         ? $this->nextOfficialRecordAfter($member->officialRecord, $linkedOfficialRecordIds)
@@ -1082,9 +1100,12 @@ class GroupRecordController extends Controller
             }
 
             $memberInserts = $plannedMembers
-                ->map(function ($plannedMember) use ($team, $date, $newTate, $now) {
+                ->map(function ($plannedMember) use ($team, $date, $newTate, $now, $targetTateSize) {
                     $member = $plannedMember->member;
                     $nextOfficialRecord = $plannedMember->next_official_record;
+                    $position = !is_null($member->position) && (int) $member->position <= $targetTateSize
+                        ? $member->position
+                        : null;
 
                     if ($nextOfficialRecord) {
                         $this->ensureRecordHasFourShots($nextOfficialRecord);
@@ -1095,7 +1116,7 @@ class GroupRecordController extends Controller
                         'date' => $date,
                         'user_id' => $member->user_id,
                         'tate_no' => $newTate,
-                        'position' => $member->position,
+                        'position' => $position,
                         'official_record_id' => $nextOfficialRecord?->id,
                         'is_absent' => $member->is_absent,
                         'is_late' => $member->is_late,
@@ -1122,6 +1143,7 @@ class GroupRecordController extends Controller
                 'is_timer_running' => false,
                 'timer_started_at' => null,
                 'scoring_mode' => $previousMeta?->scoring_mode ?? 'hit_miss',
+                'tate_size' => $targetTateSize,
             ]
         );
 
@@ -1260,7 +1282,9 @@ class GroupRecordController extends Controller
             'record_id' => ['required', 'integer', 'exists:records,id'],
         ]);
 
-        if ((int) $validated['position'] > (int) $team->tate_size) {
+        $tateSize = $this->matchTateSize($team, $validated['date'], (int) $validated['tate_no']);
+
+        if ((int) $validated['position'] > $tateSize) {
             return response()->json([
                 'ok' => false,
                 'message' => '指定された立順位置がチーム人数を超えています。',
@@ -1313,7 +1337,7 @@ class GroupRecordController extends Controller
         });
 
         $month = \Carbon\Carbon::parse($validated['date'])->format('Y-m');
-        $nextPosition = (int) $validated['position'] < (int) $team->tate_size
+        $nextPosition = (int) $validated['position'] < $tateSize
             ? (int) $validated['position'] + 1
             : null;
         $nextSheetNo = max(1, (int) ($record->official_sheet_no ?? 1));
@@ -1562,6 +1586,7 @@ class GroupRecordController extends Controller
             ->with(['members' => fn($query) => $query->where('date', $date)])
             ->where('group_id', $group->id)
             ->whereHas('members', fn($query) => $query->where('date', $date))
+            ->orderBy('sort_order')
             ->orderBy('id')
             ->get()
             ->values()
@@ -1588,7 +1613,7 @@ class GroupRecordController extends Controller
                         'team_name' => $team->name,
                         'tate_no' => (int) $latestTateNo,
                         'position' => (int) $member->position,
-                        'tate_size' => (int) $team->tate_size,
+                        'tate_size' => $this->matchTateSize($team, (string) $member->date, (int) $latestTateNo),
                         'color' => $this->matchTeamColorFor($matchTeamColorsById, $team->id),
                     ]);
             })
@@ -1604,6 +1629,7 @@ class GroupRecordController extends Controller
             ])
             ->where('group_id', $group->id)
             ->whereNull('deleted_at')
+            ->orderBy('sort_order')
             ->orderBy('id')
             ->get()
             ->values();
@@ -1625,7 +1651,7 @@ class GroupRecordController extends Controller
             ->get()
             ->groupBy('match_team_id');
 
-        return $teams->map(function ($team) use ($matchTeamColorsById, $legacyMaxTates, $legacyRecords) {
+        return $teams->map(function ($team) use ($date, $matchTeamColorsById, $legacyMaxTates, $legacyRecords) {
             $latestTateNo = max(
                 1,
                 (int) ($team->members->pluck('tate_no')->filter()->max() ?? 0),
@@ -1661,6 +1687,7 @@ class GroupRecordController extends Controller
                 'team_id' => (int) $team->id,
                 'team_name' => $team->name,
                 'tate_no' => $latestTateNo,
+                'tate_size' => $this->matchTateSize($team, $date, $latestTateNo),
                 'hit_count' => $hitCount,
                 'elapsed_seconds' => $elapsedSeconds,
                 'elapsed_label' => sprintf('%02d:%02d', floor($elapsedSeconds / 60), $elapsedSeconds % 60),
@@ -1672,23 +1699,73 @@ class GroupRecordController extends Controller
 
     private function matchTeamColorsById(Group $group)
     {
-        return MatchTeam::withTrashed()
+        $teams = MatchTeam::withTrashed()
             ->where('group_id', $group->id)
+            ->orderBy('sort_order')
             ->orderBy('id')
-            ->pluck('division', 'id')
-            ->mapWithKeys(fn($division, $teamId) => [
-                (int) $teamId => $this->matchTeamColorForDivision($division),
-            ]);
+            ->get(['id', 'group_id', 'division', 'color', 'sort_order']);
+
+        return MatchTeamColor::colorsByTeamId($teams);
     }
 
     private function matchTeamColorFor($matchTeamColorsById, int $teamId): string
     {
-        return $matchTeamColorsById->get((int) $teamId, self::MATCH_TEAM_COLORS['mixed']);
+        return $matchTeamColorsById->get((int) $teamId, MatchTeamColor::defaultForDivision('mixed'));
     }
 
     private function matchTeamColorForDivision(?string $division): string
     {
-        return self::MATCH_TEAM_COLORS[$division] ?? self::MATCH_TEAM_COLORS['mixed'];
+        return MatchTeamColor::defaultForDivision($division);
+    }
+
+    private function matchTeamColorForStoredValue(?string $color, ?string $division): string
+    {
+        return MatchTeamColor::colorForStoredValue($color, $division);
+    }
+
+    private function matchTateSize(MatchTeam $team, string $date, int $tateNo): int
+    {
+        $meta = MatchTateMeta::where('match_team_id', $team->id)
+            ->where('date', $date)
+            ->where('tate_no', $tateNo)
+            ->first();
+        $members = MatchTeamMember::where('match_team_id', $team->id)
+            ->where('date', $date)
+            ->where('tate_no', $tateNo)
+            ->get(['position']);
+        $records = Record::where('match_team_id', $team->id)
+            ->where('date', $date)
+            ->where('practice_type', 'match')
+            ->where('tate_no', $tateNo)
+            ->get(['lineup_tate_size']);
+
+        return $this->matchTateSizeForDisplay($team, $meta, $members, $records);
+    }
+
+    private function matchTateSizeForDisplay(MatchTeam $team, ?MatchTateMeta $meta, $members, $records): int
+    {
+        $metaTateSize = (int) ($meta?->tate_size ?? 0);
+
+        if ($metaTateSize > 0) {
+            return max(1, $metaTateSize);
+        }
+
+        $recordTateSize = collect($records)
+            ->pluck('lineup_tate_size')
+            ->filter()
+            ->map(fn($size) => (int) $size)
+            ->first();
+
+        if ($recordTateSize > 0) {
+            return max(1, $recordTateSize);
+        }
+
+        $maxMemberPosition = (int) collect($members)
+            ->pluck('position')
+            ->filter()
+            ->max();
+
+        return max(1, (int) $team->tate_size, $maxMemberPosition);
     }
 
     private function matchAddTateReturnUrl(Request $request, int $groupId, string $date, string $month, int $teamId, int $tateNo): string
@@ -2342,6 +2419,44 @@ class GroupRecordController extends Controller
             return;
         }
 
+        $metasByTate = MatchTateMeta::where('match_team_id', $team->id)
+            ->where('date', $date)
+            ->whereIn('tate_no', $tateNos)
+            ->get()
+            ->keyBy('tate_no');
+        $lineupSnapshotsByTateUserId = collect();
+
+        foreach ($tateNos as $tateNo) {
+            $membersForTate = $team->members
+                ->where('date', $date)
+                ->where('tate_no', $tateNo)
+                ->values();
+            $tateSize = $this->matchTateSizeForDisplay($team, $metasByTate->get($tateNo), $membersForTate, collect());
+            $meta = $metasByTate->get($tateNo);
+
+            if (!$meta || !$meta->tate_size) {
+                MatchTateMeta::updateOrCreate(
+                    [
+                        'match_team_id' => $team->id,
+                        'date' => $date,
+                        'tate_no' => $tateNo,
+                    ],
+                    [
+                        'tate_size' => $tateSize,
+                    ]
+                );
+            }
+
+            foreach ($membersForTate as $member) {
+                if (!is_null($member->position)) {
+                    $lineupSnapshotsByTateUserId->put($tateNo . '-' . $member->user_id, [
+                        'position' => (int) $member->position,
+                        'tate_size' => $tateSize,
+                    ]);
+                }
+            }
+        }
+
         $membersByTate = $team->members
             ->where('date', $date)
             ->whereIn('tate_no', $tateNos)
@@ -2385,6 +2500,8 @@ class GroupRecordController extends Controller
                     continue;
                 }
 
+                $snapshot = $lineupSnapshotsByTateUserId->get($tateNo . '-' . $userId, []);
+
                 $recordInserts[] = [
                     'user_id' => $userId,
                     'date' => $date,
@@ -2392,6 +2509,8 @@ class GroupRecordController extends Controller
                     'practice_type' => 'match',
                     'official_sheet_no' => 1,
                     'match_team_id' => $team->id,
+                    'lineup_position' => $snapshot['position'] ?? null,
+                    'lineup_tate_size' => $snapshot['tate_size'] ?? null,
                     'created_at' => $now,
                     'updated_at' => $now,
                 ];
@@ -2400,6 +2519,17 @@ class GroupRecordController extends Controller
 
         if (!empty($recordInserts)) {
             Record::insert($recordInserts);
+        }
+
+        foreach ($existingRecords as $record) {
+            $snapshot = $lineupSnapshotsByTateUserId->get($record->tate_no . '-' . $record->user_id);
+
+            if ($snapshot && (is_null($record->lineup_position) || is_null($record->lineup_tate_size))) {
+                $record->update([
+                    'lineup_position' => $record->lineup_position ?? $snapshot['position'],
+                    'lineup_tate_size' => $record->lineup_tate_size ?? $snapshot['tate_size'],
+                ]);
+            }
         }
 
         $records = Record::whereIn('user_id', $userIds)

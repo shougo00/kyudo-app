@@ -14,7 +14,14 @@ class MatchTeam extends Model
         'date',
         'name',
         'division',
+        'color',
         'tate_size',
+        'sort_order',
+    ];
+
+    protected $casts = [
+        'sort_order' => 'integer',
+        'tate_size' => 'integer',
     ];
 
     public function group()

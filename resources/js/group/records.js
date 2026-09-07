@@ -25,6 +25,7 @@ window.addEventListener('load', () => {
     initMatchSelectionPositionLinks();
     initOfficialMatchTeamControls();
     initOfficialRecordSummaryModal();
+    initMatchTeamEditModal();
 });
 
 window.addEventListener('resize', syncRecordShellOffset);
@@ -1682,6 +1683,7 @@ function initInlineMatchLineup() {
             body: JSON.stringify({
                 date: data.date,
                 tate_no: data.tateNo,
+                tate_size: data.tateSize,
                 members,
             })
         })
@@ -1844,6 +1846,247 @@ function closeMatchTeamCreateModal() {
 
 window.openMatchTeamCreateModal = openMatchTeamCreateModal;
 window.closeMatchTeamCreateModal = closeMatchTeamCreateModal;
+
+function openMatchTeamEditModal() {
+    const modal = document.getElementById('matchTeamEditModal');
+    if (!modal) return;
+
+    modal.hidden = false;
+    document.body.classList.add('modal-open');
+
+    const firstInput = modal.querySelector('input[type="text"]');
+    if (firstInput) {
+        setTimeout(() => firstInput.focus(), 50);
+    }
+}
+
+function closeMatchTeamEditModal() {
+    const modal = document.getElementById('matchTeamEditModal');
+    if (!modal) return;
+
+    modal.hidden = true;
+    document.body.classList.remove('modal-open');
+}
+
+function initMatchTeamEditModal() {
+    const modal = document.getElementById('matchTeamEditModal');
+    const form = document.querySelector('[data-match-team-edit-form]');
+    const list = document.querySelector('[data-match-team-edit-list]');
+    const status = document.querySelector('[data-match-team-edit-status]');
+
+    if (!modal || !form || !list) {
+        return;
+    }
+
+    const rows = () => Array.from(list.querySelectorAll('[data-match-team-edit-row]'));
+
+    function setStatus(message) {
+        if (status) status.innerText = message;
+    }
+
+    function renumberRows() {
+        rows().forEach((row, index) => {
+            row.querySelectorAll('[data-team-field]').forEach(field => {
+                field.name = `teams[${index}][${field.dataset.teamField}]`;
+            });
+        });
+    }
+
+    function rowAfterPointer(y, draggedRow) {
+        return rows()
+            .filter(row => row !== draggedRow)
+            .find(row => {
+                const box = row.getBoundingClientRect();
+
+                return y < box.top + box.height / 2;
+            });
+    }
+
+    let activeDrag = null;
+
+    function moveRowToPointer(y) {
+        if (!activeDrag?.row) return;
+
+        const afterRow = rowAfterPointer(y, activeDrag.row);
+
+        if (afterRow) {
+            list.insertBefore(activeDrag.row, afterRow);
+        } else {
+            list.appendChild(activeDrag.row);
+        }
+    }
+
+    function startDrag() {
+        if (!activeDrag || activeDrag.isDragging) {
+            return;
+        }
+
+        activeDrag.isDragging = true;
+        activeDrag.row.classList.add('dragging');
+        list.classList.add('is-reordering');
+    }
+
+    function stopDrag() {
+        if (!activeDrag) {
+            return;
+        }
+
+        clearTimeout(activeDrag.timer);
+
+        if (activeDrag.isDragging) {
+            activeDrag.row.classList.remove('dragging');
+            list.classList.remove('is-reordering');
+            renumberRows();
+        }
+
+        activeDrag = null;
+    }
+
+    list.addEventListener('pointerdown', event => {
+        const handle = event.target.closest('[data-match-team-edit-handle]');
+
+        if (!handle || !list.contains(handle)) {
+            return;
+        }
+
+        const row = handle.closest('[data-match-team-edit-row]');
+
+        if (!row) {
+            return;
+        }
+
+        event.preventDefault();
+        stopDrag();
+
+        activeDrag = {
+            handle,
+            row,
+            pointerId: event.pointerId,
+            startX: event.clientX,
+            startY: event.clientY,
+            timer: null,
+            isDragging: false,
+        };
+
+        handle.setPointerCapture?.(event.pointerId);
+
+        if (event.pointerType === 'mouse') {
+            startDrag();
+            moveRowToPointer(event.clientY);
+            return;
+        }
+
+        activeDrag.timer = setTimeout(startDrag, 450);
+    });
+
+    window.addEventListener('pointermove', event => {
+        if (!activeDrag || event.pointerId !== activeDrag.pointerId) {
+            return;
+        }
+
+        if (!activeDrag.isDragging) {
+            const movedX = Math.abs(event.clientX - activeDrag.startX);
+            const movedY = Math.abs(event.clientY - activeDrag.startY);
+
+            if (Math.max(movedX, movedY) > 8) {
+                clearTimeout(activeDrag.timer);
+            }
+
+            return;
+        }
+
+        event.preventDefault();
+        moveRowToPointer(event.clientY);
+    }, { passive: false });
+
+    window.addEventListener('pointerup', event => {
+        if (!activeDrag || event.pointerId !== activeDrag.pointerId) {
+            return;
+        }
+
+        stopDrag();
+    });
+
+    window.addEventListener('pointercancel', event => {
+        if (!activeDrag || event.pointerId !== activeDrag.pointerId) {
+            return;
+        }
+
+        stopDrag();
+    });
+
+    list.addEventListener('contextmenu', event => {
+        if (event.target.closest('[data-match-team-edit-handle]')) {
+            event.preventDefault();
+        }
+    });
+
+    list.addEventListener('keydown', event => {
+        const handle = event.target.closest('[data-match-team-edit-handle]');
+
+        if (!handle || !list.contains(handle)) {
+            return;
+        }
+
+        const row = handle.closest('[data-match-team-edit-row]');
+
+        if (!row) {
+            return;
+        }
+
+        if (event.key === 'ArrowUp') {
+            const previous = row.previousElementSibling;
+
+            if (previous) {
+                event.preventDefault();
+                list.insertBefore(row, previous);
+                renumberRows();
+            }
+        }
+
+        if (event.key === 'ArrowDown') {
+            const next = row.nextElementSibling;
+
+            if (next) {
+                event.preventDefault();
+                list.insertBefore(next, row);
+                renumberRows();
+            }
+        }
+    });
+
+    form.addEventListener('submit', event => {
+        event.preventDefault();
+        renumberRows();
+        setStatus('保存中...');
+
+        fetch(form.action, {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                'Accept': 'application/json',
+            },
+            body: new FormData(form),
+        })
+            .then(response => response.json().then(data => ({ ok: response.ok, data })))
+            .then(({ ok, data }) => {
+                if (!ok || !data?.ok) {
+                    throw new Error(data?.message || 'チーム設定の保存に失敗しました');
+                }
+
+                setStatus('保存済み');
+                saveMatchAddTateScrollPosition();
+                window.location.reload();
+            })
+            .catch(error => {
+                setStatus('保存失敗');
+                alert(error.message || 'チーム設定の保存に失敗しました');
+            });
+    });
+}
+
+window.openMatchTeamEditModal = openMatchTeamEditModal;
+window.closeMatchTeamEditModal = closeMatchTeamEditModal;
 
 function initMatchTeamBoardScroll() {
     const scrollArea = document.querySelector('.match-score-scroll');

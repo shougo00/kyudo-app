@@ -487,6 +487,95 @@ body.match-record-scroll-locked .record-page.match-record-page > .match-score-sc
     width: min(460px, 100%);
 }
 
+.match-team-edit-dialog {
+    width: min(820px, 100%);
+}
+
+.match-team-edit-form {
+    display: grid;
+    gap: 12px;
+}
+
+.match-team-edit-list {
+    display: grid;
+    gap: 8px;
+}
+
+.match-team-edit-list.is-reordering {
+    user-select: none;
+}
+
+.match-team-edit-row {
+    display: grid;
+    grid-template-columns: minmax(180px, 1fr) 110px 74px 44px;
+    align-items: end;
+    gap: 10px;
+    padding: 10px;
+    border: 1px solid #d7dee8;
+    border-radius: 8px;
+    background: #f8fafc;
+}
+
+.match-team-edit-row.dragging {
+    border-color: #0d6efd;
+    box-shadow: 0 8px 24px rgba(13, 110, 253, 0.18);
+}
+
+.match-team-edit-field {
+    display: grid;
+    gap: 4px;
+    margin: 0;
+}
+
+.match-team-edit-field span {
+    color: #495057;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.match-team-edit-field input[type="color"] {
+    width: 54px;
+    height: 38px;
+    padding: 2px;
+    border: 1px solid #cfd6df;
+    border-radius: 8px;
+    background: #fff;
+}
+
+.match-team-edit-handle {
+    display: inline-grid;
+    place-items: center;
+    width: 38px;
+    height: 38px;
+    padding: 0;
+    border: 1px solid #cfd6df;
+    border-radius: 8px;
+    background: #fff;
+    color: #495057;
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+}
+
+.match-team-edit-handle:active {
+    cursor: grabbing;
+}
+
+.match-team-edit-grip {
+    display: grid;
+    width: 18px;
+    gap: 4px;
+}
+
+.match-team-edit-grip span {
+    display: block;
+    height: 2px;
+    border-radius: 999px;
+    background: currentColor;
+}
+
 .match-create-field label {
     display: block;
     margin-bottom: 4px;
@@ -500,6 +589,21 @@ body.match-record-scroll-locked .record-page.match-record-page > .match-score-sc
     justify-content: flex-end;
     gap: 8px;
     margin-top: 4px;
+}
+
+@media (max-width: 768px) {
+    .match-team-edit-row {
+        grid-template-columns: minmax(0, 1fr) 92px 60px 40px;
+        gap: 8px;
+    }
+
+    .match-team-edit-field span {
+        font-size: 11px;
+    }
+
+    .match-team-edit-field input[type="color"] {
+        width: 48px;
+    }
 }
 
 .match-team-select {
