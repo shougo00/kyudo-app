@@ -300,6 +300,7 @@ class GroupHistoryController extends Controller
         return collect($rows)
             ->map(fn($row) => [
                 'name' => $row['user']->name,
+                'user_id' => (int) $row['user']->id,
                 'grade' => $row['user']->grade_level ? $row['user']->grade_level . '学年' : '',
                 'gender' => $row['user']->gender,
                 'official' => $row['official'],
@@ -326,11 +327,11 @@ class GroupHistoryController extends Controller
         $sections = collect([
             [
                 'title' => '男子の部',
-                'rows' => $rows->where('gender', 'male')->values(),
+                'rows' => $this->withMonthlyPrintSectionRanks($rows->where('gender', 'male')->values()),
             ],
             [
                 'title' => '女子の部',
-                'rows' => $rows->where('gender', 'female')->values(),
+                'rows' => $this->withMonthlyPrintSectionRanks($rows->where('gender', 'female')->values()),
             ],
         ]);
 
@@ -341,11 +342,55 @@ class GroupHistoryController extends Controller
         if ($otherRows->isNotEmpty()) {
             $sections->push([
                 'title' => 'その他',
-                'rows' => $otherRows,
+                'rows' => $this->withMonthlyPrintSectionRanks($otherRows),
             ]);
         }
 
         return $sections;
+    }
+
+    private function withMonthlyPrintSectionRanks($rows)
+    {
+        $rows = collect($rows)->values();
+        $sortedRows = $rows
+            ->sort(function ($a, $b) {
+                if ($a['all']['rate'] == $b['all']['rate']) {
+                    if ($a['all']['hits'] === $b['all']['hits']) {
+                        if ($a['all']['shots'] === $b['all']['shots']) {
+                            return strcmp($a['name'], $b['name']);
+                        }
+
+                        return $b['all']['shots'] <=> $a['all']['shots'];
+                    }
+
+                    return $b['all']['hits'] <=> $a['all']['hits'];
+                }
+
+                return $b['all']['rate'] <=> $a['all']['rate'];
+            })
+            ->values();
+
+        $rankByUserId = collect();
+        $previousRate = null;
+        $previousRank = null;
+
+        foreach ($sortedRows as $index => $row) {
+            $rank = $previousRate !== null && $row['all']['rate'] == $previousRate
+                ? $previousRank
+                : $index + 1;
+
+            $rankByUserId[$row['user_id']] = $rank;
+            $previousRate = $row['all']['rate'];
+            $previousRank = $rank;
+        }
+
+        return $rows
+            ->map(function ($row) use ($rankByUserId) {
+                $row['rank'] = $rankByUserId[$row['user_id']] ?? null;
+
+                return $row;
+            })
+            ->values();
     }
 
     private function rankingDateRange(Request $request, string $period): array

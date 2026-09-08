@@ -212,6 +212,91 @@ it('uses separate gender sections only for the monthly print format', function (
     $this->assertLessThan(strpos($printContent, 'Print Third Female'), strpos($printContent, 'Print Fourth Female'));
 });
 
+it('ranks monthly print rows inside each gender section when using the gender format', function () {
+    $host = User::factory()->create([
+        'name' => 'Host',
+        'username' => 'monthly-print-gender-rank-host',
+        'is_admin' => true,
+    ]);
+    $maleLow = User::factory()->create([
+        'name' => 'Male Low',
+        'username' => 'monthly-print-gender-rank-male-low',
+        'is_admin' => false,
+        'gender' => 'male',
+    ]);
+    $maleHigh = User::factory()->create([
+        'name' => 'Male High',
+        'username' => 'monthly-print-gender-rank-male-high',
+        'is_admin' => false,
+        'gender' => 'male',
+    ]);
+    $femaleLow = User::factory()->create([
+        'name' => 'Female Low',
+        'username' => 'monthly-print-gender-rank-female-low',
+        'is_admin' => false,
+        'gender' => 'female',
+    ]);
+    $femaleHigh = User::factory()->create([
+        'name' => 'Female High',
+        'username' => 'monthly-print-gender-rank-female-high',
+        'is_admin' => false,
+        'gender' => 'female',
+    ]);
+
+    $group = Group::create([
+        'name' => 'Monthly Print Gender Rank Group',
+        'host_user_id' => $host->id,
+        'invite_code' => '8644',
+        'show_monthly_rank_on_print' => true,
+        'monthly_print_format' => 'by_gender',
+    ]);
+    $group->users()->attach([$host->id, $maleLow->id, $maleHigh->id, $femaleLow->id, $femaleHigh->id]);
+
+    $createRecord = function (User $user, array $results) {
+        $record = Record::create([
+            'user_id' => $user->id,
+            'date' => '2026-07-05',
+            'tate_no' => 1,
+            'practice_type' => 'official',
+        ]);
+
+        foreach (array_values($results) as $index => $result) {
+            Shot::create([
+                'record_id' => $record->id,
+                'shot_no' => $index + 1,
+                'result' => $result,
+            ]);
+        }
+    };
+
+    $createRecord($maleLow, ['hit', 'miss', 'miss', 'miss']);
+    $createRecord($maleHigh, ['hit', 'hit', 'hit', 'miss']);
+    $createRecord($femaleLow, ['hit', 'miss', 'miss', 'miss']);
+    $createRecord($femaleHigh, ['hit', 'hit', 'miss', 'miss']);
+
+    $response = $this->actingAs($host)
+        ->get("/group/{$group->id}/history?view=monthly&month=2026-07")
+        ->assertOk();
+
+    $content = $response->getContent();
+    $printStart = strpos($content, '<div class="print-area">');
+    $printEnd = strpos($content, '<div class="history-loading-overlay"', $printStart);
+    $printContent = substr($content, $printStart, $printEnd - $printStart);
+
+    $this->assertMatchesRegularExpression('/<tr>\s*<td class="name-col">Male High<\/td>(?:(?!<\/tr>).)*<td>1位<\/td>\s*<\/tr>/s', $printContent);
+    $this->assertMatchesRegularExpression('/<tr>\s*<td class="name-col">Male Low<\/td>(?:(?!<\/tr>).)*<td>2位<\/td>\s*<\/tr>/s', $printContent);
+    $this->assertMatchesRegularExpression('/<tr>\s*<td class="name-col">Female High<\/td>(?:(?!<\/tr>).)*<td>1位<\/td>\s*<\/tr>/s', $printContent);
+    $this->assertMatchesRegularExpression('/<tr>\s*<td class="name-col">Female Low<\/td>(?:(?!<\/tr>).)*<td>2位<\/td>\s*<\/tr>/s', $printContent);
+
+    $standalonePrintContent = $this->actingAs($host)
+        ->get("/group/{$group->id}/monthly-print?month=2026-07")
+        ->assertOk()
+        ->getContent();
+
+    $this->assertMatchesRegularExpression('/<tr>\s*<td class="name-col">Male High<\/td>(?:(?!<\/tr>).)*<td>1位<\/td>\s*<\/tr>/s', $standalonePrintContent);
+    $this->assertMatchesRegularExpression('/<tr>\s*<td class="name-col">Female High<\/td>(?:(?!<\/tr>).)*<td>1位<\/td>\s*<\/tr>/s', $standalonePrintContent);
+});
+
 it('saves the monthly print rank setting with off as the default', function () {
     $host = User::factory()->create([
         'name' => 'Host',
