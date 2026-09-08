@@ -760,6 +760,16 @@
         display: block !important;
     }
 
+    .monthly-print-section + .monthly-print-section {
+        margin-top: 14px;
+    }
+
+    .monthly-print-section-title {
+        margin: 0 0 6px;
+        font-size: 14px;
+        font-weight: 700;
+    }
+
     @page {
         size: A4 landscape;
         margin: 8mm;

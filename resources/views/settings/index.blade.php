@@ -223,6 +223,45 @@
                     </div>
 
                     @php
+                        $selectedMonthlyPrintFormat = old('monthly_print_format', $group->monthly_print_format ?? 'combined');
+                        $selectedMonthlyPrintFormat = in_array($selectedMonthlyPrintFormat, ['combined', 'by_gender'], true)
+                            ? $selectedMonthlyPrintFormat
+                            : 'combined';
+                    @endphp
+
+                    <div class="mb-3">
+                        <label class="form-label">月間記録の印刷フォーマット（グループ設定）</label>
+                        <div class="form-check">
+                            <input class="form-check-input"
+                                   type="radio"
+                                   id="monthly_print_format_combined"
+                                   name="monthly_print_format"
+                                   value="combined"
+                                   {{ $selectedMonthlyPrintFormat === 'combined' ? 'checked' : '' }}>
+                            <label class="form-check-label" for="monthly_print_format_combined">
+                                男女共通フォーマット
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input"
+                                   type="radio"
+                                   id="monthly_print_format_by_gender"
+                                   name="monthly_print_format"
+                                   value="by_gender"
+                                   {{ $selectedMonthlyPrintFormat === 'by_gender' ? 'checked' : '' }}>
+                            <label class="form-check-label" for="monthly_print_format_by_gender">
+                                男女別フォーマット
+                            </label>
+                        </div>
+                        <div class="text-muted small mt-1">
+                            男女別では、印刷時だけ男子の部・女子の部に分けて学年順に表示します。
+                        </div>
+                        @error('monthly_print_format')
+                            <div class="text-danger small mt-1">{{ $message }}</div>
+                        @enderror
+                    </div>
+
+                    @php
                         $gradeColors = old('grade_colors', $group->grade_colors ?? []);
                         $selectedGradeCount = (int) old('grade_count', $group->grade_count ?? 3);
                         $defaultGradeColors = [

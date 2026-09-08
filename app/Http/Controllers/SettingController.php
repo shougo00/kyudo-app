@@ -56,6 +56,7 @@ class SettingController extends Controller
             'show_group_records_to_members' => ['nullable', 'boolean'],
             'allow_members_edit_group_records' => ['nullable', 'boolean'],
             'show_monthly_rank_on_print' => ['nullable', 'boolean'],
+            'monthly_print_format' => ['nullable', 'in:combined,by_gender'],
             'uses_grades' => ['nullable', 'boolean'],
             'grade_count' => ['required', 'integer', 'min:1', 'max:12'],
             'grade_colors' => ['array'],
@@ -94,6 +95,7 @@ class SettingController extends Controller
             'allow_members_edit_group_records' => $request->boolean('show_group_records_to_members')
                 && $request->boolean('allow_members_edit_group_records'),
             'show_monthly_rank_on_print' => $request->boolean('show_monthly_rank_on_print'),
+            'monthly_print_format' => $validated['monthly_print_format'] ?? $group->monthly_print_format ?? 'combined',
             'uses_grades' => $request->boolean('uses_grades'),
             'grade_count' => $gradeCount,
             'grade_colors' => $gradeColors,

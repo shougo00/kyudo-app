@@ -73,6 +73,8 @@ class GroupHistoryController extends Controller
         $maleRanking = collect();
         $femaleRanking = collect();
         $monthlyRecords = collect();
+        $monthlyPrintFormat = $this->monthlyPrintFormat($group);
+        $monthlyPrintSections = collect();
         $rankingLineupDates = [];
 
         if ($view === 'ranking') {
@@ -147,6 +149,8 @@ class GroupHistoryController extends Controller
                 ->toArray();
         } else {
             $monthlyRecords = $this->monthlyRows($group, $currentMonth, $keyword);
+            $monthlyPrintRows = $this->monthlyPrintRows($monthlyRecords);
+            $monthlyPrintSections = $this->monthlyPrintSections($monthlyPrintRows, $monthlyPrintFormat);
         }
 
         return view('group_history.index', compact(
@@ -172,7 +176,9 @@ class GroupHistoryController extends Controller
             'currentMonth',
             'prevMonth',
             'nextMonth',
-            'monthlyRecords'
+            'monthlyRecords',
+            'monthlyPrintFormat',
+            'monthlyPrintSections'
         ));
     }
 
@@ -280,6 +286,66 @@ class GroupHistoryController extends Controller
                 return $row;
             })
             ->values();
+    }
+
+    private function monthlyPrintFormat(Group $group): string
+    {
+        return in_array($group->monthly_print_format, ['combined', 'by_gender'], true)
+            ? $group->monthly_print_format
+            : 'combined';
+    }
+
+    private function monthlyPrintRows($rows)
+    {
+        return collect($rows)
+            ->map(fn($row) => [
+                'name' => $row['user']->name,
+                'grade' => $row['user']->grade_level ? $row['user']->grade_level . '学年' : '',
+                'gender' => $row['user']->gender,
+                'official' => $row['official'],
+                'self' => $row['self'],
+                'all' => $row['all'],
+                'rank' => $row['rank'],
+            ])
+            ->values();
+    }
+
+    private function monthlyPrintSections($rows, string $format)
+    {
+        $rows = collect($rows)->values();
+
+        if ($format !== 'by_gender') {
+            return collect([
+                [
+                    'title' => null,
+                    'rows' => $rows,
+                ],
+            ]);
+        }
+
+        $sections = collect([
+            [
+                'title' => '男子の部',
+                'rows' => $rows->where('gender', 'male')->values(),
+            ],
+            [
+                'title' => '女子の部',
+                'rows' => $rows->where('gender', 'female')->values(),
+            ],
+        ]);
+
+        $otherRows = $rows
+            ->reject(fn($row) => in_array($row['gender'] ?? null, ['male', 'female'], true))
+            ->values();
+
+        if ($otherRows->isNotEmpty()) {
+            $sections->push([
+                'title' => 'その他',
+                'rows' => $otherRows,
+            ]);
+        }
+
+        return $sections;
     }
 
     private function rankingDateRange(Request $request, string $period): array
@@ -397,20 +463,16 @@ class GroupHistoryController extends Controller
         $month = $request->month ?? now()->format('Y-m');
         $currentMonth = Carbon::createFromFormat('Y-m', $month)->startOfMonth();
 
-        $rows = $this->monthlyRows($group, $currentMonth)
-            ->map(fn ($row) => [
-                'name' => $row['user']->name,
-                'grade' => $row['user']->grade_level ? $row['user']->grade_level . '学年' : '',
-                'official' => $row['official'],
-                'self' => $row['self'],
-                'all' => $row['all'],
-                'rank' => $row['rank'],
-            ]);
+        $monthlyPrintFormat = $this->monthlyPrintFormat($group);
+        $rows = $this->monthlyPrintRows($this->monthlyRows($group, $currentMonth));
+        $monthlyPrintSections = $this->monthlyPrintSections($rows, $monthlyPrintFormat);
 
         return view('group_history.monthly_print', compact(
             'group',
             'currentMonth',
-            'rows'
+            'rows',
+            'monthlyPrintFormat',
+            'monthlyPrintSections'
         ));
     }
 

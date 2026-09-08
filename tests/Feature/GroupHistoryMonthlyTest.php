@@ -126,6 +126,92 @@ it('orders monthly group records by grade and gender', function () {
     expect(preg_match('/<a[^>]+monthly-csv[^>]*data-monthly-loading/s', $content))->toBe(0);
 });
 
+it('uses separate gender sections only for the monthly print format', function () {
+    $host = User::factory()->create([
+        'name' => 'Host',
+        'username' => 'monthly-print-format-host',
+        'is_admin' => true,
+    ]);
+
+    $fourthGradeMale = User::factory()->create([
+        'name' => 'Print Fourth Male',
+        'username' => 'monthly-print-fourth-male',
+        'is_admin' => false,
+        'grade_level' => 4,
+        'gender' => 'male',
+    ]);
+
+    $fourthGradeFemale = User::factory()->create([
+        'name' => 'Print Fourth Female',
+        'username' => 'monthly-print-fourth-female',
+        'is_admin' => false,
+        'grade_level' => 4,
+        'gender' => 'female',
+    ]);
+
+    $thirdGradeMale = User::factory()->create([
+        'name' => 'Print Third Male',
+        'username' => 'monthly-print-third-male',
+        'is_admin' => false,
+        'grade_level' => 3,
+        'gender' => 'male',
+    ]);
+
+    $thirdGradeFemale = User::factory()->create([
+        'name' => 'Print Third Female',
+        'username' => 'monthly-print-third-female',
+        'is_admin' => false,
+        'grade_level' => 3,
+        'gender' => 'female',
+    ]);
+
+    $group = Group::create([
+        'name' => 'Monthly Print Format Group',
+        'host_user_id' => $host->id,
+        'invite_code' => '8643',
+        'uses_grades' => true,
+        'grade_count' => 4,
+        'monthly_print_format' => 'by_gender',
+    ]);
+
+    $group->users()->attach([
+        $host->id,
+        $fourthGradeFemale->id,
+        $thirdGradeFemale->id,
+        $thirdGradeMale->id,
+        $fourthGradeMale->id,
+    ]);
+
+    $response = $this->actingAs($host)
+        ->get("/group/{$group->id}/history?view=monthly&month=2026-07")
+        ->assertOk();
+
+    $content = $response->getContent();
+    $printStart = strpos($content, '<div class="print-area">');
+    $printEnd = strpos($content, '<div class="history-loading-overlay"', $printStart);
+
+    expect($printStart)->not->toBeFalse()
+        ->and($printEnd)->not->toBeFalse();
+
+    $screenContent = substr($content, 0, $printStart);
+    $printContent = substr($content, $printStart, $printEnd - $printStart);
+
+    $this->assertStringNotContainsString('男子の部', $screenContent);
+    $this->assertStringNotContainsString('女子の部', $screenContent);
+    $this->assertStringContainsString('男子の部', $printContent);
+    $this->assertStringContainsString('女子の部', $printContent);
+
+    $this->assertLessThan(strpos($screenContent, 'Print Fourth Female'), strpos($screenContent, 'Print Fourth Male'));
+    $this->assertLessThan(strpos($screenContent, 'Print Third Male'), strpos($screenContent, 'Print Fourth Female'));
+    $this->assertLessThan(strpos($screenContent, 'Print Third Female'), strpos($screenContent, 'Print Third Male'));
+
+    $this->assertLessThan(strpos($printContent, 'Print Fourth Male'), strpos($printContent, '男子の部'));
+    $this->assertLessThan(strpos($printContent, 'Print Third Male'), strpos($printContent, 'Print Fourth Male'));
+    $this->assertLessThan(strpos($printContent, '女子の部'), strpos($printContent, 'Print Third Male'));
+    $this->assertLessThan(strpos($printContent, 'Print Fourth Female'), strpos($printContent, '女子の部'));
+    $this->assertLessThan(strpos($printContent, 'Print Third Female'), strpos($printContent, 'Print Fourth Female'));
+});
+
 it('saves the monthly print rank setting with off as the default', function () {
     $host = User::factory()->create([
         'name' => 'Host',
@@ -148,10 +234,22 @@ it('saves the monthly print rank setting with off as the default', function () {
             'official_tates_per_page' => 5,
             'grade_count' => 3,
             'show_monthly_rank_on_print' => '1',
+            'monthly_print_format' => 'by_gender',
         ])
         ->assertSessionHas('status', 'settings-updated');
 
     expect($group->fresh()->show_monthly_rank_on_print)->toBeTrue();
+    expect($group->fresh()->monthly_print_format)->toBe('by_gender');
+
+    $this->actingAs($host)
+        ->withSession(["settings_unlocked_group_{$group->id}" => true])
+        ->patch(route('settings.update'), [
+            'official_tates_per_page' => 5,
+            'grade_count' => 3,
+        ])
+        ->assertSessionHas('status', 'settings-updated');
+
+    expect($group->fresh()->monthly_print_format)->toBe('by_gender');
 });
 
 it('shows monthly print ranks by total hit rate only when enabled', function () {

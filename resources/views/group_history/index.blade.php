@@ -493,57 +493,12 @@
                 {{ $group->name }} 月間記録（{{ $currentMonth->format('Y年n月') }}）
             </h3>
 
-            <table class="print-table">
-                <thead>
-                    <tr>
-                        <th rowspan="2">名前</th>
-                        <th rowspan="2">学年</th>
-                        <th colspan="3">正規練</th>
-                        <th colspan="3">自主練</th>
-                        <th colspan="3">総合</th>
-                        @if($group->show_monthly_rank_on_print)
-                            <th rowspan="2">順位</th>
-                        @endif
-                    </tr>
-                    <tr>
-                        <th>射数</th>
-                        <th>的中数</th>
-                        <th>的中率</th>
-
-                        <th>射数</th>
-                        <th>的中数</th>
-                        <th>的中率</th>
-
-                        <th>射数</th>
-                        <th>的中数</th>
-                        <th>的中率</th>
-                    </tr>
-                </thead>
-
-                <tbody>
-                    @foreach ($monthlyRecords as $row)
-                        <tr>
-                            <td class="name-col">{{ $row['user']->name }}</td>
-                            <td>{{ $row['user']->grade_level ? $row['user']->grade_level . '学年' : '' }}</td>
-
-                            <td>{{ $row['official']['shots'] }}</td>
-                            <td>{{ $row['official']['hits'] }}</td>
-                            <td>{{ $row['official']['rate'] }}%</td>
-
-                            <td>{{ $row['self']['shots'] }}</td>
-                            <td>{{ $row['self']['hits'] }}</td>
-                            <td>{{ $row['self']['rate'] }}%</td>
-
-                            <td>{{ $row['all']['shots'] }}</td>
-                            <td>{{ $row['all']['hits'] }}</td>
-                            <td>{{ $row['all']['rate'] }}%</td>
-                            @if($group->show_monthly_rank_on_print)
-                                <td>{{ $row['rank'] ? $row['rank'] . '位' : '' }}</td>
-                            @endif
-                        </tr>
-                    @endforeach
-                </tbody>
-            </table>
+            @foreach ($monthlyPrintSections as $monthlyPrintSection)
+                @include('group_history.partials.monthly_print_table', [
+                    'sectionTitle' => $monthlyPrintSection['title'],
+                    'rows' => $monthlyPrintSection['rows'],
+                ])
+            @endforeach
         </div>
 
     @endif
