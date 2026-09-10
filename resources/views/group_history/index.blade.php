@@ -285,7 +285,7 @@
                                         <span class="date">{{ $day }}</span>
 
                                         @if ($hasLineup)
-                                            <span class="data">立順あり</span>
+                                            <span class="data">正規連<br>立順あり</span>
                                         @endif
                                     </button>
                                 @endfor

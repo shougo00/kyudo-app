@@ -609,7 +609,7 @@ if (isOfficialRecordPage || isMatchRecordPage) {
                         <div class="date">{{ $i }}</div>
 
                         @if($hasLineup)
-                            <div class="data">立順あり</div>
+                            <div class="data">正規連<br>立順あり</div>
                         @endif
                     </a>
                 @endfor
