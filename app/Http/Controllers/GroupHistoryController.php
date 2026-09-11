@@ -75,6 +75,8 @@ class GroupHistoryController extends Controller
         $monthlyRecords = collect();
         $monthlyPrintFormat = $this->monthlyPrintFormat($group);
         $monthlyPrintSections = collect();
+        $rankingPrintScoreColumns = collect();
+        $rankingPrintSections = collect();
         $rankingLineupDates = [];
 
         if ($view === 'ranking') {
@@ -136,6 +138,21 @@ class GroupHistoryController extends Controller
             $femaleRanking = $sortRanking(
                 $ranking->filter(fn($row) => $row['user']->gender === 'female')
             );
+            $rankingPrintScoreColumns = $this->rankingPrintScoreColumns($scoreTypes, $availableScoreTypes);
+            $rankingPrintSections = collect([
+                [
+                    'title' => '全体',
+                    'rows' => $this->rankingPrintRows($allRanking),
+                ],
+                [
+                    'title' => '男子',
+                    'rows' => $this->rankingPrintRows($maleRanking),
+                ],
+                [
+                    'title' => '女子',
+                    'rows' => $this->rankingPrintRows($femaleRanking),
+                ],
+            ]);
 
             $rankingLineupDates = Lineup::where('group_id', $group->id)
                 ->whereYear('date', $rankingCalendarCurrentMonth->year)
@@ -178,7 +195,9 @@ class GroupHistoryController extends Controller
             'nextMonth',
             'monthlyRecords',
             'monthlyPrintFormat',
-            'monthlyPrintSections'
+            'monthlyPrintSections',
+            'rankingPrintScoreColumns',
+            'rankingPrintSections'
         ));
     }
 
@@ -391,6 +410,41 @@ class GroupHistoryController extends Controller
                 return $row;
             })
             ->values();
+    }
+
+    private function rankingPrintScoreColumns(array $scoreTypes, array $availableScoreTypes)
+    {
+        if (in_array('all', $scoreTypes, true)) {
+            return collect([
+                [
+                    'key' => 'all',
+                    'label' => '総合',
+                ],
+            ]);
+        }
+
+        return collect($scoreTypes)
+            ->filter(fn($type) => array_key_exists($type, $availableScoreTypes))
+            ->map(fn($type) => [
+                'key' => $type,
+                'label' => $availableScoreTypes[$type],
+            ])
+            ->values();
+    }
+
+    private function rankingPrintRows($rows)
+    {
+        return collect($rows)
+            ->values()
+            ->map(fn($row, $index) => [
+                'name' => $row['user']->name,
+                'grade' => $row['user']->grade_level ? $row['user']->grade_level . '学年' : '',
+                'gender' => $row['user']->gender,
+                'official' => $row['official'],
+                'self' => $row['self'],
+                'all' => $row['all'],
+                'rank' => $index + 1,
+            ]);
     }
 
     private function rankingDateRange(Request $request, string $period): array

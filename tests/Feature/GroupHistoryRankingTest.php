@@ -172,6 +172,103 @@ it('shows a combined ranking when both genders are selected', function () {
     ]);
 });
 
+it('prints filtered ranking results as all male and female tables', function () {
+    $host = User::factory()->create([
+        'name' => 'Host',
+        'username' => 'ranking-print-host',
+        'is_admin' => true,
+    ]);
+    $maleHigh = User::factory()->create([
+        'name' => 'Ranking Print Male High',
+        'username' => 'ranking-print-male-high',
+        'is_admin' => false,
+        'gender' => 'male',
+    ]);
+    $maleLow = User::factory()->create([
+        'name' => 'Ranking Print Male Low',
+        'username' => 'ranking-print-male-low',
+        'is_admin' => false,
+        'gender' => 'male',
+    ]);
+    $femaleHigh = User::factory()->create([
+        'name' => 'Ranking Print Female High',
+        'username' => 'ranking-print-female-high',
+        'is_admin' => false,
+        'gender' => 'female',
+    ]);
+    $femaleLow = User::factory()->create([
+        'name' => 'Ranking Print Female Low',
+        'username' => 'ranking-print-female-low',
+        'is_admin' => false,
+        'gender' => 'female',
+    ]);
+    $group = Group::create([
+        'name' => 'Ranking Print Group',
+        'host_user_id' => $host->id,
+        'invite_code' => '7395',
+        'show_monthly_rank_on_print' => true,
+    ]);
+    $group->users()->attach([$host->id, $maleHigh->id, $maleLow->id, $femaleHigh->id, $femaleLow->id]);
+
+    $createRecord = function (User $user, string $practiceType, array $results) {
+        $record = Record::create([
+            'user_id' => $user->id,
+            'date' => '2026-03-05',
+            'tate_no' => 1,
+            'practice_type' => $practiceType,
+        ]);
+
+        foreach (array_values($results) as $index => $result) {
+            Shot::create([
+                'record_id' => $record->id,
+                'shot_no' => $index + 1,
+                'result' => $result,
+            ]);
+        }
+    };
+
+    $createRecord($maleHigh, 'official', ['hit', 'hit', 'hit', 'miss']);
+    $createRecord($maleLow, 'official', ['hit', 'miss', 'miss', 'miss']);
+    $createRecord($femaleHigh, 'official', ['hit', 'hit', 'hit', 'hit']);
+    $createRecord($femaleLow, 'official', ['hit', 'hit', 'miss', 'miss']);
+    $createRecord($maleLow, 'self', ['hit', 'hit', 'hit', 'hit']);
+
+    $response = $this->actingAs($host)
+        ->get("/group/{$group->id}/history?view=ranking&period=date&start_date=2026-03-05&score_types[]=official&limit=all")
+        ->assertOk()
+        ->assertSee('onclick="window.print()"', false);
+
+    $content = $response->getContent();
+    $printStart = strpos($content, '<div class="print-area">');
+    $printEnd = strpos($content, '<div class="history-loading-overlay"', $printStart);
+
+    expect($printStart)->not->toBeFalse()
+        ->and($printEnd)->not->toBeFalse();
+
+    $printContent = substr($content, $printStart, $printEnd - $printStart);
+    $maleStart = strpos($printContent, '>男子<');
+    $femaleStart = strpos($printContent, '>女子<');
+
+    expect($printContent)->toContain('Ranking Print Group ランキング')
+        ->and($printContent)->toContain('2026年3月5日 / 正規練')
+        ->and($printContent)->toContain('>全体<')
+        ->and($maleStart)->not->toBeFalse()
+        ->and($femaleStart)->not->toBeFalse()
+        ->and($printContent)->toContain('正規練')
+        ->and($printContent)->not->toContain('自主練')
+        ->and($printContent)->not->toContain('総合');
+
+    $allContent = substr($printContent, 0, $maleStart);
+    $maleContent = substr($printContent, $maleStart, $femaleStart - $maleStart);
+    $femaleContent = substr($printContent, $femaleStart);
+
+    $this->assertMatchesRegularExpression('/Ranking Print Female High(?:(?!<\/tr>).)*<td>1位<\/td>/s', $allContent);
+    $this->assertMatchesRegularExpression('/Ranking Print Male High(?:(?!<\/tr>).)*<td>1位<\/td>/s', $maleContent);
+    $this->assertMatchesRegularExpression('/Ranking Print Male Low(?:(?!<\/tr>).)*<td>2位<\/td>/s', $maleContent);
+    $this->assertMatchesRegularExpression('/Ranking Print Female High(?:(?!<\/tr>).)*<td>1位<\/td>/s', $femaleContent);
+    $this->assertMatchesRegularExpression('/Ranking Print Female Low(?:(?!<\/tr>).)*<td>2位<\/td>/s', $femaleContent);
+});
+
 it('filters rankings from calendar single-day and range selections', function () {
     $host = User::factory()->create([
         'name' => 'Host',

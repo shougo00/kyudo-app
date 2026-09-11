@@ -70,6 +70,14 @@
         'return_month' => $month,
         'return_keyword' => $keyword,
     ];
+    $rankingPrintScoreLabel = in_array('all', $scoreTypes, true)
+        ? '総合'
+        : collect($scoreTypes)
+            ->map(fn($type) => $availableScoreTypes[$type] ?? $type)
+            ->implode('・');
+    $rankingPrintPeriodLabel = $startDate === $endDate
+        ? \Carbon\Carbon::parse($startDate)->format('Y年n月j日')
+        : \Carbon\Carbon::parse($startDate)->format('Y年n月j日') . ' - ' . \Carbon\Carbon::parse($endDate)->format('Y年n月j日');
 @endphp
 
 <div class="history-page">
@@ -77,7 +85,15 @@
     <div class="title-bar">
         <h3>{{ $group->name }} 記録</h3>
 
-        @if ($view === 'monthly')
+        @if ($view === 'ranking')
+            <div class="d-flex gap-2">
+                <button type="button"
+                        class="btn btn-outline-primary btn-sm"
+                        onclick="window.print()">
+                    印刷
+                </button>
+            </div>
+        @elseif ($view === 'monthly')
             <div class="d-flex gap-2">
                 <a href="{{ route('group.monthlyCsv', [
                         'group' => $group->id,
@@ -388,6 +404,23 @@
                     <p>女子の記録はありません。</p>
                 @endforelse
             </section>
+        </div>
+
+        <div class="print-area">
+            <h3 style="text-align:center;">
+                {{ $group->name }} ランキング
+            </h3>
+            <div class="print-meta">
+                {{ $rankingPrintPeriodLabel }} / {{ $rankingPrintScoreLabel }}
+            </div>
+
+            @foreach ($rankingPrintSections as $rankingPrintSection)
+                @include('group_history.partials.monthly_print_table', [
+                    'sectionTitle' => $rankingPrintSection['title'],
+                    'rows' => $rankingPrintSection['rows'],
+                    'scoreColumns' => $rankingPrintScoreColumns,
+                ])
+            @endforeach
         </div>
 
     @else

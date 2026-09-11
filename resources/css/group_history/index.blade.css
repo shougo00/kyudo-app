@@ -733,6 +733,8 @@
     .page-tabs,
     .filter-box,
     .month-nav,
+    .ranking-view-switch,
+    .ranking-panels,
     .rank-card,
     .title-bar .btn {
         display: none !important;
@@ -767,6 +769,13 @@
     .monthly-print-section-title {
         margin: 0 0 6px;
         font-size: 14px;
+        font-weight: 700;
+    }
+
+    .print-meta {
+        margin: -4px 0 10px;
+        text-align: center;
+        font-size: 12px;
         font-weight: 700;
     }
 
