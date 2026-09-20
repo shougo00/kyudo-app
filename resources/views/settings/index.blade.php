@@ -211,11 +211,11 @@
                                    value="1"
                                    {{ old('show_monthly_rank_on_print', $group->show_monthly_rank_on_print ?? false) ? 'checked' : '' }}>
                             <label class="form-check-label" for="show_monthly_rank_on_print">
-                                月間記録・ランキング印刷に順位を表示する
+                                月間記録の印刷に順位を表示する
                             </label>
                         </div>
                         <div class="text-muted small mt-1">
-                            オンの場合、印刷表の一番右に順位を表示します。
+                            ランキング印刷では、この設定にかかわらず順位を表示します。
                         </div>
                         @error('show_monthly_rank_on_print')
                             <div class="text-danger small mt-1">{{ $message }}</div>

@@ -419,6 +419,7 @@
                     'sectionTitle' => $rankingPrintSection['title'],
                     'rows' => $rankingPrintSection['rows'],
                     'scoreColumns' => $rankingPrintScoreColumns,
+                    'showRank' => true,
                 ])
             @endforeach
         </div>

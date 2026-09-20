@@ -206,7 +206,7 @@ it('prints filtered ranking results as all male and female tables', function () 
         'name' => 'Ranking Print Group',
         'host_user_id' => $host->id,
         'invite_code' => '7395',
-        'show_monthly_rank_on_print' => true,
+        'show_monthly_rank_on_print' => false,
     ]);
     $group->users()->attach([$host->id, $maleHigh->id, $maleLow->id, $femaleHigh->id, $femaleLow->id]);
 

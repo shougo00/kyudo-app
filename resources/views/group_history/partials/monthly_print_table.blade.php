@@ -5,7 +5,10 @@
         ['key' => 'self', 'label' => '自主練'],
         ['key' => 'all', 'label' => '総合'],
     ])->values();
-    $rankColspan = 2 + ($scoreColumns->count() * 3) + ($group->show_monthly_rank_on_print ? 1 : 0);
+    $showRank = isset($showRank)
+        ? (bool) $showRank
+        : (bool) $group->show_monthly_rank_on_print;
+    $rankColspan = 2 + ($scoreColumns->count() * 3) + ($showRank ? 1 : 0);
 @endphp
 
 <section class="monthly-print-section">
@@ -21,7 +24,7 @@
                 @foreach($scoreColumns as $scoreColumn)
                     <th colspan="3">{{ $scoreColumn['label'] }}</th>
                 @endforeach
-                @if($group->show_monthly_rank_on_print)
+                @if($showRank)
                     <th rowspan="2">順位</th>
                 @endif
             </tr>
@@ -48,7 +51,7 @@
                         <td>{{ $score['hits'] }}</td>
                         <td>{{ $score['rate'] }}%</td>
                     @endforeach
-                    @if($group->show_monthly_rank_on_print)
+                    @if($showRank)
                         <td>{{ $row['rank'] ? $row['rank'] . '位' : '' }}</td>
                     @endif
                 </tr>
