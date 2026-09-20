@@ -330,6 +330,115 @@ it('shows disbanded match teams before active teams on the match records page', 
     );
 });
 
+it('prints every recorded team on separate sheets with eight tates per sheet', function () {
+    $date = '2026-09-07';
+    $host = User::factory()->create([
+        'name' => 'Host',
+        'username' => 'match-team-print-host',
+        'is_admin' => true,
+    ]);
+    $members = User::factory()
+        ->count(3)
+        ->sequence(
+            ['name' => 'Print First', 'username' => 'match-team-print-first', 'is_admin' => false],
+            ['name' => 'Print Second', 'username' => 'match-team-print-second', 'is_admin' => false],
+            ['name' => 'Print Third', 'username' => 'match-team-print-third', 'is_admin' => false],
+        )
+        ->create();
+    $group = Group::create([
+        'name' => 'Match Team Print Group',
+        'host_user_id' => $host->id,
+        'invite_code' => '9113',
+    ]);
+    $group->users()->attach($members->pluck('id')->push($host->id)->all());
+    $team = MatchTeam::create([
+        'group_id' => $group->id,
+        'date' => $date,
+        'name' => '印刷Aチーム',
+        'division' => 'mixed',
+        'color' => '#198754',
+        'tate_size' => 3,
+        'sort_order' => 1,
+    ]);
+    $teamB = MatchTeam::create([
+        'group_id' => $group->id,
+        'date' => $date,
+        'name' => '印刷Bチーム',
+        'division' => 'mixed',
+        'color' => '#0d6efd',
+        'tate_size' => 3,
+        'sort_order' => 2,
+    ]);
+
+    foreach ([$team, $teamB] as $recordedTeam) {
+        foreach (range(1, 8) as $tateNo) {
+            MatchTateMeta::create([
+                'match_team_id' => $recordedTeam->id,
+                'date' => $date,
+                'tate_no' => $tateNo,
+                'tate_size' => 3,
+                'scoring_mode' => 'hit_miss',
+            ]);
+
+            foreach ($members as $index => $member) {
+                $position = $index + 1;
+
+                MatchTeamMember::create([
+                    'match_team_id' => $recordedTeam->id,
+                    'date' => $date,
+                    'user_id' => $member->id,
+                    'tate_no' => $tateNo,
+                    'position' => $position,
+                    'is_absent' => false,
+                    'is_late' => false,
+                ]);
+
+                $record = Record::create([
+                    'user_id' => $member->id,
+                    'date' => $date,
+                    'tate_no' => $tateNo,
+                    'practice_type' => 'match',
+                    'match_team_id' => $recordedTeam->id,
+                    'official_sheet_no' => 1,
+                    'lineup_position' => $position,
+                    'lineup_tate_size' => 3,
+                ]);
+
+                foreach (range(1, 4) as $shotNo) {
+                    Shot::create([
+                        'record_id' => $record->id,
+                        'shot_no' => $shotNo,
+                        'result' => $shotNo === 1 ? 'hit' : null,
+                    ]);
+                }
+            }
+        }
+    }
+
+    $page = $this->actingAs($host)
+        ->get("/group/{$group->id}/match-records?date={$date}");
+
+    $page->assertOk();
+
+    $content = $page->getContent();
+    $printContent = substr($content, strpos($content, '<div class="print-only">'));
+
+    expect(substr_count($printContent, 'class="print-page match-print-team-page"'))->toBe(2)
+        ->and(substr_count($printContent, 'class="match-print-tate-grid"'))->toBe(2)
+        ->and(substr_count($printContent, '<h2>印刷Aチーム</h2>'))->toBe(1)
+        ->and(substr_count($printContent, '<h2>印刷Bチーム</h2>'))->toBe(1);
+
+    $firstPrintedSheetStart = strpos($printContent, '<h2>印刷Aチーム</h2>');
+    $firstPrintedSheetEnd = strpos($printContent, '</section>', $firstPrintedSheetStart);
+    $firstPrintedSheet = substr($printContent, $firstPrintedSheetStart, $firstPrintedSheetEnd - $firstPrintedSheetStart);
+
+    expect($firstPrintedSheet)->toContain('<strong>1立目</strong>')
+        ->and($firstPrintedSheet)->toContain('<strong>4立目</strong>')
+        ->and($firstPrintedSheet)->toContain('<strong>5立目</strong>')
+        ->and($firstPrintedSheet)->toContain('<strong>8立目</strong>')
+        ->and($firstPrintedSheet)->not->toContain('印刷Bチーム');
+});
+
 it('keeps existing match tate slots when a team size is changed later', function () {
     $date = '2026-09-07';
     $host = User::factory()->create([

@@ -1201,11 +1201,23 @@ if (isOfficialRecordPage || isMatchRecordPage) {
 @endphp
 
 @if($practiceType === 'match')
-    @foreach(($teams ?? collect()) as $printTeam)
+    @php
+        $matchPrintTeams = collect($teams ?? collect())->filter(function ($team) use ($matchTeamTates, $matchTeamSlots) {
+            return $matchTeamTates->get($team->id, collect())->contains(function ($tateNo) use ($team, $matchTeamSlots) {
+                return $matchTeamSlots->get($team->id, collect())
+                    ->get($tateNo, collect())
+                    ->contains(fn($slot) => !$slot->is_empty && ($slot->user || $slot->record));
+            });
+        });
+    @endphp
+    @foreach($matchPrintTeams as $printTeam)
         @php
             $printTeamTates = $matchTeamTates->get($printTeam->id, collect());
             $printTeamSlots = $matchTeamSlots->get($printTeam->id, collect());
             $printTeamTateSizes = $matchTeamTateSizes->get($printTeam->id, collect());
+            $printTeamTatePages = $printTeamTates->values()->chunk(8);
+            $printTeamPageCount = max(1, $printTeamTatePages->count());
+            $printTeamColor = $matchTeamColorsById->get((int) $printTeam->id, '#198754');
             $printTeamTotalHits = 0;
             $printTeamTotalPoints = 0;
             $printTeamUsesNumeric = false;
@@ -1230,7 +1242,8 @@ if (isOfficialRecordPage || isMatchRecordPage) {
             }
         @endphp
 
-        <section class="print-page match-print-team-page">
+        @foreach($printTeamTatePages as $printTeamTatePage)
+        <section class="print-page match-print-team-page" style="--match-team-color: {{ $printTeamColor }};">
             <div class="match-print-head">
                 <div>
                     <div class="match-print-kicker">{{ $group->name }}（{{ $recordLabel }}）</div>
@@ -1239,6 +1252,12 @@ if (isOfficialRecordPage || isMatchRecordPage) {
                         {{ $divisionLabels[$printTeam->division] ?? '混合の部' }}
                         / {{ $printTeam->tate_size }}人立
                         / {{ \Carbon\Carbon::parse($date)->locale('ja')->isoFormat('YYYY年M月D日（ddd）') }}
+                        @if($printTeamPageCount > 1 && $printTeamTatePage->isNotEmpty())
+                            <span class="match-print-page-range">
+                                / {{ $printTeamTatePage->first() }}〜{{ $printTeamTatePage->last() }}立目
+                                / {{ $loop->iteration }}/{{ $printTeamPageCount }}ページ
+                            </span>
+                        @endif
                     </div>
                 </div>
                 <div class="match-print-total">
@@ -1247,11 +1266,8 @@ if (isOfficialRecordPage || isMatchRecordPage) {
                 </div>
             </div>
 
-            @if($printTeamTates->isEmpty())
-                <div class="match-print-empty">記録はありません。</div>
-            @endif
-
-        @foreach($printTeamTates as $tateNo)
+        <div class="match-print-tate-grid">
+        @foreach($printTeamTatePage as $tateNo)
             @php
                 $slots = $printTeamSlots->get($tateNo, collect());
                 $printTateSizeForDisplay = max(1, (int) $printTeamTateSizes->get($tateNo, $printTeam->tate_size));
@@ -1337,15 +1353,14 @@ if (isOfficialRecordPage || isMatchRecordPage) {
                     @foreach($slots as $slot)
                         <div class="print-name {{ (($loop->index + 1) % $printTateSizeForDisplay == 0) ? 'print-tate-border' : '' }}">
                             {{ $slot->is_empty ? '空き' : $slot->user->name }}
-                            @if(($slot->record_source ?? null) === 'official')
-                                <small>正{{ $slot->official_tate_no }}</small>
-                            @endif
                         </div>
                     @endforeach
                 </div>
             </div>
         @endforeach
+        </div>
         </section>
+        @endforeach
     @endforeach
 @else
     @if($tates->isNotEmpty())
