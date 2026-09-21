@@ -1888,7 +1888,7 @@ body.modal-open {
         grid-template-rows: repeat(4, minmax(0, auto));
         grid-auto-flow: column;
         align-content: start;
-        gap: 4mm 7mm;
+        gap: 3.75mm 6.6mm;
         width: 100%;
     }
 
@@ -1896,27 +1896,27 @@ body.modal-open {
         display: flex;
         align-items: flex-start;
         justify-content: space-between;
-        gap: 12px;
+        gap: 11px;
         border-bottom: 2px solid #000;
-        margin-bottom: 5px;
-        padding: 4px 0 4px;
+        margin-bottom: 4.5px;
+        padding: 3.75px 0 3.75px;
     }
 
     .match-print-kicker {
-        font-size: 10px;
+        font-size: 9.4px;
         font-weight: 700;
         line-height: 1.2;
     }
 
     .match-print-head h2 {
-        margin: 1px 0 2px;
-        font-size: 17px;
+        margin: 1px 0 1.9px;
+        font-size: 16px;
         font-weight: 900;
         line-height: 1.15;
     }
 
     .match-print-meta {
-        font-size: 10px;
+        font-size: 9.4px;
         font-weight: 700;
         line-height: 1.2;
     }
@@ -1927,9 +1927,9 @@ body.modal-open {
     }
 
     .match-print-total {
-        min-width: 86px;
+        min-width: 81px;
         border: 1px solid #000;
-        padding: 3px 7px;
+        padding: 2.8px 6.6px;
         text-align: center;
         font-weight: 800;
         line-height: 1.15;
@@ -1941,11 +1941,11 @@ body.modal-open {
     }
 
     .match-print-total span {
-        font-size: 10px;
+        font-size: 9.4px;
     }
 
     .match-print-total strong {
-        font-size: 13px;
+        font-size: 12.2px;
     }
 
     .match-print-empty {
@@ -1958,7 +1958,7 @@ body.modal-open {
     .match-print-tate-block {
         width: max-content;
         max-width: 100%;
-        margin: 0 auto 5px;
+        margin: 0 auto 4.7px;
         page-break-inside: avoid;
         break-inside: avoid;
     }
@@ -1970,49 +1970,49 @@ body.modal-open {
         border: 1px solid #333;
         border-bottom: 0;
         background: #f1f3f5 !important;
-        padding: 2px 6px;
-        font-size: 10px;
+        padding: 1.9px 5.6px;
+        font-size: 9.4px;
         font-weight: 900;
         -webkit-print-color-adjust: exact;
         print-color-adjust: exact;
     }
 
     .match-print-team-page .print-shot {
-        width: 28px;
-        height: 23px;
-        font-size: 15px;
+        width: 26.3px;
+        height: 21.6px;
+        font-size: 14.1px;
     }
 
     .match-print-team-page .print-user-column,
     .match-print-team-page .print-score,
     .match-print-team-page .print-name {
-        width: 28px;
-        min-width: 28px;
+        width: 26.3px;
+        min-width: 26.3px;
     }
 
     .match-print-team-page .print-score {
-        height: 18px;
-        line-height: 18px;
-        font-size: 8px;
+        height: 16.9px;
+        line-height: 16.9px;
+        font-size: 7.5px;
     }
 
     .match-print-team-page .print-name {
-        height: 50px;
-        font-size: 9px;
+        height: 47px;
+        font-size: 8.5px;
         line-height: 1.05;
         overflow: hidden;
     }
 
     .match-print-team-page .print-tate-label {
-        width: 22px;
-        min-width: 22px;
-        font-size: 10px;
+        width: 20.7px;
+        min-width: 20.7px;
+        font-size: 9.4px;
     }
 
     .match-print-team-page .print-name-spacer {
-        width: 22px;
-        min-width: 22px;
-        height: 50px;
+        width: 20.7px;
+        min-width: 20.7px;
+        height: 47px;
     }
 
     .print-score-header,
