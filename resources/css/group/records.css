@@ -1712,21 +1712,81 @@ body.modal-open {
         right: auto;
         width: 100%;
         max-width: calc(100vw - 24px);
+        max-height: calc(100dvh - 170px);
+        gap: 4px;
+        padding: 5px;
+        box-sizing: border-box;
     }
 
     .official-match-team-control-card {
         align-items: flex-start;
         flex-direction: column;
+        gap: 4px;
+        width: 100%;
+        min-width: 0;
+        min-height: 0;
+        padding: 5px 6px;
+        box-sizing: border-box;
+    }
+
+    .official-match-team-control-main {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
         gap: 6px;
+        width: 100%;
+        min-width: 0;
+    }
+
+    .official-match-team-control-main strong {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: 12px;
+    }
+
+    .official-match-team-control-main > span {
+        flex: 0 0 auto;
+        margin-top: 0;
+        font-size: 11px;
+        white-space: nowrap;
     }
 
     .official-match-team-control-actions {
-        align-items: flex-start;
-        flex-direction: column;
+        display: grid;
+        grid-template-columns: 48px repeat(4, minmax(0, 1fr));
+        align-items: center;
+        width: 100%;
+        min-width: 0;
+        gap: 3px;
     }
 
     .official-match-timer {
-        flex-wrap: wrap;
+        display: contents;
+    }
+
+    .official-match-timer .match-timer-display {
+        width: 100%;
+        min-width: 0;
+        padding: 2px 4px;
+        font-size: 12px;
+    }
+
+    .official-match-team-control-actions form {
+        width: 100%;
+    }
+
+    .official-match-team-control-actions .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        min-width: 0;
+        min-height: 28px;
+        padding: 3px 2px;
+        font-size: 11px;
+        line-height: 1.2;
     }
 
     .inline-match-pool .inline-member {
