@@ -18,6 +18,7 @@ window.historyPageData = {
     monthOfficial: @json($monthOfficial),
     monthSelf: @json($monthSelf),
     monthAll: @json($monthAll),
+    monthShotPositions: @json($monthShotPositions),
     yearOfficial: @json($yearOfficial),
     yearSelf: @json($yearSelf),
     yearAll: @json($yearAll),
@@ -144,6 +145,21 @@ window.historyPageData = {
             </label>
         </div>
     </div>
+
+    <section class="shot-position-summary" data-shot-position-summary>
+        <div class="shot-position-summary-title" data-shot-position-summary-title>
+            {{ $currentTypeLabel }} 月間射順別的中率
+        </div>
+        <div class="shot-position-rates">
+            @for ($shotNo = 1; $shotNo <= 4; $shotNo++)
+                <div class="shot-position-rate" data-shot-position="{{ $shotNo }}">
+                    <span>{{ $shotNo }}射目</span>
+                    <strong data-shot-position-rate>0%</strong>
+                    <small data-shot-position-count>0中 / 0射</small>
+                </div>
+            @endfor
+        </div>
+    </section>
 
 </div>
 

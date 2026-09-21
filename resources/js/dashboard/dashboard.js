@@ -17,6 +17,8 @@ const monthData = {
     all: pageData.monthAll
 };
 
+const monthShotPositions = pageData.monthShotPositions || {};
+
 const yearData = {
     official: pageData.yearOfficial,
     self: pageData.yearSelf,
@@ -218,10 +220,35 @@ function renderOverallRateChart(){
     });
 }
 
+function renderShotPositionSummary(){
+    const chartType = typeLabels[currentType] ? currentType : 'all';
+    const chartLabel = typeLabels[chartType];
+    const summary = document.querySelector('[data-shot-position-summary]');
+    const title = document.querySelector('[data-shot-position-summary-title]');
+
+    if(!summary) return;
+
+    summary.dataset.type = chartType;
+    if(title){
+        title.innerText = `${chartLabel} 月間射順別的中率`;
+    }
+
+    summary.querySelectorAll('[data-shot-position]').forEach(item => {
+        const shotNo = item.dataset.shotPosition;
+        const stats = monthShotPositions[chartType]?.[shotNo] || { shots: 0, hits: 0, rate: 0 };
+        const rate = item.querySelector('[data-shot-position-rate]');
+        const count = item.querySelector('[data-shot-position-count]');
+
+        if(rate) rate.innerText = `${Number(stats.rate)}%`;
+        if(count) count.innerText = `${Number(stats.hits)}中 / ${Number(stats.shots)}射`;
+    });
+}
+
 function renderAll(){
     renderSummary();
     renderCalendar();
     renderOverallRateChart();
+    renderShotPositionSummary();
     updateButtonStyles();
     updateMonthLinks();
 }

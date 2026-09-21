@@ -210,6 +210,23 @@ class RecordController extends Controller
             return compact('shots','hits','rate');
         };
 
+        $calcShotPositions = function ($records) {
+            $positions = [];
+
+            for ($shotNo = 1; $shotNo <= 4; $shotNo++) {
+                $positionShots = $records
+                    ->flatMap(fn ($record) => $record->shots->where('shot_no', $shotNo))
+                    ->whereNotNull('result');
+                $shots = $positionShots->count();
+                $hits = $positionShots->where('result', 'hit')->count();
+                $rate = $shots > 0 ? round(($hits / $shots) * 100, 1) : 0;
+
+                $positions[$shotNo] = compact('shots', 'hits', 'rate');
+            }
+
+            return $positions;
+        };
+
         // ===== 今日 =====
         $today = now()->format('Y-m-d');
         $todayRecords = Record::with('shots')
@@ -226,6 +243,11 @@ class RecordController extends Controller
         $monthOfficial = $calc($records->where('practice_type','official'));
         $monthSelf     = $calc($records->where('practice_type','self'));
         $monthAll      = $calc($records);
+        $monthShotPositions = [
+            'official' => $calcShotPositions($records->where('practice_type', 'official')),
+            'self' => $calcShotPositions($records->where('practice_type', 'self')),
+            'all' => $calcShotPositions($records),
+        ];
 
         // ===== 年間 =====
         $year = $current->format('Y');
@@ -268,6 +290,7 @@ class RecordController extends Controller
             'historyBackQuery',
             'todayOfficial','todaySelf','todayAll',
             'monthOfficial','monthSelf','monthAll',
+            'monthShotPositions',
             'yearOfficial','yearSelf','yearAll'
         ));
     }
