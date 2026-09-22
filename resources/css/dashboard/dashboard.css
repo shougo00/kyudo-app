@@ -100,6 +100,12 @@
 .day-markers .type-dot { width: 4px; height: 4px; flex-basis: 4px; }
 .calendar-legend { display: flex; justify-content: flex-end; gap: 12px; margin-top: 12px; font-size: 10px; color: var(--history-muted); }
 .calendar-legend > span { display: inline-flex; align-items: center; gap: 4px; }
+@media (min-width: 601px) and (max-width: 1199px) {
+    .calendar .day-header { font-size: 13px; }
+    .calendar .day .date { font-size: 14px; }
+    .calendar .day .day-count { min-height: 14px; font-size: 11px; }
+    .calendar .day .day-rate { min-height: 16px; font-size: 13px; }
+}
 @media (max-width: 991px) {
     .history-workspace { grid-template-columns: minmax(0, 1fr); gap: 28px; }
     .history-analysis { padding-left: 0; padding-top: 22px; border-left: 0; border-top: 1px solid var(--history-line); }
