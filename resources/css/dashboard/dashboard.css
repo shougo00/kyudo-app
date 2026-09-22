@@ -101,6 +101,28 @@
 .calendar-legend { display: flex; justify-content: flex-end; gap: 12px; margin-top: 12px; font-size: 10px; color: var(--history-muted); }
 .calendar-legend > span { display: inline-flex; align-items: center; gap: 4px; }
 @media (min-width: 601px) and (max-width: 1199px) {
+    .history-header h1 { font-size: 26px; }
+    .history-header p, .history-back-button { font-size: 14px; }
+    .history-header-divider { height: 14px; }
+    .history-month-field input { width: 186px; font-size: 18px; }
+    .type-switch button { font-size: 14px; }
+    .summary-box { padding-inline: 16px; }
+    .summary-box:first-child { padding-left: 0; }
+    .summary-box:last-child { padding-right: 0; }
+    .summary-box h2, .summary-value > span { font-size: 14px; }
+    .summary-box h2 span { font-size: 12px; }
+    .summary-value strong { font-size: 32px; }
+    .summary-box p { font-size: 13px; }
+    .history-section-heading { flex-wrap: wrap; }
+    .history-section-heading h2 { font-size: 18px; }
+    .history-period { font-size: 14px; }
+    .chart-legend, .chart-filter-toggle, .chart-filter-threshold select { font-size: 13px; }
+    .chart-day-count, .calendar-legend { font-size: 12px; }
+    .chart-empty p { font-size: 15px; }
+    .chart-empty button { font-size: 14px; }
+    .shot-position-rate h3 { font-size: 14px; }
+    .shot-position-rate strong { font-size: 24px; }
+    .shot-position-rate small { font-size: 12px; }
     .calendar .day-header { font-size: 13px; }
     .calendar .day .date { font-size: 14px; }
     .calendar .day .day-count { min-height: 14px; font-size: 11px; }
