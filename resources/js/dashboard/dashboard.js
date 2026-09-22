@@ -1,312 +1,293 @@
 const pageData = window.historyPageData;
-
-let currentType = new URL(location.href).searchParams.get('type') || pageData.type;
-if (currentType === 'match') {
-    currentType = 'official';
-}
-
-const todayData = {
-    official: pageData.todayOfficial,
-    self: pageData.todaySelf,
-    all: pageData.todayAll
+const page = document.querySelector('[data-history-page]');
+const typeLabels = { all: '総合', official: '正規連', self: '自主練' };
+const normalizeType = type => type === 'match' ? 'official' : (Object.hasOwn(typeLabels, type) ? type : 'all');
+let currentType = normalizeType(new URL(location.href).searchParams.get('type') || pageData.type);
+const summaries = {
+    today: { official: pageData.todayOfficial, self: pageData.todaySelf, all: pageData.todayAll },
+    month: { official: pageData.monthOfficial, self: pageData.monthSelf, all: pageData.monthAll },
+    year: { official: pageData.yearOfficial, self: pageData.yearSelf, all: pageData.yearAll },
 };
-
-const monthData = {
-    official: pageData.monthOfficial,
-    self: pageData.monthSelf,
-    all: pageData.monthAll
-};
-
+const calendarData = pageData.calendar || {};
 const monthShotPositions = pageData.monthShotPositions || {};
-
-const yearData = {
-    official: pageData.yearOfficial,
-    self: pageData.yearSelf,
-    all: pageData.yearAll
-};
-
-const calendarData = pageData.calendar;
-const prevMonth = pageData.prevMonth;
-const nextMonth = pageData.nextMonth;
-const currentMonth = pageData.currentMonth;
-const targetUserId = pageData.targetUserId;
-const targetGroupId = pageData.targetGroupId;
-const isViewingOwnHistory = pageData.isViewingOwnHistory;
-const typeLabels = {
-    official: '正規連',
-    self: '自主練',
-    all: '総合'
-};
+const dates = [...document.querySelectorAll('#calendar [data-date]')].map(day => day.dataset.date);
+const recordedDates = () => dates.filter(date => Number(calendarData[date]?.[currentType]?.shots) > 0);
+const numberFormatter = new Intl.NumberFormat('ja-JP', { maximumFractionDigits: 1 });
+const formatNumber = value => numberFormatter.format(Number(value) || 0);
+const formatRate = stats => Number(stats?.shots) > 0 ? formatNumber(stats.rate) + '%' : '--';
+const emptyStats = { shots: 0, hits: 0, rate: 0 };
 const chartFilterStorageKey = 'dashboardChartShotFilter';
-const defaultChartFilter = {
-    enabled: true,
-    threshold: 20
-};
+const thresholds = [4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 60, 80, 100];
 let chartShotFilter = loadChartShotFilter();
+let overallRateChart = null;
 
-document.getElementById('month-label').innerText = new Date(currentMonth+'-01').getMonth()+1 + '月';
-
-function loadChartShotFilter(){
+function loadChartShotFilter() {
     try {
         const saved = JSON.parse(localStorage.getItem(chartFilterStorageKey) || '{}');
         return {
-            enabled: saved.enabled ?? defaultChartFilter.enabled,
-            threshold: Number(saved.threshold || defaultChartFilter.threshold)
+            enabled: typeof saved?.enabled === 'boolean' ? saved.enabled : true,
+            threshold: thresholds.includes(Number(saved?.threshold)) ? Number(saved.threshold) : 20,
         };
-    } catch (error) {
-        return { ...defaultChartFilter };
+    } catch {
+        return { enabled: true, threshold: 20 };
     }
 }
 
-function saveChartShotFilter(){
-    localStorage.setItem(chartFilterStorageKey, JSON.stringify(chartShotFilter));
+function saveChartShotFilter() {
+    try {
+        localStorage.setItem(chartFilterStorageKey, JSON.stringify(chartShotFilter));
+    } catch {
+        // The current filter still works when browser storage is unavailable.
+    }
 }
 
-function updateButtonStyles(){
-    document.getElementById('btn-official').className = currentType==='official' ? 'btn btn-sm btn-danger' : 'btn btn-sm btn-outline-danger';
-    document.getElementById('btn-self').className     = currentType==='self'     ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-outline-primary';
-    document.getElementById('btn-all').className      = currentType==='all'      ? 'btn btn-sm btn-success' : 'btn btn-sm btn-outline-success';
+function monthUrl(month) {
+    const url = new URL(window.location.href);
+    url.searchParams.set('month', month);
+    url.searchParams.set('type', currentType);
+    return url.pathname + url.search;
 }
 
-function updateMonthLinks(){
-    const buildMonthUrl = (month) => {
-        const url = new URL(window.location.pathname, window.location.origin);
-        url.searchParams.set('month', month);
-        url.searchParams.set('type', currentType);
-
-        if (!isViewingOwnHistory && targetUserId && targetGroupId) {
-            url.searchParams.set('user_id', targetUserId);
-            url.searchParams.set('group_id', targetGroupId);
-        }
-
-        new URLSearchParams(window.location.search).forEach((value, key) => {
-            if (key.startsWith('return_')) {
-                url.searchParams.append(key, value);
-            }
-        });
-
-        return `${url.pathname}${url.search}`;
-    };
-
-    document.getElementById('prevMonth').href = buildMonthUrl(prevMonth);
-    document.getElementById('nextMonth').href = buildMonthUrl(nextMonth);
+function updateNavigation() {
+    page.dataset.type = currentType;
+    document.querySelectorAll('[data-record-type]').forEach(button => {
+        button.setAttribute('aria-pressed', String(button.dataset.recordType === currentType));
+    });
+    document.querySelectorAll('[data-summary-type]').forEach(label => {
+        label.textContent = typeLabels[currentType];
+    });
+    document.getElementById('prevMonth').href = monthUrl(pageData.prevMonth);
+    document.getElementById('nextMonth').href = monthUrl(pageData.nextMonth);
 }
 
-function renderSummary(){
-    const t = todayData;
-    const m = monthData;
-    const y = yearData;
-    document.getElementById('today-summary').innerText =
-        `総合 ${t.all.shots}射 ${t.all.hits}中 ${t.all.rate}%\n` +
-        `正規連 ${t.official.shots}射 ${t.official.hits}中 ${t.official.rate}%\n` +
-        `自主練 ${t.self.shots}射 ${t.self.hits}中 ${t.self.rate}%`;
-    document.getElementById('month-summary').innerText =
-        `総合 ${m.all.shots}射 ${m.all.hits}中 ${m.all.rate}%\n` +
-        `正規連 ${m.official.shots}射 ${m.official.hits}中 ${m.official.rate}%\n` +
-        `自主練 ${m.self.shots}射 ${m.self.hits}中 ${m.self.rate}%`;
-    document.getElementById('year-summary').innerText =
-        `総合 ${y.all.shots}射 ${y.all.hits}中 ${y.all.rate}%\n` +
-        `正規連 ${y.official.shots}射 ${y.official.hits}中 ${y.official.rate}%\n` +
-        `自主練 ${y.self.shots}射 ${y.self.hits}中 ${y.self.rate}%`;
+function renderSummary() {
+    Object.entries(summaries).forEach(([period, stats]) => {
+        const summary = document.getElementById(period + '-summary');
+        summary.querySelector('[data-summary-rate]').textContent = Number(stats[currentType].shots)
+            ? formatNumber(stats[currentType].rate) : '--';
+        const count = summary.parentElement.querySelector('[data-summary-count]');
+        const hits = document.createElement('b');
+        hits.textContent = formatNumber(stats[currentType].hits) + '中';
+        count.replaceChildren(formatNumber(stats[currentType].shots) + '射 ', hits);
+    });
+    const days = recordedDates().length;
+    document.getElementById('recordedDays').textContent = days;
+    document.getElementById('averageShots').textContent = '1日平均 ' +
+        (days ? formatNumber(summaries.month[currentType].shots / days) : '--') + '射';
 }
 
-function renderCalendar(){
-    const cal = document.getElementById('calendar');
+function marker(type) {
+    const dot = document.createElement('i');
+    dot.className = 'type-dot type-dot-' + type;
+    dot.setAttribute('aria-hidden', 'true');
+    return dot;
+}
 
-    // カレンダー全体の背景
-    cal.classList.remove('bg-official','bg-self','bg-all');
-    if(currentType==='official') cal.classList.add('bg-official');
-    else if(currentType==='self') cal.classList.add('bg-self');
-    else cal.classList.add('bg-all');
-
-    document.querySelectorAll('.day').forEach(day=>{
-        if(day.classList.contains('empty')) return;
+function renderCalendar() {
+    document.querySelectorAll('#calendar [data-date]').forEach(day => {
         const date = day.dataset.date;
-        const data = calendarData[date]?.[currentType];
-
-        if(data && data.shots > 0){
-            day.innerHTML = `<div class="date">${date.split('-')[2]}</div>
-                             <div class="data">${data.hits}/${data.shots}</div>
-                             <div class="data">${data.rate}%</div>`;
-        } else {
-            day.innerHTML = `<div class="date">${date.split('-')[2]}</div>`;
-        }
-
-        if(currentType !== 'all' && isViewingOwnHistory){
-            day.onclick = () => {
-                location.href = `/home?date=${date}&type=${currentType}`;
-            };
-        } else {
-            day.onclick = null; // クリック無効
-        }
+        const stats = calendarData[date]?.[currentType] || emptyStats;
+        day.classList.toggle('has-record', Number(stats.shots) > 0);
+        day.disabled = !pageData.isViewingOwnHistory || currentType === 'all';
+        day.querySelector('.day-count').textContent = Number(stats.shots) > 0 ? Number(stats.hits) + '/' + Number(stats.shots) : '';
+        day.querySelector('.day-rate').textContent = Number(stats.shots) > 0 ? formatRate(stats) : '';
+        const dateLabel = Number(date.slice(5, 7)) + '月' + Number(date.slice(8)) + '日';
+        day.setAttribute('aria-label', dateLabel + ' ' + typeLabels[currentType] + ' ' +
+            (Number(stats.shots) ? formatNumber(stats.shots) + '射' + formatNumber(stats.hits) + '中 ' + formatRate(stats) : '記録なし'));
+        const markers = ['official', 'self']
+            .filter(type => (currentType === 'all' || currentType === type) && Number(calendarData[date]?.[type]?.shots) > 0)
+            .map(marker);
+        day.querySelector('.day-markers').replaceChildren(...markers);
     });
 }
 
-function changeType(e,type){
-    if(e){
-        e.preventDefault();
-    }
-    currentType = type;
-    const url = new URL(window.location);
-    url.searchParams.set('type', type);
-    window.history.replaceState({}, '', url);
-    renderAll();
+function renderShotPositionSummary() {
+    const summary = document.querySelector('[data-shot-position-summary]');
+    summary.dataset.type = currentType;
+    summary.querySelectorAll('[data-shot-position]').forEach(item => {
+        const stats = monthShotPositions[currentType]?.[item.dataset.shotPosition] || emptyStats;
+        item.querySelector('[data-shot-position-rate]').textContent = formatRate(stats);
+        item.querySelector('[data-shot-position-count]').textContent = formatNumber(stats.hits) + '中 / ' + formatNumber(stats.shots) + '射';
+        item.querySelector('[data-shot-position-bar]').style.width = Math.min(100, Math.max(0, Number(stats.rate) || 0)) + '%';
+    });
 }
 
-let overallRateChart = null;
-
-function renderOverallRateChart(){
-    const labels = [];
-    const rates = [];
-    const chartType = typeLabels[currentType] ? currentType : 'all';
-    const chartLabel = typeLabels[chartType];
-
-    const title = document.querySelector('.rate-chart-title');
-    if(title){
-        title.innerText = `${chartLabel}的中率グラフ${currentMonth}`;
-    }
-
-    Object.keys(calendarData).sort().forEach(date => {
-        const data = calendarData[date]?.[chartType];
-
-        if(
-            data &&
-            Number(data.shots) > 0 &&
-            (!chartShotFilter.enabled || Number(data.shots) >= chartShotFilter.threshold)
-        ){
-            labels.push(Number(date.split('-')[2]) + '日');
-            rates.push(Number(data.rate));
-        }
-    });
-
+function renderOverallRateChart() {
+    const allDates = recordedDates();
+    const chartDates = allDates.filter(date => !chartShotFilter.enabled || Number(calendarData[date][currentType].shots) >= chartShotFilter.threshold);
+    const monthStats = summaries.month[currentType];
+    document.getElementById('chartMonthAverage').textContent = formatRate(monthStats);
+    document.getElementById('chartDayCount').textContent = chartDates.length + ' / ' + allDates.length + '日';
     const canvas = document.getElementById('overallRateChart');
-    if(!canvas) return;
-
-    if(overallRateChart){
+    const empty = document.getElementById('chartEmpty');
+    const missingChart = typeof window.Chart !== 'function';
+    empty.hidden = chartDates.length > 0 && !missingChart;
+    document.getElementById('chartEmptyMessage').textContent = missingChart
+        ? 'グラフを読み込めませんでした'
+        : allDates.length ? '指定した射数に達した日がありません' : 'この月の記録はありません';
+    document.getElementById('showAllChartDays').hidden = missingChart || !allDates.length || chartDates.length > 0;
+    canvas.setAttribute('aria-label', typeLabels[currentType] + ' 日別的中率 ' + chartDates.length + '日 / 月間平均 ' + formatRate(monthStats));
+    if (overallRateChart) {
         overallRateChart.destroy();
+        overallRateChart = null;
     }
+    if (missingChart || !chartDates.length) return;
 
-    overallRateChart = new Chart(canvas, {
+    const accent = getComputedStyle(page).getPropertyValue('--history-accent').trim();
+    const tint = getComputedStyle(page).getPropertyValue('--history-tint').trim();
+    overallRateChart = new window.Chart(canvas, {
         type: 'line',
         data: {
-            labels: labels,
-            datasets: [{
-                label: `${chartLabel}的中率`,
-                data: rates,
-                tension: 0.35,
-                fill: false,
-                pointRadius: 4,
-                borderWidth: 2
-            }]
+            datasets: [
+                {
+                    label: typeLabels[currentType] + '的中率',
+                    data: chartDates.map(date => ({ x: Number(date.slice(8)), y: Number(calendarData[date][currentType].rate) })),
+                    borderColor: accent,
+                    backgroundColor: tint,
+                    pointBackgroundColor: '#fff',
+                    pointBorderColor: accent,
+                    pointBorderWidth: 2,
+                    pointRadius: 3,
+                    pointHoverRadius: 5,
+                    pointHitRadius: 10,
+                    borderWidth: 2,
+                    tension: 0,
+                    fill: true,
+                    order: 1,
+                },
+                {
+                    label: '月間平均',
+                    data: [{ x: 1, y: Number(monthStats.rate) }, { x: dates.length, y: Number(monthStats.rate) }],
+                    borderColor: '#939fa7',
+                    borderDash: [4, 5],
+                    borderWidth: 1,
+                    pointRadius: 0,
+                    pointHitRadius: 0,
+                    fill: false,
+                    order: 0,
+                },
+            ],
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            animation: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? false : { duration: 200 },
+            interaction: { mode: 'nearest', intersect: true },
             scales: {
+                x: {
+                    type: 'linear', min: 1, max: dates.length,
+                    grid: { display: false }, border: { display: false },
+                    ticks: { stepSize: 5, maxTicksLimit: 7, color: '#77818a', font: { size: 11 }, callback: value => value + '日' },
+                },
                 y: {
-                    min: 0,
-                    max: 100,
-                    ticks: {
-                        callback: value => value + '%'
-                    }
-                }
+                    min: 0, max: 100,
+                    border: { display: false },
+                    grid: { color: '#e9edef' },
+                    ticks: { stepSize: 25, color: '#77818a', font: { size: 11 }, callback: value => value + '%', padding: 8 },
+                },
             },
             plugins: {
-                legend: {
-                    display: false
-                }
-            }
-        }
+                legend: { display: false },
+                tooltip: {
+                    filter: context => context.datasetIndex === 0,
+                    displayColors: false,
+                    backgroundColor: '#29353d',
+                    padding: 11,
+                    callbacks: {
+                        title: items => items.length ? Number(pageData.currentMonth.slice(5)) + '月' + items[0].parsed.x + '日' : '',
+                        label: context => {
+                            const stats = calendarData[chartDates[context.dataIndex]][currentType];
+                            return typeLabels[currentType] + ' ' + formatRate(stats) + ' / ' + formatNumber(stats.shots) + '射 ' + formatNumber(stats.hits) + '中';
+                        },
+                    },
+                },
+            },
+        },
     });
 }
 
-function renderShotPositionSummary(){
-    const chartType = typeLabels[currentType] ? currentType : 'all';
-    const chartLabel = typeLabels[chartType];
-    const summary = document.querySelector('[data-shot-position-summary]');
-    const title = document.querySelector('[data-shot-position-summary-title]');
-
-    if(!summary) return;
-
-    summary.dataset.type = chartType;
-    if(title){
-        title.innerText = `${chartLabel} 月間射順別的中率`;
-    }
-
-    summary.querySelectorAll('[data-shot-position]').forEach(item => {
-        const shotNo = item.dataset.shotPosition;
-        const stats = monthShotPositions[chartType]?.[shotNo] || { shots: 0, hits: 0, rate: 0 };
-        const rate = item.querySelector('[data-shot-position-rate]');
-        const count = item.querySelector('[data-shot-position-count]');
-
-        if(rate) rate.innerText = `${Number(stats.rate)}%`;
-        if(count) count.innerText = `${Number(stats.hits)}中 / ${Number(stats.shots)}射`;
-    });
-}
-
-function renderAll(){
+function renderAll() {
+    updateNavigation();
     renderSummary();
     renderCalendar();
-    renderOverallRateChart();
     renderShotPositionSummary();
-    updateButtonStyles();
-    updateMonthLinks();
+    renderOverallRateChart();
 }
 
-function setupHistoryBackButton(){
+function changeType(event, type) {
+    event?.preventDefault();
+    currentType = normalizeType(type);
+    const url = new URL(window.location.href);
+    url.searchParams.set('type', currentType);
+    window.history.replaceState({}, '', url);
+    renderAll();
+}
+
+function syncChartFilter() {
+    document.getElementById('chartShotFilterEnabled').checked = chartShotFilter.enabled;
+    document.getElementById('chartShotThreshold').value = String(chartShotFilter.threshold);
+    document.getElementById('chartShotThreshold').disabled = !chartShotFilter.enabled;
+}
+
+function initializeDashboard() {
+    syncChartFilter();
+    document.getElementById('chartShotFilterEnabled').addEventListener('change', event => {
+        chartShotFilter.enabled = event.target.checked;
+        syncChartFilter();
+        saveChartShotFilter();
+        renderOverallRateChart();
+    });
+    document.getElementById('chartShotThreshold').addEventListener('change', event => {
+        chartShotFilter.threshold = Number(event.target.value);
+        saveChartShotFilter();
+        renderOverallRateChart();
+    });
+    document.getElementById('showAllChartDays').addEventListener('click', () => {
+        chartShotFilter.enabled = false;
+        syncChartFilter();
+        saveChartShotFilter();
+        renderOverallRateChart();
+    });
+    document.querySelectorAll('[data-record-type]').forEach(button => {
+        button.addEventListener('click', event => changeType(event, button.dataset.recordType));
+    });
+    document.getElementById('historyMonth').addEventListener('change', event => {
+        if (event.target.checkValidity() && /^\d{4}-\d{2}$/.test(event.target.value)) {
+            window.location.href = monthUrl(event.target.value);
+        }
+    });
+    document.querySelectorAll('#calendar [data-date]').forEach(day => {
+        day.addEventListener('click', () => {
+            if (!pageData.isViewingOwnHistory || currentType === 'all') return;
+            const url = new URL(pageData.recordUrl, window.location.origin);
+            url.searchParams.set('date', day.dataset.date);
+            url.searchParams.set('type', currentType);
+            window.location.href = url.href;
+        });
+        day.addEventListener('keydown', event => {
+            const offset = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7 }[event.key];
+            if (!offset) return;
+            const date = dates[dates.indexOf(day.dataset.date) + offset];
+            if (!date) return;
+            event.preventDefault();
+            document.querySelector('#calendar [data-date="' + date + '"]').focus();
+        });
+    });
     const backButton = document.querySelector('[data-history-back-button]');
-    if(!backButton) return;
-
-    backButton.addEventListener('click', event => {
-        if(!document.referrer || window.history.length <= 1) return;
-
+    backButton?.addEventListener('click', event => {
+        if (!document.referrer || window.history.length <= 1) return;
         const referrerUrl = new URL(document.referrer, window.location.origin);
         const fallbackUrl = new URL(backButton.href, window.location.origin);
-        const isGroupHistoryReferrer =
-            referrerUrl.origin === window.location.origin &&
-            referrerUrl.pathname === fallbackUrl.pathname;
-
-        if(!isGroupHistoryReferrer) return;
-
-        event.preventDefault();
-        window.history.back();
+        if (referrerUrl.origin === window.location.origin && referrerUrl.pathname === fallbackUrl.pathname) {
+            event.preventDefault();
+            window.history.back();
+        }
     });
-}
-
-function initializeDashboard(){
-    const filterEnabledInput = document.getElementById('chartShotFilterEnabled');
-    const thresholdSelect = document.getElementById('chartShotThreshold');
-
-    if(filterEnabledInput && thresholdSelect){
-        filterEnabledInput.checked = chartShotFilter.enabled;
-        thresholdSelect.value = String(chartShotFilter.threshold);
-        thresholdSelect.disabled = !chartShotFilter.enabled;
-
-        filterEnabledInput.addEventListener('change', () => {
-            chartShotFilter.enabled = filterEnabledInput.checked;
-            thresholdSelect.disabled = !chartShotFilter.enabled;
-            saveChartShotFilter();
-            renderOverallRateChart();
-        });
-
-        thresholdSelect.addEventListener('change', () => {
-            chartShotFilter.threshold = Number(thresholdSelect.value || defaultChartFilter.threshold);
-            saveChartShotFilter();
-            renderOverallRateChart();
-        });
-    }
-
-    document.querySelectorAll('[data-record-type]').forEach(button => {
-        button.addEventListener('click', event => {
-            changeType(event, button.dataset.recordType);
-        });
-    });
-    setupHistoryBackButton();
     renderAll();
     window.changeType = changeType;
 }
 
-if(document.readyState === 'loading'){
+if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initializeDashboard);
 } else {
     initializeDashboard();

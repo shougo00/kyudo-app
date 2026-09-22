@@ -184,8 +184,12 @@ class RecordController extends Controller
             $type = 'official';
         }
 
+        if (!in_array($type, ['all', 'official', 'self'], true)) {
+            $type = 'all';
+        }
+
         // 月
-        $month = $request->month ?? now()->format('Y-m');
+        $month = $this->validMonthOr((string) $request->input('month', ''), now()->format('Y-m'));
         $current = \Carbon\Carbon::parse($month . '-01');
 
         $start = $current->copy()->startOfMonth()->format('Y-m-d');
