@@ -181,7 +181,7 @@ if (isOfficialRecordPage || isMatchRecordPage) {
 <div class="record-title-bar">
     <div class="record-title-heading">
         <h4>{{ $group->name }}（{{ $recordLabel }}）</h4>
-        @if($practiceType !== 'match' && !$matchSelection && $canEditGroupRecords)
+        @if(!$matchSelection && $canEditGroupRecords)
             <button type="button" class="btn btn-outline-primary record-title-print" onclick="reloadAndPrint()">
                 印刷
             </button>

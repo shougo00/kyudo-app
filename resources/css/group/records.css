@@ -1867,20 +1867,20 @@ body.modal-open {
 
 }
 @media screen and (max-width: 600px) {
-    .official-record-page { padding-inline: 0; }
-    .official-record-page .record-title-bar { gap: 12px; margin-bottom: 12px; }
-    .official-record-page .record-title-heading { width: 100%; }
-    .official-record-page .record-title-bar h4 { font-size: 19px; overflow-wrap: anywhere; }
-    .official-record-page .record-title-actions { display: flex; flex-wrap: nowrap; gap: 6px; }
-    .official-record-page .record-title-actions > .btn,
-    .official-record-page .record-title-actions > .official-match-team-controls {
+    :is(.official-record-page, .match-record-page) { padding-inline: 0; }
+    :is(.official-record-page, .match-record-page) .record-title-bar { gap: 12px; margin-bottom: 12px; }
+    :is(.official-record-page, .match-record-page) .record-title-heading { width: 100%; }
+    :is(.official-record-page, .match-record-page) .record-title-bar h4 { font-size: 19px; overflow-wrap: anywhere; }
+    :is(.official-record-page, .match-record-page) .record-title-actions { display: flex; flex-wrap: nowrap; gap: 6px; }
+    :is(.official-record-page, .match-record-page) .record-title-actions > .btn,
+    :is(.official-record-page, .match-record-page) .record-title-actions > .official-match-team-controls {
         flex: 1 1 0;
         min-width: 0;
     }
-    .official-record-page .record-title-actions > .official-match-team-controls { width: auto; }
-    .official-record-page .record-title-print,
-    .official-record-page .record-title-actions > .btn,
-    .official-record-page .record-title-actions > .official-match-team-controls > summary {
+    :is(.official-record-page, .match-record-page) .record-title-actions > .official-match-team-controls { width: auto; }
+    :is(.official-record-page, .match-record-page) .record-title-print,
+    :is(.official-record-page, .match-record-page) .record-title-actions > .btn,
+    :is(.official-record-page, .match-record-page) .record-title-actions > .official-match-team-controls > summary {
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -1891,7 +1891,7 @@ body.modal-open {
         text-align: center;
         white-space: nowrap;
     }
-    .official-record-page .record-title-actions > .record-actions-print { display: none; }
+    :is(.official-record-page, .match-record-page) .record-title-actions > .record-actions-print { display: none; }
     .official-record-page :is(.btn, .form-control, .official-sheet-tabs a) { min-height: 44px; }
     .official-record-page .date-calendar-wrap .btn { min-width: 44px; }
     .official-record-page .date-calendar-wrap input { min-width: 0; font-size: 16px; }
