@@ -2358,6 +2358,10 @@ body.modal-open {
     .record-page .date-calendar-wrap {
         margin-top: 8px;
     }
+
+    .record-page .official-sheet-panel {
+        margin-bottom: 4px;
+    }
 }
 
 #calendarBox {
