@@ -389,8 +389,21 @@
     .grid { direction: ltr; min-width: calc(var(--lineup-columns, 3) * 88px + (var(--lineup-columns, 3) - 1) * 8px); padding-bottom: 8px; }
     .lineup-status-bar { position: sticky; top: 0; z-index: 20; padding: 8px; background: #f8f9fa; border-bottom: 1px solid #ddd; }
     .status-compact { min-height: 36px; }
-    .pool-panel { position: static; padding-bottom: env(safe-area-inset-bottom, 0px); }
-    .pool { max-height: none; overflow: visible; min-height: 56px; gap: 8px; padding: 8px; }
+    .pool-panel {
+        position: sticky;
+        bottom: 0;
+        z-index: 30;
+        padding-bottom: env(safe-area-inset-bottom, 0px);
+        box-shadow: 0 -4px 12px rgba(0, 0, 0, .06);
+    }
+    .pool {
+        max-height: min(var(--lineup-pool-max-height, 34dvh), 28dvh);
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        min-height: 56px;
+        gap: 8px;
+        padding: 8px;
+    }
     .pool .member { width: 88px; min-height: 48px; height: auto; flex: 0 0 88px; }
     .filter-buttons { gap: 4px; }
     .filter-btn { flex: 1 0 auto; padding: 7px 8px; font-size: 13px; }
