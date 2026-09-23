@@ -15,7 +15,7 @@
     $otherRecordPath = $otherRecordPath ?? "/group/{$group->id}/match-records";
     $otherRecordLabel = $otherRecordLabel ?? '試合用記録';
     $practiceType = $practiceType ?? 'official';
-    $otherRecordButtonClass = $practiceType === 'match' ? 'btn-outline-success' : 'btn-warning';
+    $otherRecordButtonClass = $practiceType === 'match' ? 'btn-success' : 'btn-warning';
     $canEditGroupRecords = (bool) ($canEditGroupRecords ?? true);
     $activeSheetNo = $activeSheetNo ?? 1;
     $sheetNos = $sheetNos ?? collect([1]);
