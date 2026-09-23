@@ -1,6 +1,6 @@
 .history-page {
-    --history-accent: #1f4e79;
-    --history-tint: #edf3f9;
+    --history-accent: #16745e;
+    --history-tint: #eaf5f0;
     --history-ink: #252c32;
     --history-muted: #68717a;
     --history-line: #e2e6e8;
@@ -34,8 +34,9 @@
 .type-switch { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); padding: 3px; gap: 3px; background: #f8f9fa; border: 1px solid #e1e6ed; border-radius: 8px; }
 .type-switch button { display: flex; align-items: center; justify-content: center; gap: 7px; min-width: 84px; min-height: 32px; padding: 5px 12px; border: 1px solid transparent; border-radius: 4px; color: #647078; background: transparent; font-size: 12px; font-weight: 600; }
 .type-switch button[aria-pressed="true"] { background: #1f4e79; border-color: #1f4e79; color: #fff; }
+.type-switch button[data-record-type="all"][aria-pressed="true"] { background: #16745e; border-color: #16745e; }
 .type-dot { display: inline-block; width: 6px; height: 6px; flex: 0 0 6px; border-radius: 50%; }
-.type-dot-all { background: #1f4e79; }
+.type-dot-all { background: #16745e; }
 .type-switch button[aria-pressed="true"] .type-dot { background: #fff; }
 .type-dot-official { background: #b94154; }
 .type-dot-self { background: #2c63ad; }
