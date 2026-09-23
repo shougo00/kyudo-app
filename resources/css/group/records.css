@@ -20,6 +20,9 @@ body {
 
 .record-title-bar h4 {
     margin: 0;
+    font-size: 20px;
+    font-weight: 700;
+    line-height: 1.3;
 }
 
 .record-title-heading {
@@ -1870,7 +1873,7 @@ body.modal-open {
     :is(.official-record-page, .match-record-page) { padding-inline: 0; }
     :is(.official-record-page, .match-record-page) .record-title-bar { gap: 12px; margin-bottom: 12px; }
     :is(.official-record-page, .match-record-page) .record-title-heading { width: 100%; }
-    :is(.official-record-page, .match-record-page) .record-title-bar h4 { font-size: 19px; overflow-wrap: anywhere; }
+    :is(.official-record-page, .match-record-page) .record-title-bar h4 { font-size: 20px; overflow-wrap: anywhere; }
     :is(.official-record-page, .match-record-page) .record-title-actions { display: flex; flex-wrap: nowrap; gap: 6px; }
     :is(.official-record-page, .match-record-page) .record-title-actions > .btn,
     :is(.official-record-page, .match-record-page) .record-title-actions > .official-match-team-controls {
