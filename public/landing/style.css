@@ -893,6 +893,27 @@ h3 {
   font-size: 0.92rem;
 }
 
+.license-trial {
+  margin-top: 24px;
+  padding: 20px;
+  border: 1px solid rgba(34, 181, 115, 0.3);
+  border-radius: 12px;
+  background: rgba(34, 181, 115, 0.08);
+}
+
+.license-trial h3 {
+  margin: 0 0 8px;
+  color: #16745e;
+  font-size: clamp(1.15rem, 2vw, 1.4rem);
+  font-weight: 900;
+  line-height: 1.5;
+}
+
+.license-trial p {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
 .license-panel {
   padding: clamp(24px, 3vw, 36px);
   border: 1px solid var(--line);
@@ -909,8 +930,8 @@ h3 {
 
 .license-price-list div {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 12px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
   align-items: center;
   min-height: 74px;
   padding: 16px;
