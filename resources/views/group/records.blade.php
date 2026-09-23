@@ -259,7 +259,7 @@ if (isOfficialRecordPage || isMatchRecordPage) {
                 <button type="button" class="btn btn-primary" onclick="openMatchTeamCreateModal()">
                     ＋ チーム作成
                 </button>
-                <button type="button" class="btn btn-success" onclick="openMatchTeamEditModal()" {{ ($teams ?? collect())->filter(fn($team) => !$team->trashed())->isEmpty() ? 'disabled' : '' }}>
+                <button type="button" class="btn btn-secondary" onclick="openMatchTeamEditModal()" {{ ($teams ?? collect())->filter(fn($team) => !$team->trashed())->isEmpty() ? 'disabled' : '' }}>
                     チーム編集
                 </button>
             @endif
