@@ -385,12 +385,12 @@
     .lineup-page :is(.btn, .form-control, .form-select, .filter-btn, .pool-toggle) { min-height: 44px; }
     .lineup-page :is(.form-control, .form-select) { font-size: 16px; }
     .lineup-mobile-help { display: block; margin: 8px 0; font-size: 13px; color: #6c757d; }
-    .lineup-grid-scroll { overflow-x: auto; direction: rtl; -webkit-overflow-scrolling: touch; }
+    .lineup-grid-scroll { overflow-x: auto; direction: rtl; -webkit-overflow-scrolling: touch; touch-action: pan-x pan-y pinch-zoom; overscroll-behavior-y: auto; }
     .grid { direction: ltr; min-width: calc(var(--lineup-columns, 3) * 88px + (var(--lineup-columns, 3) - 1) * 8px); padding-bottom: 8px; }
     .lineup-status-bar { position: sticky; top: 0; z-index: 20; padding: 8px; background: #f8f9fa; border-bottom: 1px solid #ddd; }
     .status-compact { min-height: 36px; }
-    .pool-panel { padding-bottom: env(safe-area-inset-bottom, 0px); box-shadow: 0 -4px 12px rgba(0, 0, 0, .06); }
-    .pool { max-height: min(var(--lineup-pool-max-height, 34dvh), 22dvh); min-height: 56px; gap: 8px; padding: 8px; }
+    .pool-panel { position: static; padding-bottom: env(safe-area-inset-bottom, 0px); }
+    .pool { max-height: none; overflow: visible; min-height: 56px; gap: 8px; padding: 8px; }
     .pool .member { width: 88px; min-height: 48px; height: auto; flex: 0 0 88px; }
     .filter-buttons { gap: 4px; }
     .filter-btn { flex: 1 0 auto; padding: 7px 8px; font-size: 13px; }
@@ -423,6 +423,5 @@
 }
 
 @media (max-width: 600px) and (max-height: 500px) {
-    .pool-panel { position: static; }
     .lineup-status-bar { position: static; }
 }
