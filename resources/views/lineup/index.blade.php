@@ -4,7 +4,6 @@
 
 @vite(['resources/css/lineup/index.css', 'resources/js/lineup/index.js'])
 
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 @php
     $usesGrades = (bool) ($group->uses_grades ?? false);
     $gradeColors = collect($group->grade_colors ?? []);
@@ -35,9 +34,9 @@
     $month = $month ?? \Carbon\Carbon::parse($date)->format('Y-m');
     $officialCompactEmptySlots = (bool) ($officialCompactEmptySlots ?? true);
 @endphp
-<div class="container py-3" style="--lineup-pool-max-height: {{ $lineupPoolMaxHeight }}dvh;">
+<div class="container py-3 lineup-page" style="--lineup-pool-max-height: {{ $lineupPoolMaxHeight }}dvh;">
 
-<div class="d-flex justify-content-between align-items-center mb-2">
+<div class="d-flex justify-content-between align-items-center mb-2 lineup-heading">
     <h4 class="lineup-title mb-0">
         {{ $group->name }}｜立順設定
     </h4>
@@ -123,7 +122,10 @@
         {{ session('error') }}
     </div>
 @endif
-<div id="grid" class="grid"></div>
+<p class="lineup-mobile-help">名前をタップして、移動先のマス・名前をタップ。立順表は左右にスワイプできます。</p>
+<div class="lineup-grid-scroll" tabindex="0" role="region" aria-label="立順表">
+    <div id="grid" class="grid"></div>
+</div>
 
 <hr>
 
@@ -132,8 +134,9 @@
 </p>
 
 <div class="pool-panel">
-    <button type="button" class="pool-toggle" onclick="togglePoolPanel()">
+    <button type="button" class="pool-toggle" onclick="togglePoolPanel()" aria-expanded="true" aria-controls="poolTools pool">
         <span>未配置</span>
+        <span class="pool-toggle-hint">タップで開閉</span>
         <strong id="poolCount">0人</strong>
     </button>
 

@@ -167,8 +167,9 @@ window.groupRecordData = {
 };
 const isOfficialRecordPage = window.groupRecordData.practiceType !== 'match';
 const isMatchRecordPage = window.groupRecordData.practiceType === 'match';
-document.body.classList.toggle('official-record-scroll-locked', isOfficialRecordPage);
-document.documentElement.classList.toggle('official-record-scroll-locked', isOfficialRecordPage);
+const lockOfficialRecordScroll = isOfficialRecordPage && !window.matchMedia('(max-width: 600px)').matches;
+document.body.classList.toggle('official-record-scroll-locked', lockOfficialRecordScroll);
+document.documentElement.classList.toggle('official-record-scroll-locked', lockOfficialRecordScroll);
 document.body.classList.toggle('match-record-scroll-locked', isMatchRecordPage);
 document.documentElement.classList.toggle('match-record-scroll-locked', isMatchRecordPage);
 if (isOfficialRecordPage || isMatchRecordPage) {
@@ -178,7 +179,14 @@ if (isOfficialRecordPage || isMatchRecordPage) {
 </script>
 
 <div class="record-title-bar">
-    <h4>{{ $group->name }}（{{ $recordLabel }}）</h4>
+    <div class="record-title-heading">
+        <h4>{{ $group->name }}（{{ $recordLabel }}）</h4>
+        @if($practiceType !== 'match' && !$matchSelection && $canEditGroupRecords)
+            <button type="button" class="btn btn-outline-primary record-title-print" onclick="reloadAndPrint()">
+                印刷
+            </button>
+        @endif
+    </div>
 
     @unless($matchSelection)
         <div class="record-title-actions">
@@ -256,7 +264,7 @@ if (isOfficialRecordPage || isMatchRecordPage) {
                 </button>
             @endif
             @if($canEditGroupRecords)
-                <button type="button" class="btn btn-outline-primary" onclick="reloadAndPrint()">
+                <button type="button" class="btn btn-outline-primary record-actions-print" onclick="reloadAndPrint()">
                     印刷
                 </button>
             @endif
@@ -737,7 +745,7 @@ if (isOfficialRecordPage || isMatchRecordPage) {
     </div>
 @endif
 
-<div class="score-scroll {{ $practiceType === 'match' ? 'match-score-scroll' : '' }}">
+<div class="score-scroll {{ $practiceType === 'match' ? 'match-score-scroll' : '' }}" tabindex="0" role="region" aria-label="{{ $recordLabel }}の記録表">
 
 <div class="score-wrapper">
 

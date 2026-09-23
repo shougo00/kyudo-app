@@ -22,6 +22,25 @@ body {
     margin: 0;
 }
 
+.record-title-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    min-width: 0;
+}
+
+.record-title-heading h4 {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.record-title-print {
+    display: none;
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
 .record-title-actions {
     display: flex;
     gap: 8px;
@@ -176,7 +195,19 @@ body {
 }
 
 .tate-border {
-    box-shadow: -2px 0 0 rgba(0,0,0,0.18);
+    position: relative;
+    margin-left: 8px;
+}
+
+.tate-border::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: -5px;
+    width: 2px;
+    background: rgba(0, 0, 0, 0.18);
+    pointer-events: none;
 }
 
 .score-header {
@@ -1834,11 +1865,60 @@ body.modal-open {
         font-size: 24px;
     }
 
-    .tate-border {
-        margin-left: 4px;
-        padding-left: 4px;
-    }
 }
+@media screen and (max-width: 600px) {
+    .official-record-page { padding-inline: 0; }
+    .official-record-page .record-title-bar { gap: 12px; margin-bottom: 12px; }
+    .official-record-page .record-title-heading { width: 100%; }
+    .official-record-page .record-title-bar h4 { font-size: 19px; overflow-wrap: anywhere; }
+    .official-record-page .record-title-actions { display: flex; flex-wrap: nowrap; gap: 6px; }
+    .official-record-page .record-title-actions > .official-match-team-controls { width: auto; min-width: 0; flex: 1 1 auto; }
+    .official-record-page .record-title-print,
+    .official-record-page .record-title-actions > .btn,
+    .official-record-page .record-title-actions > .official-match-team-controls > summary {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 44px;
+        padding: 8px 10px;
+        font-size: 14px;
+        line-height: 1.25;
+        text-align: center;
+        white-space: nowrap;
+    }
+    .official-record-page .record-title-actions > .record-actions-print { display: none; }
+    .official-record-page :is(.btn, .form-control, .official-sheet-tabs a) { min-height: 44px; }
+    .official-record-page .date-calendar-wrap .btn { min-width: 44px; }
+    .official-record-page .date-calendar-wrap input { min-width: 0; font-size: 16px; }
+    .official-record-page .official-sheet-panel { padding: 8px; margin-bottom: 8px; }
+    .official-record-page .official-sheet-head { grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 6px 8px; }
+    .official-record-page .official-sheet-current { grid-column: 1 / -1; gap: 4px 8px; }
+    .official-record-page .official-sheet-label { flex-basis: auto; }
+    .official-record-page .official-sheet-head strong { font-size: 14px; }
+    .official-record-page .official-sheet-range { font-size: 12px; }
+    .official-record-page .official-sheet-tabs { grid-column: 1; grid-row: 2; justify-self: stretch; justify-content: flex-start; min-width: 0; max-width: 100%; padding: 2px; }
+    .official-record-page .official-sheet-tabs a { min-width: 44px; flex-shrink: 0; }
+    .official-record-page .official-sheet-actions { grid-column: 2; grid-row: 2; justify-self: end; width: auto; }
+    .official-record-page .official-sheet-actions form { flex: 1; }
+    .official-record-page .official-sheet-actions .btn { justify-content: center; width: auto; padding: 6px 10px; font-size: 13px; }
+    .official-record-page .record-mode-switch { min-height: 44px; padding-inline: 6px; font-size: 14px; }
+    .official-record-page .official-sheet-panel .record-mode-switch { min-height: 32px; padding-inline: 2px; font-size: 13px; }
+    .record-page.official-record-page .score-scroll { height: clamp(320px, 70dvh, 620px); min-height: 320px; overscroll-behavior: auto; touch-action: auto; }
+    .official-record-page .user-column.match-record-choice { touch-action: manipulation; }
+    .official-record-page :is(.user-column, .score, .name, .tate-user-name) { width: 64px; min-width: 64px; }
+    .official-record-page .shot-btn { width: 52px; height: 52px; }
+    .official-record-page .shot-btn i { font-size: 28px; }
+    .official-record-page .official-match-team-controls { position: static; }
+    .official-record-page .record-title-actions { position: relative; }
+    .official-record-page .official-match-team-control-panel { max-height: 60dvh; padding: 5px; }
+    .official-record-page .official-match-team-control-card { padding: 5px 6px; gap: 4px; }
+    .official-record-page .official-match-team-control-actions { grid-template-columns: 48px repeat(4, minmax(0, 1fr)); gap: 3px; }
+    .official-record-page .official-match-timer .match-timer-display { grid-column: auto; font-size: 12px; }
+    .official-record-page .official-match-team-control-actions .btn { min-height: 32px; font-size: 11px; }
+    .official-record-page .match-record-select-positions { width: 100%; overflow-x: auto; padding-bottom: 6px; }
+    .official-record-page .match-record-select-number { min-height: 44px; }
+}
+
 .print-only {
     display: none;
 }

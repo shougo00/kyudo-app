@@ -104,8 +104,10 @@ function makeMember(sourceEl) {
     }
 
     // ===== スマホ長押し（欠席） =====
-    div.addEventListener('touchstart', () => {
+    div.addEventListener('touchstart', (event) => {
+        clearTimeout(longPressTimer);
         longPressed = false;
+        if (event.touches.length !== 1) return;
         longPressTimer = setTimeout(() => {
             longPressed = true;
             if (!cycleAttendance(div)) return;
@@ -121,6 +123,10 @@ function makeMember(sourceEl) {
     });
 
     div.addEventListener('touchmove', () => {
+        clearTimeout(longPressTimer);
+    });
+
+    div.addEventListener('touchcancel', () => {
         clearTimeout(longPressTimer);
     });
 
@@ -316,6 +322,7 @@ function renderGrid(minRows = 0) {
 
     grid.innerHTML = '';
     grid.style.gridTemplateColumns = `repeat(${size}, 1fr)`;
+    grid.style.setProperty('--lineup-columns', size);
 
     for (let i = 0; i < rows * size; i++) {
         const cell = document.createElement('div');
@@ -799,6 +806,7 @@ function togglePoolPanel() {
 
     pool.classList.toggle('pool-collapsed');
     poolTools.classList.toggle('pool-collapsed');
+    document.querySelector('.pool-toggle')?.setAttribute('aria-expanded', String(!pool.classList.contains('pool-collapsed')));
 }
 
 if (memberSearch) {

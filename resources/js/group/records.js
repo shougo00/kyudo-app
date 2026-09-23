@@ -34,7 +34,17 @@ if (window.visualViewport) {
     window.visualViewport.addEventListener('resize', syncRecordShellOffset);
 }
 
+function usesMobileOfficialLayout() {
+    return Boolean(document.querySelector('.record-page.official-record-page'))
+        && window.matchMedia('(max-width: 600px)').matches;
+}
+
 function syncRecordShellOffset() {
+    if (document.querySelector('.record-page.official-record-page')) {
+        const locked = !usesMobileOfficialLayout();
+        document.body.classList.toggle('official-record-scroll-locked', locked);
+        document.documentElement.classList.toggle('official-record-scroll-locked', locked);
+    }
     if (
         !document.body.classList.contains('official-record-scroll-locked') &&
         !document.body.classList.contains('match-record-scroll-locked')
@@ -615,6 +625,7 @@ function initMatchSelectionScrollBridge() {
     let startY = 0;
 
     scrollArea.addEventListener('wheel', event => {
+        if (usesMobileOfficialLayout()) return;
         const isHorizontal = Math.abs(event.deltaX) > Math.abs(event.deltaY) || event.shiftKey;
 
         if (isHorizontal) {
@@ -659,6 +670,8 @@ function initMatchSelectionScrollBridge() {
         if (Math.abs(totalX) > 8 || Math.abs(totalY) > 8) {
             matchSelectionTouchMoved = true;
         }
+
+        if (usesMobileOfficialLayout()) return;
 
         if (!isVertical) {
             lastX = x;
@@ -756,6 +769,7 @@ function initRecordPageOuterScroll() {
     }
 
     page.addEventListener('wheel', event => {
+        if (usesMobileOfficialLayout()) return;
         if (event.target.closest(innerScrollSelector)) {
             return;
         }
@@ -808,6 +822,7 @@ function initRecordPageOuterScroll() {
     }, { capture: true, passive: false });
 
     page.addEventListener('touchmove', event => {
+        if (usesMobileOfficialLayout()) return;
         if (event.touches.length !== 1 || startTarget?.closest(innerScrollSelector)) {
             return;
         }
@@ -872,6 +887,7 @@ function initOfficialRecordZoomGuard() {
     }
 
     function blockZoom(event) {
+        if (usesMobileOfficialLayout()) return;
         event.preventDefault();
         event.stopPropagation();
     }
@@ -930,6 +946,7 @@ function initOfficialRecordTapGuard() {
     const doubleTapWindowMs = 450;
 
     function shouldBlockTap(target) {
+        if (usesMobileOfficialLayout()) return false;
         if (!(target instanceof Element)) {
             return true;
         }
@@ -995,6 +1012,7 @@ function initOfficialRecordTapGuard() {
     }, true);
 
     scrollArea.addEventListener('dblclick', event => {
+        if (usesMobileOfficialLayout()) return;
         if (!scrollArea.contains(event.target)) {
             return;
         }
