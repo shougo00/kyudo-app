@@ -1377,6 +1377,13 @@ class GroupRecordController extends Controller
     {
         $this->checkGroupAccess($team->group_id);
 
+        if ($team->record_scope !== 'official') {
+            return response()->json([
+                'ok' => false,
+                'message' => '自主練の試合形式記録に正規連の記録は登録できません。',
+            ], 422);
+        }
+
         $validated = $request->validate([
             'date' => ['required', 'date'],
             'tate_no' => ['required', 'integer', 'min:1'],

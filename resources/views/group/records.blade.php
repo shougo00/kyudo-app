@@ -619,7 +619,11 @@ if (isOfficialRecordPage || isMatchRecordPage) {
                         <div class="date">{{ $i }}</div>
 
                         @if($hasLineup)
-                            <div class="data">正規連<br>立順あり</div>
+                            @if($practiceType === 'match')
+                                <div class="data">試合形式<br>記録あり</div>
+                            @else
+                                <div class="data">正規連<br>立順あり</div>
+                            @endif
                         @endif
                     </a>
                 @endfor
