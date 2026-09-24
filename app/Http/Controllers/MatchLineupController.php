@@ -64,7 +64,7 @@ class MatchLineupController extends Controller
             'date' => $validated['date'],
             'name' => $validated['name'],
             'division' => $validated['division'],
-            'color' => $validated['color'] ?? MatchTeamColor::nextAutomaticColor((int) $groupId, $validated['division']),
+            'color' => $validated['color'] ?? MatchTeamColor::nextAutomaticColor((int) $groupId, $validated['division'], $recordScope),
             'tate_size' => $validated['tate_size'],
             'sort_order' => $this->nextSortOrder($groupId, $recordScope),
         ]);
@@ -92,7 +92,7 @@ class MatchLineupController extends Controller
         $validated['color'] = $validated['color']
             ?? ($team->division === $validated['division']
                 ? MatchTeamColor::colorForStoredValue($team->color, $team->division)
-                : MatchTeamColor::nextAutomaticColor((int) $team->group_id, $validated['division']));
+                : MatchTeamColor::nextAutomaticColor((int) $team->group_id, $validated['division'], $team->record_scope));
         $team->update($validated);
 
         return back()->with('success', 'チーム設定を保存しました');

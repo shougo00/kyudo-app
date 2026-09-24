@@ -6,6 +6,51 @@ use App\Models\MatchTeamMember;
 use App\Models\Record;
 use App\Models\User;
 
+it('excludes self practice teams from official match controls and selection', function () {
+    $date = '2026-09-24';
+    $host = User::factory()->create(['is_admin' => true]);
+    $group = Group::create([
+        'name' => 'Separate Match Controls',
+        'host_user_id' => $host->id,
+        'invite_code' => '9726',
+    ]);
+    $group->users()->attach($host->id);
+    $selfTeam = MatchTeam::create([
+        'group_id' => $group->id,
+        'record_scope' => 'self',
+        'date' => $date,
+        'name' => '自主練専用チーム',
+        'division' => 'mixed',
+        'tate_size' => 3,
+    ]);
+
+    $this->actingAs($host)
+        ->get("/group/{$group->id}/records?date={$date}")
+        ->assertOk()
+        ->assertViewHas('officialMatchTeamControls', fn ($controls) => $controls->isEmpty())
+        ->assertDontSee('自主練専用チーム');
+
+    $officialTeam = MatchTeam::create([
+        'group_id' => $group->id,
+        'date' => $date,
+        'name' => '正規連専用チーム',
+        'division' => 'mixed',
+        'tate_size' => 3,
+    ]);
+
+    $this->get("/group/{$group->id}/records?date={$date}&match_team_id={$selfTeam->id}&match_tate_no=1&match_position=1")
+        ->assertOk()
+        ->assertViewHas('officialMatchTeamControls', fn ($controls) => $controls->pluck('team_id')->all() === [$officialTeam->id])
+        ->assertViewHas('matchSelection', fn ($selection) => $selection === null)
+        ->assertSee('正規連専用チーム')
+        ->assertDontSee('自主練専用チーム');
+
+    $this->get("/group/{$group->id}/self-match-records?date={$date}")
+        ->assertOk()
+        ->assertSee('自主練専用チーム')
+        ->assertDontSee('正規連専用チーム');
+});
+
 it('keeps self practice match teams separate and creates a self practice tate for each selected member', function () {
     $date = '2026-09-24';
     $host = User::factory()->create([

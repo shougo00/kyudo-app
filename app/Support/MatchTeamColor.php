@@ -40,16 +40,17 @@ class MatchTeamColor
         return self::BASE_COLORS[$division];
     }
 
-    public static function nextAutomaticColor(int $groupId, ?string $division): string
+    public static function nextAutomaticColor(int $groupId, ?string $division, string $recordScope = 'official'): string
     {
         $division = self::normalizeDivision($division);
         $activeTeams = MatchTeam::query()
             ->where('group_id', $groupId)
+            ->where('record_scope', $recordScope)
             ->where('division', $division)
             ->whereNull('deleted_at')
             ->orderBy('sort_order')
             ->orderBy('id')
-            ->get(['id', 'group_id', 'division', 'color', 'sort_order']);
+            ->get(['id', 'group_id', 'record_scope', 'division', 'color', 'sort_order']);
         $usedColors = self::colorsByTeamId($activeTeams)->values();
         $palette = self::PALETTES[$division] ?? self::PALETTES['mixed'];
 
@@ -76,7 +77,7 @@ class MatchTeamColor
             ))
             ->mapWithKeys(function ($team) use (&$divisionIndexes) {
                 $division = self::normalizeDivision($team->division ?? null);
-                $key = ((int) ($team->group_id ?? 0)) . '-' . $division;
+                $key = ((int) ($team->group_id ?? 0)) . '-' . ($team->record_scope ?? 'official') . '-' . $division;
                 $index = $divisionIndexes[$key] ?? 0;
                 $divisionIndexes[$key] = $index + 1;
 

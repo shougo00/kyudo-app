@@ -60,6 +60,7 @@ class GroupRecordController extends Controller
 
         if ($request->filled(['match_team_id', 'match_tate_no', 'match_position'])) {
             $selectionTeam = MatchTeam::where('group_id', $groupId)
+                ->where('record_scope', 'official')
                 ->whereNull('deleted_at')
                 ->find($request->integer('match_team_id'));
 
@@ -1733,6 +1734,7 @@ class GroupRecordController extends Controller
                 'tateMetas' => fn($query) => $query->where('date', $date),
             ])
             ->where('group_id', $group->id)
+            ->where('record_scope', 'official')
             ->whereNull('deleted_at')
             ->orderBy('sort_order')
             ->orderBy('id')
@@ -1808,7 +1810,7 @@ class GroupRecordController extends Controller
             ->where('group_id', $group->id)
             ->orderBy('sort_order')
             ->orderBy('id')
-            ->get(['id', 'group_id', 'division', 'color', 'sort_order']);
+            ->get(['id', 'group_id', 'record_scope', 'division', 'color', 'sort_order']);
 
         return MatchTeamColor::colorsByTeamId($teams);
     }
