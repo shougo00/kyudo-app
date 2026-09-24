@@ -11,6 +11,7 @@ class MatchTeam extends Model
 
     protected $fillable = [
         'group_id',
+        'record_scope',
         'date',
         'name',
         'division',

@@ -52,21 +52,26 @@ class MatchLineupController extends Controller
             'date' => ['required', 'date'],
             'name' => ['required', 'string', 'max:255'],
             'division' => ['required', 'in:male,female,mixed'],
+            'record_scope' => ['nullable', 'in:official,self'],
             'color' => ['nullable', 'regex:/^#[0-9A-Fa-f]{6}$/'],
             'tate_size' => ['required', 'integer', 'min:1', 'max:15'],
         ]);
+        $recordScope = $validated['record_scope'] ?? 'official';
 
         $team = MatchTeam::create([
             'group_id' => $groupId,
+            'record_scope' => $recordScope,
             'date' => $validated['date'],
             'name' => $validated['name'],
             'division' => $validated['division'],
             'color' => $validated['color'] ?? MatchTeamColor::nextAutomaticColor((int) $groupId, $validated['division']),
             'tate_size' => $validated['tate_size'],
-            'sort_order' => $this->nextSortOrder($groupId),
+            'sort_order' => $this->nextSortOrder($groupId, $recordScope),
         ]);
 
-        return redirect("/group/{$groupId}/match-records?date={$team->date}&team_id={$team->id}");
+        $recordPath = $recordScope === 'self' ? 'self-match-records' : 'match-records';
+
+        return redirect("/group/{$groupId}/{$recordPath}?date={$team->date}&team_id={$team->id}");
     }
 
     public function updateTeam(Request $request, MatchTeam $team)
@@ -165,6 +170,12 @@ class MatchLineupController extends Controller
         ]);
         $tateSize = $this->tateSizeForSave($team, $validated['date'], (int) $validated['tate_no'], $validated['tate_size'] ?? null);
 
+        $previousMembersByUserId = MatchTeamMember::where('match_team_id', $team->id)
+            ->where('date', $validated['date'])
+            ->where('tate_no', $validated['tate_no'])
+            ->get()
+            ->keyBy('user_id');
+
         MatchTeamMember::where('match_team_id', $team->id)
             ->where('date', $validated['date'])
             ->where('tate_no', $validated['tate_no'])
@@ -173,6 +184,7 @@ class MatchLineupController extends Controller
         $group = Group::with(['users' => fn($q) => $q->where('is_admin', false)])->findOrFail($team->group_id);
         $attendanceByUserId = $this->attendanceMembersByUserId($group, $validated['date']);
         $recordUserIds = collect();
+        $isSelfMatch = $team->record_scope === 'self';
 
         foreach ($validated['members'] ?? [] as $member) {
             $isAbsent = (bool) ($member['absent'] ?? false);
@@ -195,12 +207,29 @@ class MatchLineupController extends Controller
                 continue;
             }
 
+            $linkedRecordId = null;
+
+            if ($isSelfMatch && $position && !$isAbsent) {
+                $linkedRecordId = $previousMembersByUserId
+                    ->get((int) $member['user_id'])?->official_record_id;
+
+                if (!$linkedRecordId || !Record::whereKey($linkedRecordId)->where('practice_type', 'self')->exists()) {
+                    $linkedRecordId = $this->createSelfMatchRecord(
+                        (int) $member['user_id'],
+                        $validated['date'],
+                        (int) $position,
+                        $tateSize
+                    )->id;
+                }
+            }
+
             MatchTeamMember::create([
                 'match_team_id' => $team->id,
                 'date' => $validated['date'],
                 'user_id' => $member['user_id'],
                 'tate_no' => $validated['tate_no'],
                 'position' => $position,
+                'official_record_id' => $linkedRecordId,
                 'is_absent' => $isAbsent,
                 'is_late' => $isLate,
             ]);
@@ -226,7 +255,9 @@ class MatchLineupController extends Controller
             ]
         );
 
-        $this->ensureRecordsWithShots($recordUserIds, $team, $validated['date'], (int) $validated['tate_no'], $lineupSnapshotsByUserId);
+        if (!$isSelfMatch) {
+            $this->ensureRecordsWithShots($recordUserIds, $team, $validated['date'], (int) $validated['tate_no'], $lineupSnapshotsByUserId);
+        }
 
         return response()->json(['ok' => true]);
     }
@@ -278,11 +309,20 @@ class MatchLineupController extends Controller
             'scoring_mode' => ['required', 'in:hit_miss,numeric'],
         ]);
 
-        $tateShots = Shot::whereHas('record', function ($query) use ($team, $validated) {
-            $query->where('match_team_id', $team->id)
-                ->where('date', $validated['date'])
-                ->where('practice_type', 'match')
-                ->where('tate_no', $validated['tate_no']);
+        $linkedRecordIds = MatchTeamMember::where('match_team_id', $team->id)
+            ->where('date', $validated['date'])
+            ->where('tate_no', $validated['tate_no'])
+            ->whereNotNull('official_record_id')
+            ->pluck('official_record_id');
+        $tateShots = Shot::whereHas('record', function ($query) use ($team, $validated, $linkedRecordIds) {
+            $query->where('date', $validated['date'])
+                ->where(function ($recordQuery) use ($team, $validated, $linkedRecordIds) {
+                    $recordQuery->where(function ($matchRecordQuery) use ($team, $validated) {
+                        $matchRecordQuery->where('match_team_id', $team->id)
+                            ->where('practice_type', 'match')
+                            ->where('tate_no', $validated['tate_no']);
+                    })->when($linkedRecordIds->isNotEmpty(), fn($linkedQuery) => $linkedQuery->orWhereIn('id', $linkedRecordIds));
+                });
         });
 
         if ($validated['scoring_mode'] === 'numeric' && (clone $tateShots)->whereNotNull('result')->exists()) {
@@ -342,11 +382,39 @@ class MatchLineupController extends Controller
             ->keyBy('user_id');
     }
 
-    private function nextSortOrder(int $groupId): int
+    private function nextSortOrder(int $groupId, string $recordScope = 'official'): int
     {
         return ((int) MatchTeam::withTrashed()
             ->where('group_id', $groupId)
+            ->where('record_scope', $recordScope)
             ->max('sort_order')) + 1;
+    }
+
+    private function createSelfMatchRecord(int $userId, string $date, int $position, int $tateSize): Record
+    {
+        $nextTateNo = ((int) (Record::where('user_id', $userId)
+            ->where('date', $date)
+            ->where('practice_type', 'self')
+            ->max('tate_no') ?? 0)) + 1;
+        $record = Record::create([
+            'user_id' => $userId,
+            'date' => $date,
+            'tate_no' => $nextTateNo,
+            'practice_type' => 'self',
+            'lineup_position' => $position,
+            'lineup_tate_size' => $tateSize,
+        ]);
+
+        $now = now();
+        Shot::insert(collect(range(1, 4))->map(fn(int $shotNo) => [
+            'record_id' => $record->id,
+            'shot_no' => $shotNo,
+            'result' => null,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ])->all());
+
+        return $record->load('shots');
     }
 
     private function syncTateSizesAfterTeamSizeChange(MatchTeam $team, int $newTateSize): void

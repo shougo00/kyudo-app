@@ -126,7 +126,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 updateSummary();
             } else {
-                alert('削除に失敗しました');
+                alert(data.message || '削除に失敗しました');
             }
         })
         .catch(err => console.error(err));

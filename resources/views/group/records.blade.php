@@ -13,8 +13,9 @@
     $basePath = $basePath ?? "/group/{$group->id}/records";
     $addTatePath = $addTatePath ?? "/group/{$group->id}/add-tate";
     $otherRecordPath = $otherRecordPath ?? "/group/{$group->id}/match-records";
-    $otherRecordLabel = $otherRecordLabel ?? '試合用記録';
+    $otherRecordLabel = $otherRecordLabel ?? '試合形式記録';
     $practiceType = $practiceType ?? 'official';
+    $matchRecordScope = $matchRecordScope ?? 'official';
     $otherRecordButtonClass = $practiceType === 'match' ? 'btn-success' : 'btn-warning';
     $canEditGroupRecords = (bool) ($canEditGroupRecords ?? true);
     $activeSheetNo = $activeSheetNo ?? 1;
@@ -385,6 +386,7 @@ if (isOfficialRecordPage || isMatchRecordPage) {
                 <form method="POST" action="/group/{{ $group->id }}/match-teams" class="match-create-form">
                     @csrf
                     <input type="hidden" name="date" value="{{ $date }}">
+                    <input type="hidden" name="record_scope" value="{{ $matchRecordScope }}">
 
                     <div class="match-create-field">
                         <label>チーム名</label>
@@ -794,6 +796,7 @@ if (isOfficialRecordPage || isMatchRecordPage) {
                         @csrf
                         <input type="hidden" name="date" value="{{ $date }}">
                         <input type="hidden" name="team_id" value="{{ $team->id }}">
+                        <input type="hidden" name="record_scope" value="{{ $matchRecordScope }}">
                         <button class="btn btn-sm btn-primary">＋立</button>
                     </form>
                 @endif
@@ -883,6 +886,12 @@ if (isOfficialRecordPage || isMatchRecordPage) {
                         </div>
                         @if($team->trashed())
                             <button type="button" class="btn btn-sm btn-outline-secondary" disabled>
+                                立順編集
+                            </button>
+                        @elseif($matchRecordScope === 'self')
+                            <button type="button"
+                                    class="btn btn-sm btn-outline-secondary"
+                                    onclick="openMatchLineupModal({{ $team->id }}, {{ $tateNo }})">
                                 立順編集
                             </button>
                         @else

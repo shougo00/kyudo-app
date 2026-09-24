@@ -128,6 +128,7 @@ Route::middleware([ 'verified'])->group(function () {
     Route::post('/group/{groupId}/records/switch-sheet', [GroupRecordController::class, 'switchOfficialSheet']);
     Route::post('/group/{groupId}/records/scoring-mode', [GroupRecordController::class, 'updateOfficialScoringMode']);
     Route::get('/group/{groupId}/match-records', [GroupRecordController::class, 'matchIndex'])->name('group.match-records');
+    Route::get('/group/{groupId}/self-match-records', [GroupRecordController::class, 'selfMatchIndex'])->name('group.self-match-records');
     Route::post('/group/{groupId}/match-add-tate', [GroupRecordController::class, 'addMatchTate']);
     Route::post('/group/shot/{id}', [GroupRecordController::class, 'updateShot']);
     Route::get('/group/{groupId}/match-lineup', [MatchLineupController::class, 'index'])->name('group.match-lineup');

@@ -28,13 +28,12 @@
      data-record-url="{{ route('group.self-records.destroy', ['group' => $group->id, 'record' => '__ID__']) }}">
 
     <div class="record-control-sticky">
-        <div class="d-flex justify-content-between align-items-start gap-2 flex-wrap mb-2">
-            <div>
+        <div class="self-record-header mb-2">
+            <div class="self-record-title-block">
                 <h4 class="mb-1">グループ的中記録（自主練）</h4>
                 <div class="text-muted small">{{ $group->name }}</div>
             </div>
-
-            <div class="summary-text text-end" id="summary">
+            <div class="summary-text" id="summary">
                 <span class="shots">{{ $totalShots }}射</span>
                 <span class="hits">{{ $totalHits }}中</span>
                 <span class="rate">{{ number_format($hitRate, 1) }}％</span>
@@ -49,6 +48,13 @@
                 </div>
             </div>
 
+            <div class="self-record-actions">
+                @if($group->uses_self_match_records)
+                <a href="{{ route('group.self-match-records', ['groupId' => $group->id, 'date' => $date]) }}"
+                   class="btn btn-warning self-match-record-link">
+                    試合形式記録
+                </a>
+                @endif
             @if($canManageSelfRecords)
                 <details class="self-member-picker">
                     <summary>参加者を追加</summary>
@@ -66,6 +72,7 @@
                     </div>
                 </details>
             @endif
+            </div>
         </div>
 
         <div class="group-member-tabs mb-2">
@@ -181,9 +188,58 @@
 
 .self-record-strip {
     display: flex;
+    flex-wrap: wrap;
     justify-content: space-between;
     align-items: flex-start;
     gap: 10px;
+}
+
+.self-record-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: auto;
+}
+
+.self-record-title-block {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.self-record-header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+    gap: 12px;
+}
+
+.self-record-header .summary-text {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    align-items: baseline;
+    gap: 6px;
+    text-align: right;
+    padding-top: 4px;
+}
+
+.self-record-header .summary-text > span {
+    white-space: nowrap;
+}
+
+.self-match-record-link,
+.self-member-picker summary {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 34px;
+    padding: 6px 10px;
+    border-radius: 7px;
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.5;
+    white-space: nowrap;
 }
 
 .self-record-label {
@@ -310,6 +366,10 @@
 }
 
 @media (max-width: 600px) {
+    .self-record-header .summary-text {
+        max-width: 110px;
+    }
+
     .self-record-strip {
         align-items: stretch;
     }

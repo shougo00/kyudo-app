@@ -202,6 +202,28 @@
                     </div>
 
                     <div class="mb-3">
+                        <label class="form-label">自主練の試合形式記録（グループ設定）</label>
+                        <input type="hidden" name="uses_self_match_records" value="0">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input"
+                                   type="checkbox"
+                                   id="uses_self_match_records"
+                                   name="uses_self_match_records"
+                                   value="1"
+                                   {{ old('uses_self_match_records', $group->uses_self_match_records ?? false) ? 'checked' : '' }}>
+                            <label class="form-check-label" for="uses_self_match_records">
+                                グループ的中記録（自主練）に試合形式記録を使用する
+                            </label>
+                        </div>
+                        <div class="text-muted small mt-1">
+                            オンにすると、自主練画面に「試合形式記録」ボタンを表示します。初期設定はオフです。
+                        </div>
+                        @error('uses_self_match_records')
+                            <div class="text-danger small mt-1">{{ $message }}</div>
+                        @enderror
+                    </div>
+
+                    <div class="mb-3">
                         <label class="form-label">記録印刷の順位表示（グループ設定）</label>
                         <div class="form-check form-switch">
                             <input class="form-check-input"

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Group;
+use App\Models\MatchTeamMember;
 use App\Models\Record;
 use App\Models\Shot;
 use App\Models\User;
@@ -158,6 +159,14 @@ class GroupSelfRecordController extends Controller
     {
         $this->authorizeHost($group);
         $record = $this->selfRecordOrFail($group, $record->id);
+
+        if (MatchTeamMember::where('official_record_id', $record->id)->exists()) {
+            return response()->json([
+                'success' => false,
+                'message' => '試合記録としてこの立は登録されているため削除できません。',
+            ], 422);
+        }
+
         $date = $record->date;
         $userId = $record->user_id;
 
