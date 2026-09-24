@@ -191,6 +191,7 @@ class LineupController extends Controller
         $teams = MatchTeam::withTrashed()
             ->with(['members' => fn($query) => $query->where('date', $date)])
             ->where('group_id', $group->id)
+            ->where('record_scope', 'official')
             ->whereHas('members', fn($query) => $query->where('date', $date))
             ->orderBy('sort_order')
             ->orderBy('id')
