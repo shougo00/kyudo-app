@@ -138,7 +138,7 @@
             <div class="card mb-3 p-2" id="record-{{ $record->id }}" data-record-id="{{ $record->id }}">
                 <div class="d-flex align-items-center justify-content-between">
                     <div class="d-flex align-items-center">
-                        <strong>{{ $record->tate_no }}立目</strong>
+                        <strong @class(['text-danger' => $matchLinkedRecordIds->contains($record->id)])>{{ $record->tate_no }}立目</strong>
                         @if($canManageSelfRecords)
                             <button class="delete-record ms-2" data-id="{{ $record->id }}" title="立を削除">
                                 <i class="fas fa-trash-alt"></i>

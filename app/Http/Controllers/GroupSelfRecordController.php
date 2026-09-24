@@ -69,6 +69,10 @@ class GroupSelfRecordController extends Controller
             $hitRate = $totalShots > 0 ? round(($totalHits / $totalShots) * 100, 3) : 0;
         }
 
+        $matchLinkedRecordIds = MatchTeamMember::whereIn('official_record_id', $records->pluck('id'))
+            ->distinct()
+            ->pluck('official_record_id');
+
         $prevDate = Carbon::parse($date)->subDay()->format('Y-m-d');
         $nextDate = Carbon::parse($date)->addDay()->format('Y-m-d');
         $numericScoreOptions = collect($group->numeric_score_options ?? [])
@@ -86,6 +90,7 @@ class GroupSelfRecordController extends Controller
             'availableMembers',
             'selectedUser',
             'records',
+            'matchLinkedRecordIds',
             'date',
             'prevDate',
             'nextDate',
