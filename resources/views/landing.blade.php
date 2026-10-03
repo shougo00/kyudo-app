@@ -76,14 +76,6 @@
         },
         {
           "@type": "Question",
-          "name": "導入前に体験できますか？",
-          "acceptedAnswer": {
-            "@type": "Answer",
-            "text": "最初の1か月は体験期間です。日々の稽古で使い心地をお試しいただけます。体験をご希望の団体様は、お問い合わせフォームからご相談ください。"
-          }
-        },
-        {
-          "@type": "Question",
           "name": "利用に必要なものはありますか？",
           "acceptedAnswer": {
             "@type": "Answer",
@@ -283,10 +275,6 @@
         <p class="section-kicker">License</p>
         <h2 id="license-title">料金プラン</h2>
         <p>MATOWAは団体ごとに最大利用人数を決めてライセンスを発行します。1人あたり月80円で、20名から70名までの人数枠を選べます。</p>
-        <div class="license-trial" aria-labelledby="license-trial-title">
-          <h3 id="license-trial-title">最初の1か月は体験期間</h3>
-          <p>日々の稽古で、記録や立順管理の使い心地をお試しください。体験をご希望の団体様は、お気軽にご相談ください。</p>
-        </div>
         <p class="license-note">ご利用にはインターネットに接続できるタブレット端末が必要です。タブレット端末と通信環境は団体様でご準備ください。</p>
       </div>
 
@@ -318,7 +306,7 @@
           </div>
         </div>
 
-        <a class="license-contact" href="#contact">1か月の体験・導入について相談する</a>
+        <a class="license-contact" href="#contact">導入について相談する</a>
       </div>
     </section>
 
@@ -343,10 +331,6 @@
         <article>
           <h3>ライセンスの利用人数は選べますか？</h3>
           <p>はい。1人あたり月80円の月額料金で、20名、30名、40名、50名、60名、70名までの人数枠から選べます。</p>
-        </article>
-        <article>
-          <h3>導入前に体験できますか？</h3>
-          <p>最初の1か月は体験期間です。日々の稽古で使い心地をお試しいただけます。体験をご希望の団体様は、お問い合わせフォームからご相談ください。</p>
         </article>
         <article>
           <h3>利用に必要なものはありますか？</h3>
