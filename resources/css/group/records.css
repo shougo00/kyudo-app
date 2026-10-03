@@ -1774,9 +1774,8 @@ body.modal-open {
 
     .official-match-team-control-main strong {
         min-width: 0;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
+        white-space: normal;
+        overflow-wrap: anywhere;
         font-size: 12px;
     }
 

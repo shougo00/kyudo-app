@@ -732,6 +732,7 @@ function initRecordPageOuterScroll() {
         '.score-scroll',
         '.match-score-scroll',
         '.official-sheet-tabs',
+        '.official-match-team-control-panel',
         '.calendar-wrapper',
         '.match-lineup-modal',
         '.match-lineup-dialog',
