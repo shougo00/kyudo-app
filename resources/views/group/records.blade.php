@@ -716,22 +716,6 @@ if (isOfficialRecordPage || isMatchRecordPage) {
                 return false;
             }
 
-            const pendingUpdates = window.groupRecordPendingShotUpdates;
-
-            if (pendingUpdates && pendingUpdates.size > 0) {
-                const submitButton = form.querySelector('button[type="submit"], button:not([type])');
-
-                if (submitButton) {
-                    submitButton.disabled = true;
-                }
-
-                Promise.allSettled(Array.from(pendingUpdates)).then(() => {
-                    HTMLFormElement.prototype.submit.call(form);
-                });
-
-                return false;
-            }
-
             return true;
         }
     </script>

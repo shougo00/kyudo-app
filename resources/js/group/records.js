@@ -1,5 +1,8 @@
+import { createShotSaver } from '../shared/shot-saver.js';
+
 function reloadAndPrint() {
-    waitForPendingShotUpdates().then(() => {
+    waitForPendingShotUpdates().then(saved => {
+    if (!saved) return;
     const url = new URL(window.location.href);
     url.searchParams.set('print', '1');
     window.location.href = url.toString();
@@ -58,13 +61,7 @@ function syncRecordShellOffset() {
 }
 
 function waitForPendingShotUpdates() {
-    const pendingUpdates = window.groupRecordPendingShotUpdates;
-
-    if (!pendingUpdates || pendingUpdates.size === 0) {
-        return Promise.resolve();
-    }
-
-    return Promise.allSettled(Array.from(pendingUpdates));
+    return shotSaver.wait();
 }
 
 function updateOfficialMatchTeamHitCounters(counterKeys, delta) {
@@ -300,7 +297,7 @@ function formatOfficialSummaryDate(dateString) {
 }
 
 async function printAfterReady() {
-    await waitForPendingShotUpdates();
+    if (!await waitForPendingShotUpdates()) return;
 
     if (document.fonts && document.fonts.ready) {
         await document.fonts.ready;
@@ -1033,191 +1030,69 @@ function initOfficialRecordTapGuard() {
 
 }
     
-function updateShot(el){
-    if (window.groupRecordData && window.groupRecordData.canEdit === false) {
-        return;
-    }
+const shotSaver = createShotSaver();
+window.groupRecordPendingShotUpdates = shotSaver.pending;
 
+function shotValue(el) {
+    return { result: el.dataset.result || null, numeric_score: el.dataset.numericScore === '' || el.dataset.numericScore == null ? null : Number(el.dataset.numericScore) };
+}
+
+function renderShotValue(el, value) {
+    const previous = shotValue(el);
+    const numeric = el.dataset.scoringMode === 'numeric';
+    const delta = numeric ? (value.numeric_score || 0) - (previous.numeric_score || 0)
+        : Number(value.result === 'hit') - Number(previous.result === 'hit');
+    el.dataset.result = value.result || '';
+    el.dataset.numericScore = value.numeric_score == null ? '' : String(value.numeric_score);
+    el.classList.remove('shot-hit', 'shot-miss', 'shot-none', 'shot-numeric');
+    el.style.backgroundColor = '';
+    el.style.borderColor = '';
+    el.style.color = '';
+    if (numeric && value.numeric_score != null) {
+        const option = (window.numericScoreOptions || []).find(option => Number(option.value) === value.numeric_score);
+        el.innerText = value.numeric_score;
+        el.classList.add('shot-numeric');
+        el.style.backgroundColor = option?.color || '';
+        el.style.borderColor = option?.color || '';
+        el.style.color = '#111';
+    } else {
+        el.innerHTML = value.result === 'hit' ? '<i class="fa-regular fa-circle"></i>'
+            : value.result === 'miss' ? '<i class="fas fa-xmark"></i>' : '＋';
+        el.classList.add(value.result === 'hit' ? 'shot-hit' : value.result === 'miss' ? 'shot-miss' : 'shot-none');
+    }
+    const selectors = [`.score[data-user-id="${el.dataset.user}"]`];
+    if (el.dataset.recordId) selectors.push(`[data-shot-counter="${el.dataset.recordId}"]`);
+    if (el.dataset.tateCounter) selectors.push(`[data-tate-hit-counter="${el.dataset.tateCounter}"]`);
+    selectors.forEach(selector => {
+        const counter = document.querySelector(selector);
+        if (counter) counter.innerText = Math.max(0, (parseInt(counter.innerText) || 0) + delta) + (numeric ? '点' : '中');
+    });
+    if (!numeric) {
+        updateOfficialMatchTeamHitCounters(el.dataset.officialMatchTeamCounters, delta);
+        updateOfficialDailySummary(el.dataset.user, previous.result, value.result);
+    }
+}
+
+function updateShot(el) {
+    if (window.groupRecordData?.canEdit === false || window.groupRecordData?.matchSelection) return;
     const id = el.dataset.id;
-    if(!id){
+    if (!id) {
         alert('立順編集から正規連の1立を選択してください');
         return;
     }
-
-    const userId = el.dataset.user;
-    const recordId = el.dataset.recordId;
-    const tateCounterKey = el.dataset.tateCounter;
-    const current = el.dataset.result;
-    const scoringMode = el.dataset.scoringMode || 'hit_miss';
-
-    if (scoringMode === 'numeric') {
-        updateNumericShot(el, id, userId, recordId, tateCounterKey);
-        return;
-    }
-
-    const next =
-        current==='hit' ? 'miss' :
-        current==='miss' ? '' :
-        'hit';
-
-    el.dataset.result = next;
-
-    el.innerHTML =
-        next==='hit'
-        ? '<i class="fa-regular fa-circle"></i>'
-        : next==='miss'
-        ? '<i class="fas fa-xmark"></i>'
-        : '＋';
-
-    el.classList.remove('shot-hit','shot-miss','shot-none');
-
-    if(next==='hit') el.classList.add('shot-hit');
-    else if(next==='miss') el.classList.add('shot-miss');
-    else el.classList.add('shot-none');
-
-    const scoreEl = document.querySelector(`.score[data-user-id="${userId}"]`);
-
-    if(scoreEl){
-        let count = parseInt(scoreEl.innerText) || 0;
-
-        if(current !== 'hit' && next === 'hit') count++;
-        if(current === 'hit' && next !== 'hit') count--;
-
-        if(count < 0) count = 0;
-
-        scoreEl.innerText = count + '中';
-    }
-
-    if(recordId){
-        const counterEl = document.querySelector(`[data-shot-counter="${recordId}"]`);
-
-        if(counterEl){
-            let count = parseInt(counterEl.innerText) || 0;
-
-            if(current !== 'hit' && next === 'hit') count++;
-            if(current === 'hit' && next !== 'hit') count--;
-            if(count < 0) count = 0;
-
-            counterEl.innerText = count + '中';
-        }
-    }
-
-    if(tateCounterKey){
-        const tateCounterEl = document.querySelector(`[data-tate-hit-counter="${tateCounterKey}"]`);
-
-        if(tateCounterEl){
-            let count = parseInt(tateCounterEl.innerText) || 0;
-
-            if(current !== 'hit' && next === 'hit') count++;
-            if(current === 'hit' && next !== 'hit') count--;
-            if(count < 0) count = 0;
-
-            tateCounterEl.innerText = count + '中';
-        }
-    }
-
-    updateOfficialMatchTeamHitCounters(
-        el.dataset.officialMatchTeamCounters,
-        (current !== 'hit' && next === 'hit') ? 1 : ((current === 'hit' && next !== 'hit') ? -1 : 0)
-    );
-    updateOfficialDailySummary(userId, current, next);
-
-    window.groupRecordPendingShotUpdates = window.groupRecordPendingShotUpdates || new Set();
-
-    const request = fetch(`/group/shot/${id}`,{
-        method:'POST',
-        headers:{
-            'Content-Type':'application/json',
-            'X-CSRF-TOKEN':document.querySelector('meta[name="csrf-token"]').content
-        },
-        body: JSON.stringify({ result: next })
-    }).finally(() => {
-        window.groupRecordPendingShotUpdates.delete(request);
-    });
-
-    window.groupRecordPendingShotUpdates.add(request);
-}
-
-function updateNumericShot(el, id, userId, recordId, tateCounterKey) {
-    const options = Array.isArray(window.numericScoreOptions) ? window.numericScoreOptions : [];
-    if (options.length === 0) return;
-
-    const currentScore = el.dataset.numericScore === '' || el.dataset.numericScore == null
-        ? null
-        : parseInt(el.dataset.numericScore, 10);
-    const currentIndex = options.findIndex(option => parseInt(option.value, 10) === currentScore);
-    const nextOption = currentIndex === -1
-        ? options[0]
-        : (options[currentIndex + 1] || null);
-    const previousScore = currentScore || 0;
-    const nextScore = nextOption ? parseInt(nextOption.value, 10) : null;
-
-    el.dataset.numericScore = nextScore == null ? '' : String(nextScore);
-    el.dataset.result = '';
-    el.classList.remove('shot-hit', 'shot-miss', 'shot-none');
-    el.classList.add('shot-numeric');
-
-    if (nextOption) {
-        el.innerText = nextScore;
-        el.style.backgroundColor = nextOption.color;
-        el.style.borderColor = nextOption.color;
-        el.style.color = '#111';
+    const previous = shotValue(el);
+    let next;
+    if (el.dataset.scoringMode === 'numeric') {
+        const options = window.numericScoreOptions || [];
+        if (!options.length) return;
+        const index = options.findIndex(option => Number(option.value) === previous.numeric_score);
+        const option = index === -1 ? options[0] : options[index + 1];
+        next = { result: null, numeric_score: option ? Number(option.value) : null };
     } else {
-        el.innerText = '＋';
-        el.classList.add('shot-none');
-        el.classList.remove('shot-numeric');
-        el.style.backgroundColor = '';
-        el.style.borderColor = '';
-        el.style.color = '';
+        next = { result: previous.result === 'hit' ? 'miss' : previous.result === 'miss' ? null : 'hit', numeric_score: null };
     }
-
-    const delta = (nextScore || 0) - previousScore;
-
-    const scoreEl = document.querySelector(`.score[data-user-id="${userId}"]`);
-    if (scoreEl) {
-        let count = parseInt(scoreEl.innerText) || 0;
-        count += delta;
-        if (count < 0) count = 0;
-        scoreEl.innerText = count + '点';
-    }
-
-    if (recordId) {
-        const counterEl = document.querySelector(`[data-shot-counter="${recordId}"]`);
-        if (counterEl) {
-            let count = parseInt(counterEl.innerText) || 0;
-            count += delta;
-            if (count < 0) count = 0;
-            counterEl.innerText = count + '点';
-        }
-    }
-
-    if (tateCounterKey) {
-        const tateCounterEl = document.querySelector(`[data-tate-hit-counter="${tateCounterKey}"]`);
-        if (tateCounterEl) {
-            let count = parseInt(tateCounterEl.innerText) || 0;
-            count += delta;
-            if (count < 0) count = 0;
-            tateCounterEl.innerText = count + '点';
-        }
-    }
-
-    window.groupRecordPendingShotUpdates = window.groupRecordPendingShotUpdates || new Set();
-
-    const request = fetch(`/group/shot/${id}`,{
-        method:'POST',
-        headers:{
-            'Content-Type':'application/json',
-            'X-CSRF-TOKEN':document.querySelector('meta[name="csrf-token"]').content
-        },
-        body: JSON.stringify({
-            result: null,
-            numeric_score: nextScore
-        })
-    }).finally(() => {
-        window.groupRecordPendingShotUpdates.delete(request);
-    });
-
-    window.groupRecordPendingShotUpdates.add(request);
+    renderShotValue(el, next);
+    shotSaver.save(el, `/group/shot/${id}`, previous, next, value => renderShotValue(el, value));
 }
 
 function saveMatchAddTateScrollPosition() {

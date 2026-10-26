@@ -1,15 +1,19 @@
+import { createShotSaver } from '../shared/shot-saver.js';
+
 document.addEventListener('DOMContentLoaded', () => {
     const datePicker = document.getElementById('date-picker');
 
     if (datePicker) {
         datePicker.addEventListener('change', function() {
-            this.form.submit();
+            this.form.requestSubmit();
         });
     }
 
     const container = document.getElementById('records-container');
     if (!container) return;
 
+    const shotSaver = createShotSaver();
+    const numericStyles = new WeakMap();
     let type = container.dataset.type;
     const readonly = container.dataset.readonly === '1';
     const shotUrlTemplate = container.dataset.shotUrl || '/shots/__ID__';
@@ -32,40 +36,36 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    function shotClickHandler() {
-        let btn = this;
-        let current = btn.dataset.result;
-        let next = current === 'hit' ? 'miss' : current === 'miss' ? '' : 'hit';
+    function shotValue(btn) {
+        return { result: btn.dataset.result || null, numeric_score: btn.dataset.numericScore === '' || btn.dataset.numericScore == null ? null : Number(btn.dataset.numericScore) };
+    }
 
-        btn.dataset.result = next;
-        btn.dataset.numericScore = '';
+    function renderShot(btn, value) {
+        btn.dataset.result = value.result || '';
+        btn.dataset.numericScore = value.numeric_score == null ? '' : String(value.numeric_score);
         btn.removeAttribute('style');
-
-        btn.innerHTML =
-            next === 'hit'
-                ? '<i class="fa-regular fa-circle"></i>'
-                : next === 'miss'
-                ? '<i class="fas fa-xmark"></i>'
-                : '＋';
-
-        btn.classList.remove('shot-hit','shot-miss','shot-none','shot-numeric');
-        btn.classList.add(next === 'hit' ? 'shot-hit' : next === 'miss' ? 'shot-miss' : 'shot-none');
-
-        let recordId = btn.dataset.record;
-        updateRecordResult(recordId);
-
-        fetch(shotUrlTemplate.replace('__ID__', btn.dataset.id), {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-            },
-            body: JSON.stringify({
-                result: next || null
-            })
-        }).catch(err => console.error(err));
-
+        btn.innerHTML = value.result === 'hit' ? '<i class="fa-regular fa-circle"></i>'
+            : value.result === 'miss' ? '<i class="fas fa-xmark"></i>' : '＋';
+        btn.classList.remove('shot-hit', 'shot-miss', 'shot-none', 'shot-numeric');
+        btn.classList.add(value.result === 'hit' ? 'shot-hit' : value.result === 'miss' ? 'shot-miss' : 'shot-none');
+        if (value.numeric_score != null) {
+            btn.innerText = value.numeric_score;
+            btn.classList.remove('shot-none');
+            btn.classList.add('shot-numeric');
+            const style = numericStyles.get(btn);
+            if (style != null) btn.setAttribute('style', style);
+        }
+        updateRecordResult(btn.dataset.record);
         updateSummary();
+    }
+
+    function shotClickHandler() {
+        const btn = this;
+        const previous = shotValue(btn);
+        if (previous.numeric_score != null) numericStyles.set(btn, btn.getAttribute('style'));
+        const next = { result: previous.result === 'hit' ? 'miss' : previous.result === 'miss' ? null : 'hit', numeric_score: null };
+        renderShot(btn, next);
+        shotSaver.save(btn, shotUrlTemplate.replace('__ID__', btn.dataset.id), previous, next, value => renderShot(btn, value));
     }
 
     function updateRecordResult(recordId) {
@@ -101,11 +101,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function deleteClickHandler() {
+    async function deleteClickHandler() {
         let btn = this;
 
         if (!confirm('この立を削除しますか？')) return;
 
+        if (!await shotSaver.wait()) return;
         let recordId = btn.dataset.id;
 
         fetch(recordUrlTemplate.replace('__ID__', recordId), {
