@@ -167,6 +167,10 @@ body {
     overscroll-behavior: auto;
 }
 
+.record-page.official-record-page .score-scroll {
+    touch-action: manipulation;
+}
+
 .record-page.match-selection-mode .score-scroll {
     height: calc(100dvh - 370px + var(--record-height-extra, 60px));
     min-height: 260px;
@@ -1910,7 +1914,7 @@ body.modal-open {
     .official-record-page .official-sheet-actions .btn { justify-content: center; width: auto; padding: 6px 10px; font-size: 13px; }
     .official-record-page .record-mode-switch { min-height: 44px; padding-inline: 6px; font-size: 14px; }
     .official-record-page .official-sheet-panel .record-mode-switch { min-height: 32px; padding-inline: 2px; font-size: 13px; }
-    .record-page.official-record-page .score-scroll { height: clamp(320px, 70dvh, 620px); min-height: 320px; overscroll-behavior: auto; touch-action: auto; }
+    .record-page.official-record-page .score-scroll { height: clamp(320px, 70dvh, 620px); min-height: 320px; overscroll-behavior: auto; }
     .official-record-page .user-column.match-record-choice { touch-action: manipulation; }
     .official-record-page :is(.user-column, .score, .name, .tate-user-name) { width: 64px; min-width: 64px; }
     .official-record-page .shot-btn { width: 52px; height: 52px; }
