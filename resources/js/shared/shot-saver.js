@@ -85,7 +85,7 @@ export function createShotSaver() {
                     failures++;
                     state.generation++;
                     render(state.confirmed);
-                    alert('記録の保存を確認できませんでした。表示を最後に保存確認できた状態に戻しました。通信が途切れた場合は保存されている可能性があるため、再読み込みして確認してください。');
+                    alert('記録の保存を確認できませんでした。表示を最後に保存確認できた状態に戻しました。通信が途切れた可能性があります。');
                 }
             }).finally(() => pending.delete(request));
             state.tail = request;
