@@ -11,6 +11,7 @@ use App\Models\LineupMember;
 use App\Models\MatchTeam;
 use App\Models\MatchTeamMember;
 use App\Models\MatchTateMeta;
+use App\Services\ShotUpdater;
 use App\Support\MatchTeamColor;
 use Illuminate\Support\Facades\DB;
 
@@ -1594,46 +1595,23 @@ class GroupRecordController extends Controller
         return redirect("{$redirectPath}?date={$date}{$sheetQuery}{$compactQuery}");
     }
 
-    public function updateShot(Request $request, $id)
+    public function updateShot(Request $request, $id, ShotUpdater $updater)
     {
         $shot = Shot::with('record')->findOrFail($id);
 
         $record = $shot->record;
 
-        $groupId = MatchTeam::withTrashed()
-            ->whereHas('members', fn($query) => $query->where('official_record_id', $record->id))
-            ->value('group_id');
-
-        $groupId ??= Lineup::where('date', $record->date)
-            ->whereHas('members', function ($q) use ($record) {
-                $q->where('user_id', $record->user_id);
-            })
-            ->value('group_id');
-
-        if (!$groupId && $record->practice_type === 'match') {
-            $groupId = MatchTeam::withTrashed()
-                ->where('id', $record->match_team_id)
-                ->orWhere(function ($query) use ($record) {
-                    $query->where('date', $record->date)
-                        ->whereHas('members', function ($q) use ($record) {
-                            $q->where('user_id', $record->user_id)
-                                ->where('tate_no', $record->tate_no);
-                        });
-                })
-                ->value('group_id');
-        }
+        $groupId = $updater->groupIdFor($record);
 
         if ($groupId) {
             $this->checkGroupAccess($groupId, $record->practice_type === 'official', $record->practice_type === 'official');
         }
 
-        $shot->result = $request->result ?: null;
-        if ($request->has('numeric_score')) {
-            $shot->numeric_score = $request->numeric_score;
-        } else {
-            $shot->numeric_score = null;
-        }
-        $shot->save();
+        $values = $request->validate([
+            'result' => ['nullable', 'in:hit,miss'],
+            'numeric_score' => ['nullable', 'integer', 'between:0,999'],
+        ]);
+        $updater->update($shot, $values, $request->user(), 'group', $groupId);
 
         return response()->json(['success' => true]);
     }

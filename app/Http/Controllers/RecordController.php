@@ -8,6 +8,7 @@ use App\Models\Group;
 use App\Models\Record;
 use App\Models\Shot;
 use App\Models\User;
+use App\Services\ShotUpdater;
 use Carbon\Carbon;
 
 class RecordController extends Controller
@@ -113,17 +114,15 @@ class RecordController extends Controller
             ])
             ->withFragment("record-{$record->id}");
     }
-    public function updateShot(Request $request, $id)
+    public function updateShot(Request $request, $id, ShotUpdater $updater)
     {
         $shot = Shot::findOrFail($id);
 
-        $shot->result = $request->result;
-        if ($request->has('numeric_score')) {
-            $shot->numeric_score = $request->numeric_score;
-        } else {
-            $shot->numeric_score = null;
-        }
-        $shot->save();
+        $values = $request->validate([
+            'result' => ['nullable', 'in:hit,miss'],
+            'numeric_score' => ['nullable', 'integer', 'between:0,999'],
+        ]);
+        $updater->update($shot, $values, $request->user(), 'home');
 
         return response()->json(['success' => true]);
     }

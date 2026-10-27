@@ -9,6 +9,7 @@
             <div class="text-muted">KANRI専用の管理ダッシュボード</div>
         </div>
         <div class="d-flex gap-2 flex-wrap">
+            <a href="{{ route('admin.system.shot-logs') }}" class="btn btn-outline-primary">正規連の変更履歴</a>
             <a href="{{ route('admin.system.users') }}" class="btn btn-outline-primary">KANRIユーザー管理</a>
             <a href="{{ route('admin.system.groups') }}" class="btn btn-outline-primary">KANRIグループ管理</a>
             <a href="{{ route('admin.system.license-codes') }}" class="btn btn-outline-primary">ライセンスコード管理</a>

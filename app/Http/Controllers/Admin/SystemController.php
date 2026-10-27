@@ -12,9 +12,11 @@ use App\Models\News;
 use App\Models\Record;
 use App\Models\RegistrationLicenseCode;
 use App\Models\Shot;
+use App\Models\ShotChangeLog;
 use App\Models\SystemSetting;
 use App\Models\User;
 use App\Rules\PasswordPolicy;
+use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -54,6 +56,87 @@ class SystemController extends Controller
             'selectedLog' => $selectedLog,
             'logLines' => $selectedLog ? $this->tailLog($selectedLog['path']) : [],
         ]);
+    }
+
+    public function shotLogs(Request $request): View
+    {
+        $this->authorizeSystemAdmin($request);
+
+        $filters = $request->validate([
+            'practice_date' => ['nullable', 'date_format:Y-m-d'],
+            'changed_date' => ['nullable', 'date_format:Y-m-d'],
+            'group' => ['nullable', 'string', 'max:255'],
+            'actor' => ['nullable', 'string', 'max:255'],
+            'subject' => ['nullable', 'string', 'max:255'],
+            'tate_no' => ['nullable', 'integer', 'min:1'],
+            'shot_no' => ['nullable', 'integer', 'between:1,4'],
+            'shot_id' => ['nullable', 'integer', 'min:1'],
+        ], [], [
+            'practice_date' => '練習日',
+            'changed_date' => '操作日',
+            'group' => 'グループ',
+            'actor' => '記録者',
+            'subject' => '対象者',
+            'tate_no' => '何立目',
+            'shot_no' => '何射目',
+            'shot_id' => '射ID',
+        ]);
+
+        $query = ShotChangeLog::query();
+        foreach (['practice_date', 'tate_no', 'shot_no', 'shot_id'] as $field) {
+            if (! empty($filters[$field])) {
+                $query->where($field, $filters[$field]);
+            }
+        }
+        if (! empty($filters['changed_date'])) {
+            $start = Carbon::parse($filters['changed_date'])->startOfDay();
+            $query->where('created_at', '>=', $start)
+                ->where('created_at', '<', $start->copy()->addDay());
+        }
+        if (isset($filters['group']) && $filters['group'] !== '') {
+            $search = trim($filters['group']);
+            $query->where(function ($query) use ($search) {
+                $query->where('group_name', 'like', "%{$search}%");
+                if (ctype_digit($search)) {
+                    $query->orWhere('group_id', $search);
+                }
+            });
+        }
+        foreach (['actor', 'subject'] as $person) {
+            if (! isset($filters[$person]) || $filters[$person] === '') {
+                continue;
+            }
+            $search = trim($filters[$person]);
+            $query->where(function ($query) use ($person, $search) {
+                $query->where($person.'_name', 'like', "%{$search}%")
+                    ->orWhere($person.'_username', 'like', "%{$search}%");
+                if (ctype_digit($search)) {
+                    $query->orWhere($person.'_user_id', $search);
+                }
+            });
+        }
+
+        $logs = $query->orderByDesc('created_at')->orderByDesc('id')
+            ->paginate(50)->withQueryString();
+
+        $deletionCutoff = ShotChangeLog::retentionCutoff();
+        $expiredLogCount = ShotChangeLog::where('created_at', '<', $deletionCutoff->format('Y-m-d H:i:s.u'))->count();
+
+        return view('admin.system.shot_logs', compact('logs', 'filters', 'deletionCutoff', 'expiredLogCount'));
+    }
+
+    public function destroyExpiredShotLogs(Request $request): RedirectResponse
+    {
+        $this->authorizeSystemAdmin($request);
+        $validated = $request->validate([
+            'cutoff' => ['required', 'date_format:Y-m-d H:i:s.u'],
+        ], [], ['cutoff' => '削除対象の期限']);
+
+        $cutoff = Carbon::createFromFormat('Y-m-d H:i:s.u', $validated['cutoff']);
+        $deleted = ShotChangeLog::deleteExpired($cutoff);
+
+        return to_route('admin.system.shot-logs')
+            ->with('status', number_format($deleted).'件の古い変更履歴を削除しました。');
     }
 
     public function inquiries(Request $request): View

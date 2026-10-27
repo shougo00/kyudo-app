@@ -53,6 +53,8 @@ Route::middleware([ 'verified'])->group(function () {
     Route::patch('/settings', [SettingController::class, 'update'])->name('settings.update');
     Route::post('/settings/promote-grades', [SettingController::class, 'promoteGrades'])->name('settings.promote-grades');
     Route::get('/admin/system', [SystemController::class, 'index'])->name('admin.system.index');
+    Route::get('/admin/system/shot-logs', [SystemController::class, 'shotLogs'])->name('admin.system.shot-logs');
+    Route::delete('/admin/system/shot-logs', [SystemController::class, 'destroyExpiredShotLogs'])->name('admin.system.shot-logs.destroy-expired');
     Route::get('/admin/system/users', [SystemController::class, 'users'])->name('admin.system.users');
     Route::get('/admin/system/users/import-template', [SystemController::class, 'userImportTemplate'])->name('admin.system.users.import-template');
     Route::post('/admin/system/users/import', [SystemController::class, 'importUsers'])->name('admin.system.users.import');
