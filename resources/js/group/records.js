@@ -23,8 +23,6 @@ window.addEventListener('load', () => {
 
     initMatchSelectionScrollBridge();
     initRecordPageOuterScroll();
-    initOfficialRecordZoomGuard();
-    initOfficialRecordTapGuard();
     initMatchSelectionPositionLinks();
     initOfficialMatchTeamControls();
     initOfficialRecordSummaryModal();
@@ -877,42 +875,6 @@ function initRecordPageOuterScroll() {
 
 }
 
-function initOfficialRecordZoomGuard() {
-    const page = document.querySelector('.record-page.official-record-page');
-
-    if (!page) {
-        return;
-    }
-
-    function blockZoom(event) {
-        if (usesMobileOfficialLayout()) return;
-        event.preventDefault();
-        event.stopPropagation();
-    }
-
-    page.addEventListener('touchstart', event => {
-        if (event.touches.length > 1) {
-            blockZoom(event);
-        }
-    }, { capture: true, passive: false });
-
-    page.addEventListener('touchmove', event => {
-        if (event.touches.length > 1) {
-            blockZoom(event);
-        }
-    }, { capture: true, passive: false });
-
-    page.addEventListener('wheel', event => {
-        if (event.ctrlKey) {
-            blockZoom(event);
-        }
-    }, { capture: true, passive: false });
-
-    ['gesturestart', 'gesturechange'].forEach(type => {
-        page.addEventListener(type, blockZoom, { capture: true, passive: false });
-    });
-}
-
 function initOfficialRecordTapGuard() {
     const data = window.groupRecordData || {};
 
@@ -926,108 +888,135 @@ function initOfficialRecordTapGuard() {
         return;
     }
 
-    const allowedTapSelector = [
-        '.shot-btn',
-        'a',
-        'button',
-        'input',
-        'select',
-        'textarea',
-        'label',
-        '[role="button"]',
-    ].join(',');
+    const interactiveSelector = 'a, button, input, select, textarea, label, summary, [role="button"]';
+    const handledTouches = new WeakMap();
+    let activeTouch = null;
 
-    let touchStartX = 0;
-    let touchStartY = 0;
-    let touchMoved = false;
-    let lastBlockedTapAt = 0;
-    const doubleTapWindowMs = 450;
-
-    function shouldBlockTap(target) {
-        if (usesMobileOfficialLayout()) return false;
-        if (!(target instanceof Element)) {
-            return true;
-        }
-
-        const shotButton = target.closest('.shot-btn');
-
-        if (shotButton && scrollArea.contains(shotButton)) {
-            return shotButton.classList.contains('empty-shot') || shotButton.disabled;
-        }
-
-        return !target.closest(allowedTapSelector);
+    function shotButton(target) {
+        if (!(target instanceof Element)) return null;
+        const button = target.closest('.shot-btn');
+        return button && scrollArea.contains(button) ? button : null;
     }
 
+    function isOtherControl(target) {
+        return target instanceof Element && target.closest(interactiveSelector);
+    }
+
+    function suppressTouchClick(button) {
+        if (button) handledTouches.set(button, Date.now());
+    }
+
+    function cancelTap(event) {
+        if (event.cancelable) event.preventDefault();
+        event.stopPropagation();
+    }
+
+    // A second finger can land outside the table. It must still cancel shot input.
+    document.addEventListener('touchstart', event => {
+        if (event.touches.length > 1) {
+            suppressTouchClick(activeTouch?.button);
+            activeTouch = null;
+        }
+    }, { capture: true, passive: true });
+
     scrollArea.addEventListener('touchstart', event => {
+        const button = shotButton(event.target);
         if (event.touches.length !== 1) {
+            suppressTouchClick(button);
+            activeTouch = null;
+            return;
+        }
+        if (!button && isOtherControl(event.target)) {
+            activeTouch = null;
             return;
         }
 
-        touchStartX = event.touches[0].clientX;
-        touchStartY = event.touches[0].clientY;
-        touchMoved = false;
-
-        if (shouldBlockTap(event.target) && Date.now() - lastBlockedTapAt < doubleTapWindowMs) {
-            event.preventDefault();
-            event.stopPropagation();
-        }
-    }, { capture: true, passive: false });
+        const touch = event.touches[0];
+        activeTouch = {
+            id: touch.identifier, button,
+            x: touch.clientX, y: touch.clientY, moved: false,
+            left: scrollArea.scrollLeft, top: scrollArea.scrollTop,
+        };
+    }, { capture: true, passive: true });
 
     scrollArea.addEventListener('touchmove', event => {
+        if (!activeTouch) return;
         if (event.touches.length !== 1) {
+            suppressTouchClick(activeTouch.button);
+            activeTouch = null;
             return;
         }
-
-        const deltaX = Math.abs(event.touches[0].clientX - touchStartX);
-        const deltaY = Math.abs(event.touches[0].clientY - touchStartY);
-
-        if (deltaX > 8 || deltaY > 8) {
-            touchMoved = true;
+        const touch = Array.from(event.touches).find(touch => touch.identifier === activeTouch.id);
+        if (touch && (Math.abs(touch.clientX - activeTouch.x) > 8 || Math.abs(touch.clientY - activeTouch.y) > 8)) {
+            activeTouch.moved = true;
         }
-    }, { passive: true });
+        // Leave touchstart/touchmove native so dragging the table still scrolls.
+    }, { capture: true, passive: true });
 
     scrollArea.addEventListener('touchend', event => {
-        if (touchMoved) {
+        const start = activeTouch;
+        activeTouch = null;
+        if (!start || event.touches.length) return;
+        const touch = Array.from(event.changedTouches).find(touch => touch.identifier === start.id);
+        if (!touch) return;
+
+        const scrolled = scrollArea.scrollLeft !== start.left || scrollArea.scrollTop !== start.top;
+        const moved = start.moved || scrolled
+            || Math.abs(touch.clientX - start.x) > 8 || Math.abs(touch.clientY - start.y) > 8;
+
+        // Cancel the browser's tap BEFORE rejecting movement. Safari may still
+        // consider a slightly shifted finger a double tap, even when we do not.
+        // An actual scroll keeps its native end event (including momentum).
+        if (event.cancelable && !scrolled) cancelTap(event);
+        if (moved) {
+            suppressTouchClick(start.button);
+            return;
+        }
+        if (!event.cancelable) {
+            // The browser owns this gesture; let its native click run once.
+            if (start.button) handledTouches.delete(start.button);
             return;
         }
 
-        if (!shouldBlockTap(event.target)) {
-            return;
+        suppressTouchClick(start.button);
+        if (start.button && !start.button.classList.contains('empty-shot') && !start.button.disabled) {
+            updateShot(start.button);
         }
-
-        lastBlockedTapAt = Date.now();
-        event.preventDefault();
-        event.stopPropagation();
     }, { capture: true, passive: false });
 
-    scrollArea.addEventListener('click', event => {
-        if (!shouldBlockTap(event.target)) {
-            return;
-        }
+    scrollArea.addEventListener('touchcancel', () => {
+        suppressTouchClick(activeTouch?.button);
+        activeTouch = null;
+    }, { capture: true, passive: true });
 
-        event.preventDefault();
-        event.stopPropagation();
+    scrollArea.addEventListener('pointerdown', event => {
+        if (event.pointerType === 'mouse' || event.pointerType === 'pen') {
+            const button = shotButton(event.target);
+            if (button) handledTouches.delete(button);
+        }
+    }, { capture: true, passive: true });
+
+    scrollArea.addEventListener('click', event => {
+        const button = shotButton(event.target);
+        const fromTouch = event.pointerType === 'touch' || event.sourceCapabilities?.firesTouchEvents;
+        const legacyTouchClick = !event.pointerType && !event.sourceCapabilities && event.detail > 0;
+        const handledAt = button && handledTouches.get(button);
+        const duplicateTouchClick = handledAt !== undefined && handledAt !== null
+            && Date.now() - handledAt < 800 && (fromTouch || legacyTouchClick);
+        const blockedTarget = button
+            ? button.classList.contains('empty-shot') || button.disabled
+            : !isOtherControl(event.target);
+
+        if (duplicateTouchClick || blockedTarget) cancelTap(event);
     }, true);
 
     scrollArea.addEventListener('dblclick', event => {
-        if (usesMobileOfficialLayout()) return;
-        if (!scrollArea.contains(event.target)) {
-            return;
-        }
-
-        event.preventDefault();
-        event.stopPropagation();
+        if (shotButton(event.target) || !isOtherControl(event.target)) cancelTap(event);
     }, true);
 
     scrollArea.addEventListener('selectstart', event => {
-        if (!scrollArea.contains(event.target)) {
-            return;
-        }
-
-        event.preventDefault();
-        event.stopPropagation();
+        if (!isOtherControl(event.target)) cancelTap(event);
     }, true);
-
 }
     
 const shotSaver = createShotSaver();
@@ -1224,6 +1213,8 @@ function toggleCalendar(event) {
     box.style.display = box.style.display === 'block' ? 'none' : 'block';
 }
 window.updateShot = updateShot;
+// Vite modules run after parsing. Do not wait for images/fonts to finish loading.
+initOfficialRecordTapGuard();
 window.selectOfficialRecordForMatch = selectOfficialRecordForMatch;
 window.toggleCalendar = toggleCalendar;
 window.reloadAndPrint = reloadAndPrint;
