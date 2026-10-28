@@ -550,6 +550,21 @@
 <script>
 document.addEventListener('DOMContentLoaded', () => {
     const loadingOverlay = document.getElementById('historyLoadingOverlay');
+    const pendingSearchButtons = new Map();
+    const resetHistoryLoading = () => {
+        loadingOverlay?.classList.remove('show');
+        loadingOverlay?.setAttribute('aria-hidden', 'true');
+        pendingSearchButtons.forEach((state, button) => {
+            button.disabled = state.disabled;
+            button.innerHTML = state.html;
+        });
+        pendingSearchButtons.clear();
+    };
+
+    // Back/forward cache restores the DOM without firing DOMContentLoaded again.
+    window.addEventListener('pageshow', resetHistoryLoading);
+    window.addEventListener('pagehide', resetHistoryLoading);
+
     const showHistoryLoading = (title = '計算中...', text = '月間記録を集計しています') => {
         if (!loadingOverlay) return;
 
@@ -591,6 +606,12 @@ document.addEventListener('DOMContentLoaded', () => {
             const submitButton = form.querySelector('button[type="submit"]');
 
             if (submitButton) {
+                if (!pendingSearchButtons.has(submitButton)) {
+                    pendingSearchButtons.set(submitButton, {
+                        disabled: submitButton.disabled,
+                        html: submitButton.innerHTML,
+                    });
+                }
                 submitButton.disabled = true;
                 submitButton.innerText = '検索中...';
             }
